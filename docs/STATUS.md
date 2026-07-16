@@ -6,10 +6,10 @@ Current checklist item: 2 complete — scene contracts, registries, validation, 
 
 Last verified commands (2026-07-16):
 
-- `pnpm test -- scene material` — PASS, 5 files / 30 tests
+- `pnpm test -- scene material` — PASS, 5 files / 42 tests
 - `pnpm lint` — PASS
 - `pnpm typecheck` — PASS
-- `pnpm test` — PASS, 5 files / 30 tests
+- `pnpm test` — PASS, 5 files / 42 tests
 
 Human gate status:
 
