@@ -24,6 +24,7 @@ export const AUDIO_ASSETS: readonly AudioAsset[] = Object.freeze([
     channels: 1,
     loop: true,
     license: "Self-authored procedural audio",
+    attribution: "Echo Canvas procedural generator, 2026",
   }),
   defineAudioAsset({
     id: "rain_loop",
@@ -32,6 +33,7 @@ export const AUDIO_ASSETS: readonly AudioAsset[] = Object.freeze([
     channels: 1,
     loop: true,
     license: "Self-authored procedural audio",
+    attribution: "Echo Canvas procedural generator, 2026",
   }),
   defineAudioAsset({
     id: "voice_loop",
@@ -40,6 +42,7 @@ export const AUDIO_ASSETS: readonly AudioAsset[] = Object.freeze([
     channels: 1,
     loop: true,
     license: "Self-authored procedural audio",
+    attribution: "Echo Canvas procedural generator, 2026",
   }),
   defineAudioAsset({
     id: "water_loop",
@@ -48,5 +51,6 @@ export const AUDIO_ASSETS: readonly AudioAsset[] = Object.freeze([
     channels: 1,
     loop: true,
     license: "Self-authored procedural audio",
+    attribution: "Echo Canvas procedural generator, 2026",
   }),
 ]);

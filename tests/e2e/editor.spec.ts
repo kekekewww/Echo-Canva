@@ -51,7 +51,7 @@ test.describe("editor workbench", () => {
 
     await page.getByRole("button", { name: "Start Audio" }).click();
     await expect(page.getByRole("button", { name: "Stop Audio" })).toBeVisible();
-    await expect(page.getByText("Control shell ready")).toBeVisible();
+    await expect(page.getByText(/Browser HRTF running/i)).toBeVisible();
   });
 
   test("drags a source and listener in world coordinates", async ({ page }) => {

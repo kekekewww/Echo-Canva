@@ -1,26 +1,45 @@
 # Status
 
-Current phase: Gate A implementation
+Current phase: Human Gate A
 
-Current checklist item: 3 review fixes complete — 2D editor and preset workflow
+Current checklist item: 4 complete — persistent direct-path Web Audio rendering
 
 Last verified commands (2026-07-16):
 
-- `pnpm test -- editor coordinates` — PASS, 7 files / 59 tests
-- `pnpm e2e --grep "editor"` — PASS, 6 tests
+- `pnpm test -- audio` — PASS, 10 files / 72 tests
+- `pnpm e2e --grep "audio lifecycle"` — PASS, 1 test
 - `pnpm lint` — PASS
 - `pnpm typecheck` — PASS
-- `pnpm test` — PASS, 7 files / 59 tests
-- `pnpm e2e` — PASS, 7 tests
+- `pnpm test` — PASS, 10 files / 72 tests
+- `pnpm build` — PASS, production static route generated
+- `pnpm e2e` — PASS, 8 tests
 
 Human gate status:
 
-- Gate A: pending
+- Gate A: awaiting PASS or FAIL
 - Gate B: pending
 - Gate C: pending
 - Gate D: pending
 - Gate E: pending
 
-Known defects: None recorded after Task 3 review fixes. Start Audio and Raw/Simulated intentionally remain control-state shells until checklist item 4 connects the persistent direct-path Web Audio engine.
+## Human Gate A candidate
 
-Next action: Execute checklist item 4: implement persistent direct-path Web Audio rendering, then prepare Human Gate A.
+URL: `http://127.0.0.1:3000` after running `pnpm dev`
+
+Test with headphones:
+
+1. Open the URL in a current desktop Chrome or Edge window and confirm the Concrete Partition plan appears while the audio diagnostic remains idle.
+2. Press **Start Audio** once. Confirm both local mono loops begin and the status reads **Browser HRTF running**.
+3. Switch between **Raw** and **Simulated**. Confirm the sound crossfades without restarting or doubling the loops.
+4. In Simulated mode, drag the Radio source from the left side of the listener to the right. Confirm the perceived direction follows smoothly.
+5. Press **Stop Audio**, then **Start Audio** again. Confirm playback resumes and the diagnostic still reports one context and two source starts.
+
+Expected result: audio begins only after the explicit gesture; Simulated mode applies browser HRTF rendering and manual distance gain; movement is smooth; Raw/Simulated and stop/resume preserve the persistent graph; no visible error, click, burst, or duplicate loop occurs.
+
+Known deviations: automated Chromium verifies lifecycle, graph diagnostics, controls, movement updates, and absence of page errors but cannot judge perceived left/right direction. This human listening check remains the Gate A acceptance criterion. Occlusion, portal routing, reflections, and reverb intentionally belong to later checklist items.
+
+Verdict requested: **PASS or FAIL**.
+
+Known defects: none recorded by automated verification. Human perceptual validation is pending.
+
+Next action: wait for the Gate A verdict. A FAIL authorizes defect repair only; a PASS advances to checklist item 5.

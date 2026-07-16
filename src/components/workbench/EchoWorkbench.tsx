@@ -10,12 +10,28 @@ import { editorReducer } from "@/domain/editor/reducer";
 import { createEditorState } from "@/domain/editor/state";
 import { DEFAULT_PRESET_ID, PRESETS, type PresetId } from "@/domain/presets";
 import { APP_NAME } from "@/domain/app-meta";
+import { useAudioEngine } from "@/hooks/useAudioEngine";
 
 export function EchoWorkbench() {
   const [state, dispatch] = useReducer(editorReducer, undefined, () =>
     createEditorState(PRESETS[DEFAULT_PRESET_ID]),
   );
   const [activePresetId, setActivePresetId] = useState<PresetId>(DEFAULT_PRESET_ID);
+  const audio = useAudioEngine(state.scene, state.mode);
+
+  async function toggleAudio(): Promise<void> {
+    if (state.audioStatus === "idle") {
+      dispatch({ type: "SET_AUDIO_STATUS", status: "ready" });
+      try {
+        await audio.startAudio();
+      } catch {
+        dispatch({ type: "SET_AUDIO_STATUS", status: "idle" });
+      }
+      return;
+    }
+    await audio.stopAudio();
+    dispatch({ type: "SET_AUDIO_STATUS", status: "idle" });
+  }
 
   function loadPreset(presetId: PresetId): void {
     setActivePresetId(presetId);
@@ -69,11 +85,12 @@ export function EchoWorkbench() {
       <section className="workstation" aria-label="Echo Canvas workbench">
         <Transport
           activePresetId={activePresetId}
+          audioDiagnostics={audio.diagnostics}
           audioStatus={state.audioStatus}
           mode={state.mode}
           wallCount={state.scene.walls.length}
           onAddWall={addWall}
-          onAudioStatusChange={(status) => dispatch({ type: "SET_AUDIO_STATUS", status })}
+          onAudioStatusChange={() => void toggleAudio()}
           onModeChange={(mode) => dispatch({ type: "SET_MODE", mode })}
           onPresetChange={loadPreset}
         />
@@ -87,7 +104,11 @@ export function EchoWorkbench() {
             <p className="canvas-scale">Grid 1.0 m <span>·</span> {state.scene.walls.length} walls</p>
           </div>
           <SceneEditor scene={state.scene} selection={state.selectedObject} dispatch={dispatch} />
-          <ReadoutStrip scene={state.scene} selection={state.selectedObject} />
+          <ReadoutStrip
+            scene={state.scene}
+            selection={state.selectedObject}
+            audioDiagnostics={audio.diagnostics}
+          />
         </section>
 
         <Inspector

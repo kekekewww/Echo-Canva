@@ -1,8 +1,10 @@
 import { PRESETS, type PresetId } from "@/domain/presets";
 import type { AudioStatus, PreviewMode } from "@/domain/editor/state";
+import type { AudioEngineDiagnostics } from "@/audio/types";
 
 type TransportProps = Readonly<{
   activePresetId: PresetId;
+  audioDiagnostics: AudioEngineDiagnostics;
   audioStatus: AudioStatus;
   mode: PreviewMode;
   wallCount: number;
@@ -14,6 +16,7 @@ type TransportProps = Readonly<{
 
 export function Transport({
   activePresetId,
+  audioDiagnostics,
   audioStatus,
   mode,
   wallCount,
@@ -93,15 +96,32 @@ export function Transport({
           {audioStatus === "idle" ? "Start Audio" : "Stop Audio"}
         </button>
         <p aria-live="polite">
-          {audioStatus === "idle"
-            ? "Audio awaits an explicit gesture."
-            : "Control shell ready"}
+          {audioDiagnostics.error
+            ? `Audio error: ${audioDiagnostics.error}`
+            : audioStatus === "idle" && audioDiagnostics.status === "idle"
+              ? "Audio awaits an explicit gesture."
+              : audioDiagnostics.status === "suspended"
+                ? "Audio suspended. The persistent graph is preserved."
+                : audioDiagnostics.status === "running"
+                  ? `Browser HRTF running · ${audioDiagnostics.graphCount} source graph${audioDiagnostics.graphCount === 1 ? "" : "s"}`
+                  : "Starting local mono sources…"}
         </p>
+        <p className="control-note">Headphones recommended.</p>
       </div>
 
-      <div className="scope-note">
-        <span>Gate A / editor</span>
-        <p>Audio controls are state-only until the direct-path engine connects.</p>
+      <div
+        className="scope-note"
+        data-testid="audio-diagnostics"
+        data-status={audioDiagnostics.status}
+        data-mode={audioDiagnostics.mode}
+        data-context-creations={audioDiagnostics.contextCreations}
+        data-source-starts={audioDiagnostics.sourceStarts}
+        data-apply-count={audioDiagnostics.applyCount}
+      >
+        <span>Gate A / browser HRTF</span>
+        <p>
+          {audioDiagnostics.contextCreations} context · {audioDiagnostics.sourceStarts} source starts · {audioDiagnostics.applyCount} smooth updates
+        </p>
       </div>
     </aside>
   );

@@ -1,12 +1,15 @@
+import { dbToLinear, distanceAttenuation, linearToDb } from "@/audio/math";
+import type { AudioEngineDiagnostics } from "@/audio/types";
 import type { EditorSelection } from "@/domain/editor/state";
 import type { SceneSpec } from "@/domain/scene/types";
 
 type ReadoutStripProps = Readonly<{
   scene: SceneSpec;
   selection: EditorSelection;
+  audioDiagnostics: AudioEngineDiagnostics;
 }>;
 
-export function ReadoutStrip({ scene, selection }: ReadoutStripProps) {
+export function ReadoutStrip({ scene, selection, audioDiagnostics }: ReadoutStripProps) {
   const selectedSource =
     selection?.type === "source"
       ? scene.sources.find(({ id }) => id === selection.id)
@@ -18,11 +21,14 @@ export function ReadoutStrip({ scene, selection }: ReadoutStripProps) {
         source.position.y - scene.listener.position.y,
       )
     : 0;
+  const directGainDb = source
+    ? linearToDb(dbToLinear(source.gainDb) * distanceAttenuation(distance))
+    : -160;
 
   return (
     <section className="diagnostic-strip" aria-label="Acoustic preview status">
       <p className="route-sentence">
-        <span className="signal-glyph" aria-hidden="true">↗</span>
+        <span className="signal-glyph" aria-hidden="true">∿</span>
         {source ? `${source.name} is ${distance.toFixed(2)} m from the listener.` : "No active source."}
       </p>
       <dl>
@@ -36,11 +42,11 @@ export function ReadoutStrip({ scene, selection }: ReadoutStripProps) {
         </div>
         <div>
           <dt>Gain</dt>
-          <dd>— dB</dd>
+          <dd>{directGainDb.toFixed(1)} dB</dd>
         </div>
         <div>
-          <dt>Cutoff</dt>
-          <dd>— Hz</dd>
+          <dt>Audio</dt>
+          <dd>{audioDiagnostics.status}</dd>
         </div>
       </dl>
     </section>
