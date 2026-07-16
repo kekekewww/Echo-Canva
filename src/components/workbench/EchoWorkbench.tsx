@@ -71,6 +71,7 @@ export function EchoWorkbench() {
           activePresetId={activePresetId}
           audioStatus={state.audioStatus}
           mode={state.mode}
+          wallCount={state.scene.walls.length}
           onAddWall={addWall}
           onAudioStatusChange={(status) => dispatch({ type: "SET_AUDIO_STATUS", status })}
           onModeChange={(mode) => dispatch({ type: "SET_MODE", mode })}

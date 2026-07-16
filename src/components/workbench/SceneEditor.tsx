@@ -1,15 +1,26 @@
 "use client";
 
-import { useState, type PointerEvent as ReactPointerEvent } from "react";
+import {
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 
-import { svgToWorld, worldToSvg, type Rect } from "@/domain/editor/coordinates";
+import {
+  clientPointToSvg,
+  svgToWorld,
+  worldToSvg,
+  type Rect,
+} from "@/domain/editor/coordinates";
 import type { EditorAction } from "@/domain/editor/reducer";
 import type { EditorSelection } from "@/domain/editor/state";
 import type { SceneSpec, Vec2 } from "@/domain/scene/types";
 
 const SVG_WIDTH = 900;
 const SVG_HEIGHT = 600;
+const SVG_VIEW_BOX: Rect = { minX: 0, minY: 0, width: SVG_WIDTH, height: SVG_HEIGHT };
 const VIEWPORT: Rect = { minX: 54, minY: 36, width: 792, height: 528 };
+const KEYBOARD_STEP_M = 0.1;
 
 type DragTarget =
   | { type: "listener" }
@@ -60,10 +71,11 @@ export function SceneEditor({ scene, selection, dispatch }: SceneEditorProps) {
   function eventToWorld(event: ReactPointerEvent<SVGElement>): Vec2 {
     const svg = event.currentTarget.ownerSVGElement ?? (event.currentTarget as SVGSVGElement);
     const bounds = svg.getBoundingClientRect();
-    const svgPoint = {
-      x: ((event.clientX - bounds.left) / bounds.width) * SVG_WIDTH,
-      y: ((event.clientY - bounds.top) / bounds.height) * SVG_HEIGHT,
-    };
+    const svgPoint = clientPointToSvg(
+      { x: event.clientX, y: event.clientY },
+      { minX: bounds.left, minY: bounds.top, width: bounds.width, height: bounds.height },
+      SVG_VIEW_BOX,
+    );
     const point = svgToWorld(svgPoint, worldBounds, VIEWPORT);
     const inset = 0.02;
     return {
@@ -104,11 +116,41 @@ export function SceneEditor({ scene, selection, dispatch }: SceneEditorProps) {
   }
 
   function keyboardSelect(selectionValue: NonNullable<EditorSelection>) {
-    return (event: React.KeyboardEvent<SVGGElement>) => {
+    return (event: ReactKeyboardEvent<SVGElement>) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
         dispatch({ type: "SELECT_OBJECT", selection: selectionValue });
       }
+    };
+  }
+
+  function keyboardMove(
+    selectionValue: NonNullable<EditorSelection>,
+    position: Vec2,
+    move: (position: Vec2) => EditorAction,
+  ) {
+    return (event: ReactKeyboardEvent<SVGElement>) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        dispatch({ type: "SELECT_OBJECT", selection: selectionValue });
+        return;
+      }
+
+      const offset =
+        event.key === "ArrowLeft"
+          ? { x: -KEYBOARD_STEP_M, y: 0 }
+          : event.key === "ArrowRight"
+            ? { x: KEYBOARD_STEP_M, y: 0 }
+            : event.key === "ArrowUp"
+              ? { x: 0, y: KEYBOARD_STEP_M }
+              : event.key === "ArrowDown"
+                ? { x: 0, y: -KEYBOARD_STEP_M }
+                : null;
+      if (!offset) return;
+
+      event.preventDefault();
+      dispatch({ type: "SELECT_OBJECT", selection: selectionValue });
+      dispatch(move({ x: position.x + offset.x, y: position.y + offset.y }));
     };
   }
 
@@ -117,8 +159,9 @@ export function SceneEditor({ scene, selection, dispatch }: SceneEditorProps) {
       <svg
         className="scene-canvas"
         data-testid="scene-canvas"
+        preserveAspectRatio="xMidYMid meet"
         viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
-        role="img"
+        role="group"
         aria-label={`${scene.name} editable floor plan in meters`}
       >
         <defs>
@@ -219,6 +262,8 @@ export function SceneEditor({ scene, selection, dispatch }: SceneEditorProps) {
                 return (
                   <g
                     key={endpoint}
+                    data-testid={`endpoint-${wall.id}-${endpoint}`}
+                    data-position={`${wall[endpoint].x.toFixed(3)},${wall[endpoint].y.toFixed(3)}`}
                     role="button"
                     tabIndex={0}
                     aria-label={`Move ${endpoint} endpoint of ${wall.id}`}
@@ -228,6 +273,16 @@ export function SceneEditor({ scene, selection, dispatch }: SceneEditorProps) {
                     onPointerMove={moveDrag}
                     onPointerUp={stopDrag}
                     onPointerCancel={stopDrag}
+                    onKeyDown={keyboardMove(
+                      { type: "wall", id: wall.id },
+                      wall[endpoint],
+                      (nextPosition) => ({
+                        type: "MOVE_WALL_ENDPOINT",
+                        wallId: wall.id,
+                        endpoint,
+                        position: nextPosition,
+                      }),
+                    )}
                   >
                     <circle r="12" className="endpoint-hit" />
                     <circle r="5" className="endpoint-dot" />
@@ -261,6 +316,7 @@ export function SceneEditor({ scene, selection, dispatch }: SceneEditorProps) {
                 height="20"
                 transform={`translate(${centerX} ${centerY}) rotate(${angleDeg})`}
                 data-testid={`portal-${portal.id}`}
+                data-position={`${portal.center.x.toFixed(3)},${portal.center.y.toFixed(3)}`}
                 role="button"
                 tabIndex={0}
                 aria-label={`Select portal ${portal.id}`}
@@ -288,7 +344,11 @@ export function SceneEditor({ scene, selection, dispatch }: SceneEditorProps) {
                 aria-pressed={selected}
                 className={`source-marker${selected ? " is-selected" : ""}`}
                 onClick={() => dispatch({ type: "SELECT_OBJECT", selection: { type: "source", id: source.id } })}
-                onKeyDown={keyboardSelect({ type: "source", id: source.id })}
+                onKeyDown={keyboardMove(
+                  { type: "source", id: source.id },
+                  source.position,
+                  (position) => ({ type: "MOVE_SOURCE", sourceId: source.id, position }),
+                )}
                 onPointerDown={(event) => {
                   dispatch({ type: "SELECT_OBJECT", selection: { type: "source", id: source.id } });
                   startDrag(event, { type: "source", id: source.id });
@@ -320,7 +380,11 @@ export function SceneEditor({ scene, selection, dispatch }: SceneEditorProps) {
                 aria-pressed={selected}
                 className={`listener-marker${selected ? " is-selected" : ""}`}
                 onClick={() => dispatch({ type: "SELECT_OBJECT", selection: { type: "listener" } })}
-                onKeyDown={keyboardSelect({ type: "listener" })}
+                onKeyDown={keyboardMove(
+                  { type: "listener" },
+                  scene.listener.position,
+                  (position) => ({ type: "MOVE_LISTENER", position }),
+                )}
                 onPointerDown={(event) => {
                   dispatch({ type: "SELECT_OBJECT", selection: { type: "listener" } });
                   startDrag(event, { type: "listener" });

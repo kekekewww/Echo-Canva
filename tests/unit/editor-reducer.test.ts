@@ -86,6 +86,44 @@ describe("editorReducer", () => {
     expect(deleted.scene.revision).toBe(initial.scene.revision + 4);
   });
 
+  it("keeps hosted portals at their normalized wall projection when an endpoint moves", () => {
+    const initial = createEditorState(CONCRETE_PARTITION_PRESET);
+    const moved = editorReducer(initial, {
+      type: "MOVE_WALL_ENDPOINT",
+      wallId: "partition_center",
+      endpoint: "a",
+      position: { x: 4, y: 0 },
+    });
+
+    expect(moved).not.toBe(initial);
+    expect(moved.scene.walls.find(({ id }) => id === "partition_center")?.a).toEqual({
+      x: 4,
+      y: 0,
+    });
+    expect(moved.scene.portals.find(({ id }) => id === "partition_door")?.center).toEqual({
+      x: 5,
+      y: 4,
+    });
+    expect(moved.scene.revision).toBe(initial.scene.revision + 1);
+  });
+
+  it("cascade-deletes portals hosted by a deleted wall", () => {
+    const initial = editorReducer(createEditorState(CONCRETE_PARTITION_PRESET), {
+      type: "SELECT_OBJECT",
+      selection: { type: "portal", id: "partition_door" },
+    });
+    const deleted = editorReducer(initial, {
+      type: "DELETE_WALL",
+      wallId: "partition_center",
+    });
+
+    expect(deleted).not.toBe(initial);
+    expect(deleted.scene.walls.some(({ id }) => id === "partition_center")).toBe(false);
+    expect(deleted.scene.portals.some(({ wallId }) => wallId === "partition_center")).toBe(false);
+    expect(deleted.selectedObject).toBeNull();
+    expect(deleted.scene.revision).toBe(initial.scene.revision + 1);
+  });
+
   it("toggles a portal without mutating the preset", () => {
     const initial = createEditorState(CONCRETE_PARTITION_PRESET);
     const next = editorReducer(initial, {
@@ -130,6 +168,50 @@ describe("editorReducer", () => {
     expect(outsideRoom).toBe(initial);
     expect(shortWall).toBe(initial);
     expect(unknownSelection).toBe(initial);
+  });
+
+  it("preserves the exact state when moving a portal wall would make the portal invalid", () => {
+    const initial = createEditorState(CONCRETE_PARTITION_PRESET);
+    const rejected = editorReducer(initial, {
+      type: "MOVE_WALL_ENDPOINT",
+      wallId: "partition_center",
+      endpoint: "a",
+      position: { x: 6, y: 7.5 },
+    });
+
+    expect(rejected).toBe(initial);
+  });
+
+  it("rejects a 101st wall with the exact previous state", () => {
+    const scene = structuredClone(CONCRETE_PARTITION_PRESET);
+    scene.portals = [];
+    scene.walls = Array.from({ length: 100 }, (_, index) => {
+      const x = 0.2 + (index % 50) * 0.2;
+      const y = index < 50 ? 0.5 : 1;
+      return {
+        id: `wall_${index}`,
+        a: { x, y },
+        b: { x, y: y + 0.5 },
+        thicknessM: 0.12,
+        materialId: "concrete_hard",
+        kind: "partition" as const,
+      };
+    });
+    const initial = createEditorState(scene);
+
+    const rejected = editorReducer(initial, {
+      type: "ADD_WALL",
+      wall: {
+        id: "wall_101",
+        a: { x: 2, y: 2 },
+        b: { x: 2, y: 3 },
+        thicknessM: 0.12,
+        materialId: "concrete_hard",
+        kind: "partition",
+      },
+    });
+
+    expect(rejected).toBe(initial);
   });
 
   it("updates control state without changing the scene revision", () => {

@@ -250,6 +250,13 @@ select {
   border-color: var(--signal);
 }
 
+.primary-action:disabled {
+  border-color: var(--rule);
+  color: var(--muted);
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
 .control-section,
 .audio-control,
 .scope-note {
@@ -417,6 +424,12 @@ select {
   stroke: var(--signal-bright);
 }
 
+.wall-hit-target:focus-visible .wall-line {
+  filter: url(#signal-glow);
+  stroke: var(--signal-bright);
+  stroke-width: 8;
+}
+
 .portal-underlay {
   stroke: var(--canvas);
   stroke-width: 11;
@@ -424,6 +437,12 @@ select {
 
 .portal-hitbox {
   fill: rgba(0, 0, 0, 0.001);
+}
+
+.portal-hitbox:focus-visible {
+  fill: rgba(103, 205, 211, 0.2);
+  stroke: var(--signal-bright);
+  stroke-width: 4;
 }
 
 .portal-line {
@@ -450,6 +469,12 @@ select {
   stroke-width: 2;
 }
 
+.endpoint-handle:focus-visible .endpoint-dot {
+  fill: var(--signal-bright);
+  stroke: var(--canvas);
+  stroke-width: 4;
+}
+
 .source-core {
   fill: #173539;
   stroke: var(--signal);
@@ -459,6 +484,12 @@ select {
 .source-marker.is-selected .source-core {
   fill: var(--signal);
   filter: url(#signal-glow);
+}
+
+.source-marker:focus-visible .source-core {
+  fill: var(--signal);
+  stroke: var(--signal-bright);
+  stroke-width: 4;
 }
 
 .source-icon {
@@ -475,6 +506,12 @@ select {
   filter: url(#signal-glow);
   stroke: #ffe0ae;
   stroke-width: 1.5;
+}
+
+.listener-marker:focus-visible .listener-core {
+  fill: #f3c77f;
+  stroke: #fff1d5;
+  stroke-width: 4;
 }
 
 .listener-heading {

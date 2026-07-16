@@ -96,23 +96,44 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       return commitScene(state, (draft) => {
         const wall = draft.walls.find(({ id }) => id === action.wallId);
         if (!wall) return false;
+        const oldA = { ...wall.a };
+        const oldB = { ...wall.b };
+        const oldDx = oldB.x - oldA.x;
+        const oldDy = oldB.y - oldA.y;
+        const oldLengthSquared = oldDx * oldDx + oldDy * oldDy;
+        const hostedPortals = draft.portals
+          .filter(({ wallId }) => wallId === wall.id)
+          .map((portal) => ({
+            portal,
+            projection:
+              ((portal.center.x - oldA.x) * oldDx +
+                (portal.center.y - oldA.y) * oldDy) /
+              oldLengthSquared,
+          }));
         wall[action.endpoint] = { ...action.position };
+        const newDx = wall.b.x - wall.a.x;
+        const newDy = wall.b.y - wall.a.y;
+        for (const { portal, projection } of hostedPortals) {
+          portal.center = {
+            x: wall.a.x + projection * newDx,
+            y: wall.a.y + projection * newDy,
+          };
+        }
       });
     case "DELETE_WALL": {
       const next = commitScene(state, (draft) => {
         const index = draft.walls.findIndex(({ id }) => id === action.wallId);
         if (index < 0) return false;
         draft.walls.splice(index, 1);
+        draft.portals = draft.portals.filter(({ wallId }) => wallId !== action.wallId);
       });
       return next === state
         ? state
         : {
             ...next,
-            selectedObject:
-              state.selectedObject?.type === "wall" &&
-              state.selectedObject.id === action.wallId
-                ? null
-                : state.selectedObject,
+            selectedObject: selectionExists(next.scene, state.selectedObject)
+              ? state.selectedObject
+              : null,
           };
     }
     case "SET_WALL_MATERIAL":

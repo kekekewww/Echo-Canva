@@ -5,6 +5,7 @@ type TransportProps = Readonly<{
   activePresetId: PresetId;
   audioStatus: AudioStatus;
   mode: PreviewMode;
+  wallCount: number;
   onAddWall: () => void;
   onAudioStatusChange: (status: AudioStatus) => void;
   onModeChange: (mode: PreviewMode) => void;
@@ -15,6 +16,7 @@ export function Transport({
   activePresetId,
   audioStatus,
   mode,
+  wallCount,
   onAddWall,
   onAudioStatusChange,
   onModeChange,
@@ -42,10 +44,21 @@ export function Transport({
         ))}
       </select>
 
-      <button className="primary-action" type="button" onClick={onAddWall}>
+      <button
+        aria-describedby="wall-limit-status"
+        className="primary-action"
+        disabled={wallCount >= 100}
+        type="button"
+        onClick={onAddWall}
+      >
         <span aria-hidden="true">＋</span>
         Add wall
       </button>
+      <p className="control-note" id="wall-limit-status" aria-live="polite">
+        {wallCount >= 100
+          ? "Wall limit reached. Delete a wall before adding another."
+          : `${100 - wallCount} wall slots available.`}
+      </p>
 
       <div className="control-section">
         <p className="field-label">Preview mode</p>
