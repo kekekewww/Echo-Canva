@@ -16,12 +16,35 @@ import { CONCRETE_PARTITION_PRESET } from "@/domain/presets/concrete-partition";
 import type { SceneSpec } from "@/domain/scene/types";
 
 class FakeParam implements AudioParamLike {
-  value = 0;
+  value: number;
   readonly targets: Array<{ target: number; startTime: number; timeConstant: number }> = [];
+  readonly curves: Array<{
+    values: Float32Array;
+    startTime: number;
+    duration: number;
+  }> = [];
+  readonly cancellations: number[] = [];
+
+  constructor(initialValue = 0) {
+    this.value = initialValue;
+  }
 
   setTargetAtTime(target: number, startTime: number, timeConstant: number): AudioParamLike {
-    this.value = target;
     this.targets.push({ target, startTime, timeConstant });
+    return this;
+  }
+
+  setValueCurveAtTime(
+    values: Float32Array,
+    startTime: number,
+    duration: number,
+  ): AudioParamLike {
+    this.curves.push({ values: Float32Array.from(values), startTime, duration });
+    return this;
+  }
+
+  cancelScheduledValues(startTime: number): AudioParamLike {
+    this.cancellations.push(startTime);
     return this;
   }
 }
@@ -42,7 +65,7 @@ class FakeNode implements AudioNodeLike {
 }
 
 class FakeGainNode extends FakeNode implements GainNodeLike {
-  readonly gain = new FakeParam();
+  readonly gain = new FakeParam(1);
 }
 
 class FakePannerNode extends FakeNode implements PannerNodeLike {
@@ -62,8 +85,17 @@ class FakeBufferSourceNode extends FakeNode implements AudioBufferSourceNodeLike
   startCalls = 0;
   stopCalls = 0;
 
+  constructor(
+    private readonly onStart: () => void,
+    private readonly shouldThrowOnStart: () => boolean,
+  ) {
+    super();
+  }
+
   start(): void {
+    if (this.shouldThrowOnStart()) throw new Error("Injected source start failure.");
     this.startCalls += 1;
+    this.onStart();
   }
 
   stop(): void {
@@ -94,6 +126,8 @@ class FakeAudioContext implements AudioContextLike {
   readonly panners: FakePannerNode[] = [];
   readonly sources: FakeBufferSourceNode[] = [];
   readonly compressors: FakeCompressorNode[] = [];
+  readonly gainValuesAtSourceStart: number[][] = [];
+  failSourceStartNumber: number | null = null;
   resumeCalls = 0;
   suspendCalls = 0;
   closeCalls = 0;
@@ -112,7 +146,13 @@ class FakeAudioContext implements AudioContextLike {
   }
 
   createBufferSource(): AudioBufferSourceNodeLike {
-    const node = new FakeBufferSourceNode();
+    const sourceNumber = this.sources.length + 1;
+    const node = new FakeBufferSourceNode(
+      () => {
+        this.gainValuesAtSourceStart.push(this.gains.map(({ gain }) => gain.value));
+      },
+      () => this.failSourceStartNumber === sourceNumber,
+    );
     this.sources.push(node);
     return node;
   }
@@ -146,6 +186,24 @@ class FakeAudioContext implements AudioContextLike {
 
 function cloneScene(): SceneSpec {
   return structuredClone(CONCRETE_PARTITION_PRESET);
+}
+
+function deferred<T>() {
+  let resolve!: (value: T | PromiseLike<T>) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, reject, resolve };
+}
+
+async function waitFor(check: () => boolean): Promise<void> {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    if (check()) return;
+    await Promise.resolve();
+  }
+  throw new Error("Timed out waiting for asynchronous test condition.");
 }
 
 function makeHarness() {
@@ -216,6 +274,37 @@ describe("AudioEngine", () => {
     expect(harness.engine.getDiagnostics().sourceStarts).toBe(scene.sources.length);
   });
 
+  it("serializes a deferred start with scene updates so only the latest scene is committed", async () => {
+    const context = new FakeAudioContext();
+    const loading = deferred<ArrayBuffer>();
+    let fetchCalls = 0;
+    const engine = new AudioEngine({
+      createContext: () => context,
+      fetchArrayBuffer: () => {
+        fetchCalls += 1;
+        return loading.promise;
+      },
+    });
+    const initial = cloneScene();
+    initial.sources.splice(1);
+    const latest = structuredClone(initial);
+    latest.revision += 1;
+    latest.sources[0]!.position = { x: 9, y: 1 };
+
+    const starting = engine.start(initial);
+    await waitFor(() => fetchCalls === 1);
+    const applying = engine.applyScene(latest);
+    loading.resolve(new ArrayBuffer(16));
+    await Promise.all([starting, applying]);
+
+    expect(context.sources).toHaveLength(1);
+    expect(engine.getDiagnostics().graphCount).toBe(1);
+    expect(context.panners).toHaveLength(1);
+    expect(context.panners[0]!.positionX.targets.at(-1)?.target).toBe(
+      latest.sources[0]!.position.x - latest.listener.position.x,
+    );
+  });
+
   it("smooths source gain, manual distance, relative panner position, and listener orientation", async () => {
     const harness = makeHarness();
     const scene = cloneScene();
@@ -227,30 +316,50 @@ describe("AudioEngine", () => {
     await harness.engine.start(scene);
 
     expect(harness.context.gains.some((gain) => gain.gain.targets.length > 0)).toBe(true);
+    expect(
+      harness.context.gains
+        .flatMap(({ gain }) => gain.targets)
+        .every(({ timeConstant }) => timeConstant === 0.08),
+    ).toBe(true);
     const panner = harness.context.panners[0]!;
     expect(panner.positionX.targets.at(-1)?.target).toBe(5);
     expect(panner.positionZ.targets.at(-1)?.target).toBe(2);
-    expect(panner.positionX.targets.at(-1)?.timeConstant).toBeGreaterThanOrEqual(0.06);
+    expect(panner.positionX.targets.at(-1)?.timeConstant).toBe(0.08);
     expect(harness.context.listener.forwardX.targets.at(-1)?.target).toBeCloseTo(1);
     expect(harness.context.listener.forwardZ.targets.at(-1)?.target).toBeCloseTo(0);
+    expect(
+      Object.values(harness.context.listener)
+        .flatMap((parameter) => parameter.targets)
+        .every(({ timeConstant }) => timeConstant === 0.08),
+    ).toBe(true);
   });
 
-  it("crossfades Raw and Simulated modes with automation without rebuilding", async () => {
+  it("initializes mode gains before playback and schedules an 80 ms equal-power curve", async () => {
     const harness = makeHarness();
     await harness.engine.start(cloneScene());
     const before = harness.engine.getDiagnostics();
+
+    expect(harness.context.gainValuesAtSourceStart[0]![2]).toBe(1);
+    expect(harness.context.gainValuesAtSourceStart[0]![3]).toBe(0);
 
     harness.engine.setMode("simulated");
     const after = harness.engine.getDiagnostics();
 
     expect(after.sourceGraphIds).toEqual(before.sourceGraphIds);
     expect(after.mode).toBe("simulated");
-    expect(harness.context.gains.some((gain) =>
-      gain.gain.targets.some(({ target, timeConstant }) => target === 0 && timeConstant === 0.05),
-    )).toBe(true);
-    expect(harness.context.gains.some((gain) =>
-      gain.gain.targets.some(({ target, timeConstant }) => target === 1 && timeConstant === 0.05),
-    )).toBe(true);
+    const rawCurve = harness.context.gains[2]!.gain.curves.at(-1)!;
+    const simulatedCurve = harness.context.gains[3]!.gain.curves.at(-1)!;
+    expect(rawCurve.duration).toBe(0.08);
+    expect(simulatedCurve.duration).toBe(0.08);
+    expect(rawCurve.values[0]).toBeCloseTo(1);
+    expect(rawCurve.values.at(-1)).toBeCloseTo(0);
+    expect(simulatedCurve.values[0]).toBeCloseTo(0);
+    expect(simulatedCurve.values.at(-1)).toBeCloseTo(1);
+    expect(rawCurve.values).toHaveLength(simulatedCurve.values.length);
+    for (let index = 0; index < rawCurve.values.length; index += 1) {
+      expect(rawCurve.values[index]! ** 2 + simulatedCurve.values[index]! ** 2)
+        .toBeCloseTo(1, 5);
+    }
   });
 
   it("suspends, resumes the same sources, and disposes explicitly", async () => {
@@ -295,6 +404,140 @@ describe("AudioEngine", () => {
     expect(harness.engine.getDiagnostics().graphCount).toBe(removed.sources.length);
     expect(harness.engine.getDiagnostics().sourceStarts).toBe(originalCount + 1);
     expect(harness.context.sources[0]!.stopCalls).toBe(1);
+  });
+
+  it("loads every required buffer before creating graphs and evicts failures for retry", async () => {
+    const context = new FakeAudioContext();
+    let rainAttempts = 0;
+    const engine = new AudioEngine({
+      createContext: () => context,
+      fetchArrayBuffer: async (url) => {
+        if (url.includes("rain-loop")) {
+          rainAttempts += 1;
+          if (rainAttempts === 1) throw new Error("Injected asset failure.");
+        }
+        return new ArrayBuffer(16);
+      },
+    });
+    const scene = cloneScene();
+
+    await expect(engine.start(scene)).rejects.toThrow(/asset failure/i);
+    expect(context.sources).toHaveLength(0);
+    expect(engine.getDiagnostics().graphCount).toBe(0);
+
+    await engine.start(scene);
+    expect(rainAttempts).toBe(2);
+    expect(context.sources).toHaveLength(scene.sources.length);
+    expect(engine.getDiagnostics().graphCount).toBe(scene.sources.length);
+  });
+
+  it("keeps committed graphs intact when replacement loading fails, then retries transactionally", async () => {
+    const context = new FakeAudioContext();
+    let failRain = true;
+    const engine = new AudioEngine({
+      createContext: () => context,
+      fetchArrayBuffer: async (url) => {
+        if (url.includes("rain-loop") && failRain) {
+          failRain = false;
+          throw new Error("Injected replacement failure.");
+        }
+        return new ArrayBuffer(16);
+      },
+    });
+    const initial = cloneScene();
+    initial.sources.splice(1);
+    await engine.start(initial);
+    const committed = engine.getDiagnostics();
+    const replacement = cloneScene();
+    replacement.sources.splice(0, 1);
+
+    await expect(engine.applyScene(replacement)).rejects.toThrow(/replacement failure/i);
+    expect(engine.getDiagnostics().sourceGraphIds).toEqual(committed.sourceGraphIds);
+    expect(context.sources[0]!.stopCalls).toBe(0);
+
+    await engine.applyScene(replacement);
+    expect(engine.getDiagnostics().graphCount).toBe(1);
+    expect(context.sources[0]!.stopCalls).toBe(1);
+  });
+
+  it("rolls back newly created graphs when graph construction fails and can retry", async () => {
+    const harness = makeHarness();
+    const initial = cloneScene();
+    initial.sources.splice(1);
+    await harness.engine.start(initial);
+    const committed = harness.engine.getDiagnostics();
+    const expanded = cloneScene();
+    expanded.sources.push({
+      ...structuredClone(expanded.sources[0]!),
+      id: "voice-extra",
+      name: "Voice extra",
+      clipId: "voice_loop",
+    });
+    harness.context.failSourceStartNumber = 3;
+
+    await expect(harness.engine.applyScene(expanded)).rejects.toThrow(/source start failure/i);
+    expect(harness.engine.getDiagnostics().sourceGraphIds).toEqual(committed.sourceGraphIds);
+    expect(harness.context.sources[0]!.stopCalls).toBe(0);
+    expect(harness.context.sources[1]!.stopCalls).toBe(1);
+    expect(harness.context.sources[1]!.disconnectCalls).toBeGreaterThan(0);
+
+    harness.context.failSourceStartNumber = null;
+    await harness.engine.applyScene(expanded);
+    expect(harness.engine.getDiagnostics().graphCount).toBe(expanded.sources.length);
+  });
+
+  it("honors stop requested while start is waiting without stale resume or running status", async () => {
+    const context = new FakeAudioContext();
+    const loading = deferred<ArrayBuffer>();
+    let fetchCalls = 0;
+    const engine = new AudioEngine({
+      createContext: () => context,
+      fetchArrayBuffer: () => {
+        fetchCalls += 1;
+        return loading.promise;
+      },
+    });
+    const scene = cloneScene();
+    scene.sources.splice(1);
+
+    const starting = engine.start(scene);
+    await waitFor(() => fetchCalls === 1);
+    const stopping = engine.stop();
+    loading.resolve(new ArrayBuffer(16));
+    await Promise.all([starting, stopping]);
+
+    expect(context.resumeCalls).toBe(0);
+    expect(engine.getDiagnostics().status).toBe("suspended");
+  });
+
+  it("invalidates a deferred load immediately on dispose and ignores its late completion", async () => {
+    const context = new FakeAudioContext();
+    const loading = deferred<ArrayBuffer>();
+    let fetchCalls = 0;
+    const engine = new AudioEngine({
+      createContext: () => context,
+      fetchArrayBuffer: () => {
+        fetchCalls += 1;
+        return loading.promise;
+      },
+    });
+    const scene = cloneScene();
+    scene.sources.splice(1);
+
+    const starting = engine.start(scene);
+    await waitFor(() => fetchCalls === 1);
+    const disposing = engine.dispose();
+    expect(engine.getDiagnostics().status).toBe("disposed");
+    expect(engine.getDiagnostics().graphCount).toBe(0);
+    loading.resolve(new ArrayBuffer(16));
+    await Promise.all([starting, disposing]);
+
+    expect(context.sources).toHaveLength(0);
+    expect(engine.getDiagnostics()).toMatchObject({
+      error: null,
+      graphCount: 0,
+      status: "disposed",
+    });
   });
 
   it("rejects decoded assets that are not mono", async () => {

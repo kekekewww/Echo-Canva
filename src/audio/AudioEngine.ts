@@ -50,6 +50,11 @@ export class AudioEngine {
   private contextCreations = 0;
   private error: string | null = null;
   private startPromise: Promise<void> | null = null;
+  private operationTail: Promise<void> = Promise.resolve();
+  private desiredScene: SceneSpec | null = null;
+  private sceneVersion = 0;
+  private desiredRunning = false;
+  private disposed = false;
 
   constructor(dependencies: AudioEngineDependencies = {}) {
     this.createContext = dependencies.createContext ?? createBrowserAudioContext;
@@ -57,49 +62,36 @@ export class AudioEngine {
   }
 
   async start(scene: SceneSpec): Promise<void> {
+    if (this.disposed) throw new Error("Audio engine has been disposed.");
+    this.desiredRunning = true;
+    this.requestScene(scene);
+    this.status = "starting";
+    this.error = null;
     if (this.startPromise) {
       await this.startPromise;
       return;
     }
-    const operation = this.startInternal(scene);
+    const operation = this.enqueue(() => this.reconcile());
     this.startPromise = operation;
     try {
       await operation;
+    } catch (error) {
+      this.recordError(error, "Audio failed to start.");
+      throw error;
     } finally {
       if (this.startPromise === operation) this.startPromise = null;
     }
   }
 
-  private async startInternal(scene: SceneSpec): Promise<void> {
-    if (this.status === "disposed") throw new Error("Audio engine has been disposed.");
-    this.status = "starting";
-    this.error = null;
-    try {
-      const context = this.ensureContext();
-      await this.syncSourceGraphs(scene);
-      this.applyListener(scene);
-      this.applySourceParameters(scene);
-      this.applyMode();
-      await context.resume();
-      this.status = "running";
-    } catch (error) {
-      this.status = "error";
-      this.error = error instanceof Error ? error.message : "Audio failed to start.";
-      throw error;
-    }
-  }
-
   async applyScene(scene: SceneSpec): Promise<void> {
-    if (!this.context || this.status === "disposed") return;
+    if (this.disposed) return;
+    this.requestScene(scene);
+    if (!this.context) return;
     try {
-      await this.syncSourceGraphs(scene);
-      this.applyListener(scene);
-      this.applySourceParameters(scene);
-      this.applyCount += 1;
-      this.error = null;
+      await this.enqueue(() => this.reconcile());
+      if (!this.disposed) this.applyCount += 1;
     } catch (error) {
-      this.status = "error";
-      this.error = error instanceof Error ? error.message : "Audio scene update failed.";
+      this.recordError(error, "Audio scene update failed.");
       throw error;
     }
   }
@@ -110,21 +102,40 @@ export class AudioEngine {
   }
 
   async stop(): Promise<void> {
-    if (!this.context || this.status === "disposed") return;
-    await this.context.suspend();
+    this.desiredRunning = false;
+    if (!this.context || this.disposed) return;
     this.status = "suspended";
+    await this.enqueue(async () => {
+      const context = this.context;
+      if (!context || this.disposed) return;
+      if (context.state !== "closed" && context.state !== "suspended") {
+        await context.suspend();
+      }
+      if (!this.disposed && !this.desiredRunning) this.status = "suspended";
+    });
   }
 
   async dispose(): Promise<void> {
-    if (this.status === "disposed") return;
+    if (this.disposed) return;
+    this.disposed = true;
+    this.desiredRunning = false;
+    this.desiredScene = null;
+    this.sceneVersion += 1;
+    this.status = "disposed";
+    this.error = null;
+
     for (const graph of this.sourceGraphs.values()) graph.dispose();
     this.sourceGraphs.clear();
     this.bufferCache.clear();
-    this.masterCompressor?.disconnect();
-    if (this.context && this.context.state !== "closed") await this.context.close();
+    try {
+      this.masterCompressor?.disconnect();
+    } catch {
+      // Continue terminal cleanup even if a browser node is already disconnected.
+    }
+    const context = this.context;
     this.masterCompressor = null;
     this.context = null;
-    this.status = "disposed";
+    if (context && context.state !== "closed") await context.close();
   }
 
   getDiagnostics(): AudioEngineDiagnostics {
@@ -143,64 +154,133 @@ export class AudioEngine {
   }
 
   private ensureContext(): AudioContextLike {
+    if (this.disposed) throw new Error("Audio engine has been disposed.");
     if (this.context) return this.context;
-    this.context = this.createContext();
+    const context = this.createContext();
     this.contextCreations += 1;
-    this.masterCompressor = this.context.createDynamicsCompressor();
-    this.masterCompressor.connect(this.context.destination);
-    return this.context;
+    let compressor: DynamicsCompressorNodeLike | null = null;
+    try {
+      compressor = context.createDynamicsCompressor();
+      compressor.connect(context.destination);
+    } catch (error) {
+      try {
+        compressor?.disconnect();
+      } catch {
+        // Best-effort rollback of a context that was never committed.
+      }
+      if (context.state !== "closed") {
+        void context.close().catch(() => undefined);
+      }
+      throw error;
+    }
+    this.context = context;
+    this.masterCompressor = compressor;
+    return context;
   }
 
-  private async syncSourceGraphs(scene: SceneSpec): Promise<void> {
-    const context = this.context;
+  private async syncSourceGraphs(
+    scene: SceneSpec,
+    version: number,
+    context: AudioContextLike,
+  ): Promise<boolean> {
     const output = this.masterCompressor;
-    if (!context || !output) return;
+    if (!output || context !== this.context) return false;
+
+    const additions = scene.sources.filter((source) => {
+      const committed = this.sourceGraphs.get(source.id);
+      return !committed || !committed.matches(source);
+    });
+    const buffers = await Promise.all(
+      additions.map((source) => this.loadBuffer(source.clipId, context)),
+    );
+
+    if (
+      this.disposed ||
+      version !== this.sceneVersion ||
+      context !== this.context ||
+      output !== this.masterCompressor
+    ) {
+      return false;
+    }
+
+    const staged = new Map<string, SourceGraph>();
+    try {
+      for (let index = 0; index < additions.length; index += 1) {
+        const source = additions[index]!;
+        const graph = new SourceGraph(
+          context,
+          output,
+          source,
+          scene.listener,
+          buffers[index]!,
+          this.mode,
+        );
+        staged.set(source.id, graph);
+        this.sourceStarts += 1;
+      }
+    } catch (error) {
+      for (const graph of staged.values()) graph.dispose();
+      throw error;
+    }
+
+    if (
+      this.disposed ||
+      version !== this.sceneVersion ||
+      context !== this.context ||
+      output !== this.masterCompressor
+    ) {
+      for (const graph of staged.values()) graph.dispose();
+      return false;
+    }
+
     const activeSourceIds = new Set(scene.sources.map(({ id }) => id));
     for (const [sourceId, graph] of this.sourceGraphs) {
-      if (!activeSourceIds.has(sourceId)) {
+      if (!activeSourceIds.has(sourceId) || staged.has(sourceId)) {
         graph.dispose();
         this.sourceGraphs.delete(sourceId);
       }
     }
-    for (const source of scene.sources) {
-      if (this.sourceGraphs.has(source.id)) continue;
-      const buffer = await this.loadBuffer(source.clipId);
-      this.sourceGraphs.set(
-        source.id,
-        new SourceGraph(context, output, source, buffer, this.mode),
-      );
-      this.sourceStarts += 1;
+    for (const [sourceId, graph] of staged) {
+      this.sourceGraphs.set(sourceId, graph);
     }
+    return true;
   }
 
-  private loadBuffer(clipId: string): Promise<AudioBufferLike> {
+  private loadBuffer(
+    clipId: string,
+    context: AudioContextLike,
+  ): Promise<AudioBufferLike> {
     const cached = this.bufferCache.get(clipId);
     if (cached) return cached;
     const asset = ASSET_BY_ID.get(clipId);
     if (!asset) return Promise.reject(new Error(`Unknown local audio asset: ${clipId}`));
     const loading = this.fetchArrayBuffer(asset.url)
-      .then((data) => this.context!.decodeAudioData(data))
+      .then((data) => context.decodeAudioData(data))
       .then((buffer) => {
         if (buffer.numberOfChannels !== 1) {
           throw new Error(`Audio asset ${clipId} must decode as mono.`);
         }
         return buffer;
+      })
+      .catch((error: unknown) => {
+        if (this.bufferCache.get(clipId) === loading) {
+          this.bufferCache.delete(clipId);
+        }
+        throw error;
       });
     this.bufferCache.set(clipId, loading);
     return loading;
   }
 
-  private applySourceParameters(scene: SceneSpec): void {
-    if (!this.context) return;
+  private applySourceParameters(scene: SceneSpec, context: AudioContextLike): void {
     for (const source of scene.sources) {
-      this.sourceGraphs.get(source.id)?.apply(source, scene.listener, this.context.currentTime);
+      this.sourceGraphs.get(source.id)?.apply(source, scene.listener, context.currentTime);
     }
   }
 
-  private applyListener(scene: SceneSpec): void {
-    if (!this.context) return;
-    const listener = this.context.listener;
-    const now = this.context.currentTime;
+  private applyListener(scene: SceneSpec, context: AudioContextLike): void {
+    const listener = context.listener;
+    const now = context.currentTime;
     const headingRad = (scene.listener.headingDeg * Math.PI) / 180;
     smoothParameter(listener.positionX, 0, now);
     smoothParameter(listener.positionY, 0, now);
@@ -218,5 +298,53 @@ export class AudioEngine {
     for (const graph of this.sourceGraphs.values()) {
       graph.applyMode(this.mode, this.context.currentTime);
     }
+  }
+
+  private requestScene(scene: SceneSpec): void {
+    this.desiredScene = scene;
+    this.sceneVersion += 1;
+  }
+
+  private enqueue(operation: () => Promise<void>): Promise<void> {
+    const scheduled = this.operationTail.then(operation);
+    this.operationTail = scheduled.catch(() => undefined);
+    return scheduled;
+  }
+
+  private async reconcile(): Promise<void> {
+    while (!this.disposed) {
+      const scene = this.desiredScene;
+      if (!scene) return;
+      const version = this.sceneVersion;
+      const context = this.ensureContext();
+      const committed = await this.syncSourceGraphs(scene, version, context);
+      if (this.disposed) return;
+      if (!committed || version !== this.sceneVersion) continue;
+
+      this.applyListener(scene, context);
+      this.applySourceParameters(scene, context);
+      this.applyMode();
+      this.error = null;
+
+      if (!this.desiredRunning) {
+        this.status = "suspended";
+        return;
+      }
+      if (context.state !== "running") await context.resume();
+      if (this.disposed) return;
+      if (!this.desiredRunning) {
+        this.status = "suspended";
+        return;
+      }
+      if (version !== this.sceneVersion) continue;
+      this.status = "running";
+      return;
+    }
+  }
+
+  private recordError(error: unknown, fallback: string): void {
+    if (this.disposed) return;
+    this.status = "error";
+    this.error = error instanceof Error ? error.message : fallback;
   }
 }

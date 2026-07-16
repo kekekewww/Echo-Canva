@@ -1,6 +1,7 @@
 import { dbToLinear, distanceAttenuation, equalPowerCrossfade } from "@/audio/math";
 import {
   MODE_CROSSFADE_SECONDS,
+  scheduleEqualPowerCrossfade,
   smoothParameter,
 } from "@/audio/parameter-smoothing";
 import type {
@@ -28,41 +29,93 @@ export class SourceGraph {
   private readonly rawModeGain: GainNodeLike;
   private readonly simulatedModeGain: GainNodeLike;
   private readonly panner: PannerNodeLike;
+  private readonly clipId: string;
+  private readonly loop: boolean;
+  private mode: PreviewMode;
+  private modeTransition: Readonly<{
+    fromMix: number;
+    startTime: number;
+    toMix: number;
+  }> | null = null;
   private disposed = false;
 
   constructor(
     context: AudioContextLike,
     output: AudioNodeLike,
     source: SceneSource,
+    listener: SceneListener,
     buffer: AudioBufferLike,
     mode: PreviewMode,
   ) {
     this.sourceId = source.id;
-    this.sourceNode = context.createBufferSource();
-    this.sourceGain = context.createGain();
-    this.distanceGain = context.createGain();
-    this.rawModeGain = context.createGain();
-    this.simulatedModeGain = context.createGain();
-    this.panner = context.createPanner();
+    this.clipId = source.clipId;
+    this.loop = source.loop;
+    this.mode = mode;
 
-    this.panner.panningModel = "HRTF";
-    this.panner.distanceModel = "inverse";
-    this.panner.refDistance = 1;
-    this.panner.maxDistance = 50;
-    this.panner.rolloffFactor = 0;
+    const createdNodes: AudioNodeLike[] = [];
+    let sourceNode: AudioBufferSourceNodeLike | null = null;
+    let started = false;
+    try {
+      sourceNode = context.createBufferSource();
+      createdNodes.push(sourceNode);
+      const sourceGain = context.createGain();
+      createdNodes.push(sourceGain);
+      const distanceGain = context.createGain();
+      createdNodes.push(distanceGain);
+      const rawModeGain = context.createGain();
+      createdNodes.push(rawModeGain);
+      const simulatedModeGain = context.createGain();
+      createdNodes.push(simulatedModeGain);
+      const panner = context.createPanner();
+      createdNodes.push(panner);
 
-    this.sourceNode.buffer = buffer;
-    this.sourceNode.loop = source.loop;
-    this.sourceNode.connect(this.sourceGain);
-    this.sourceGain.connect(this.rawModeGain);
-    this.rawModeGain.connect(output);
-    this.sourceGain.connect(this.distanceGain);
-    this.distanceGain.connect(this.panner);
-    this.panner.connect(this.simulatedModeGain);
-    this.simulatedModeGain.connect(output);
+      this.sourceNode = sourceNode;
+      this.sourceGain = sourceGain;
+      this.distanceGain = distanceGain;
+      this.rawModeGain = rawModeGain;
+      this.simulatedModeGain = simulatedModeGain;
+      this.panner = panner;
 
-    this.applyMode(mode, context.currentTime);
-    this.sourceNode.start();
+      panner.panningModel = "HRTF";
+      panner.distanceModel = "inverse";
+      panner.refDistance = 1;
+      panner.maxDistance = 50;
+      panner.rolloffFactor = 0;
+
+      sourceNode.buffer = buffer;
+      sourceNode.loop = source.loop;
+      sourceNode.connect(sourceGain);
+      sourceGain.connect(rawModeGain);
+      rawModeGain.connect(output);
+      sourceGain.connect(distanceGain);
+      distanceGain.connect(panner);
+      panner.connect(simulatedModeGain);
+      simulatedModeGain.connect(output);
+
+      this.initializeParameters(source, listener, mode);
+      sourceNode.start();
+      started = true;
+    } catch (error) {
+      if (started && sourceNode) {
+        try {
+          sourceNode.stop();
+        } catch {
+          // Best-effort rollback for a partially constructed browser graph.
+        }
+      }
+      for (const node of createdNodes.reverse()) {
+        try {
+          node.disconnect();
+        } catch {
+          // Best-effort rollback for a partially constructed browser graph.
+        }
+      }
+      throw error;
+    }
+  }
+
+  matches(source: SceneSource): boolean {
+    return source.clipId === this.clipId && source.loop === this.loop;
   }
 
   apply(source: SceneSource, listener: SceneListener, now: number): void {
@@ -78,25 +131,70 @@ export class SourceGraph {
   }
 
   applyMode(mode: PreviewMode, now: number): void {
-    const coefficients = equalPowerCrossfade(mode === "simulated" ? 1 : 0);
-    smoothParameter(this.rawModeGain.gain, coefficients.raw, now, MODE_CROSSFADE_SECONDS);
-    smoothParameter(
+    if (this.disposed || mode === this.mode) return;
+    const toMix = mode === "simulated" ? 1 : 0;
+    const fromMix = this.currentModeMix(now);
+    scheduleEqualPowerCrossfade(
+      this.rawModeGain.gain,
       this.simulatedModeGain.gain,
-      coefficients.simulated,
+      fromMix,
+      toMix,
       now,
-      MODE_CROSSFADE_SECONDS,
     );
+    this.mode = mode;
+    this.modeTransition = { fromMix, startTime: now, toMix };
   }
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
-    this.sourceNode.stop();
-    this.sourceNode.disconnect();
-    this.sourceGain.disconnect();
-    this.distanceGain.disconnect();
-    this.panner.disconnect();
-    this.rawModeGain.disconnect();
-    this.simulatedModeGain.disconnect();
+    try {
+      this.sourceNode.stop();
+    } catch {
+      // A browser can reject stop after a failed or already-ended source.
+    }
+    for (const node of [
+      this.sourceNode,
+      this.sourceGain,
+      this.distanceGain,
+      this.panner,
+      this.rawModeGain,
+      this.simulatedModeGain,
+    ]) {
+      try {
+        node.disconnect();
+      } catch {
+        // Disconnect is best-effort during terminal cleanup.
+      }
+    }
+  }
+
+  private initializeParameters(
+    source: SceneSource,
+    listener: SceneListener,
+    mode: PreviewMode,
+  ): void {
+    const distanceM = Math.hypot(
+      source.position.x - listener.position.x,
+      source.position.y - listener.position.y,
+    );
+    const coefficients = equalPowerCrossfade(mode === "simulated" ? 1 : 0);
+    this.sourceGain.gain.value = dbToLinear(source.gainDb);
+    this.distanceGain.gain.value = distanceAttenuation(distanceM);
+    this.panner.positionX.value = source.position.x - listener.position.x;
+    this.panner.positionY.value = 0;
+    this.panner.positionZ.value = -(source.position.y - listener.position.y);
+    this.rawModeGain.gain.value = coefficients.raw;
+    this.simulatedModeGain.gain.value = coefficients.simulated;
+  }
+
+  private currentModeMix(now: number): number {
+    const transition = this.modeTransition;
+    if (!transition) return this.mode === "simulated" ? 1 : 0;
+    const progress = Math.min(
+      1,
+      Math.max(0, (now - transition.startTime) / MODE_CROSSFADE_SECONDS),
+    );
+    return transition.fromMix + (transition.toMix - transition.fromMix) * progress;
   }
 }

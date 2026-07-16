@@ -6,11 +6,11 @@ Current checklist item: 4 complete — persistent direct-path Web Audio renderin
 
 Last verified commands (2026-07-16):
 
-- `pnpm test -- audio` — PASS, 10 files / 72 tests
+- `pnpm test -- audio` — PASS, 10 files / 78 tests
 - `pnpm e2e --grep "audio lifecycle"` — PASS, 1 test
 - `pnpm lint` — PASS
 - `pnpm typecheck` — PASS
-- `pnpm test` — PASS, 10 files / 72 tests
+- `pnpm test` — PASS, 10 files / 78 tests
 - `pnpm build` — PASS, production static route generated
 - `pnpm e2e` — PASS, 8 tests
 
@@ -40,6 +40,6 @@ Known deviations: automated Chromium verifies lifecycle, graph diagnostics, cont
 
 Verdict requested: **PASS or FAIL**.
 
-Known defects: none recorded by automated verification. Human perceptual validation is pending.
+Known defects: none recorded by automated verification. Seven lifecycle/crossfade review regressions are fixed and covered by the 78-test suite. Human perceptual validation is pending.
 
 Next action: wait for the Gate A verdict. A FAIL authorizes defect repair only; a PASS advances to checklist item 5.
