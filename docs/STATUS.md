@@ -2,17 +2,14 @@
 
 Current phase: Gate A implementation
 
-Current checklist item: 1 complete — repository, governance, and verification harness
+Current checklist item: 2 complete — scene contracts, registries, validation, serialization, and fixtures
 
 Last verified commands (2026-07-16):
 
-- `pnpm install` — PASS
-- `pnpm peers check` — PASS, no peer dependency issues
+- `pnpm test -- scene material` — PASS, 5 files / 30 tests
 - `pnpm lint` — PASS
 - `pnpm typecheck` — PASS
-- `pnpm test` — PASS, 1 test
-- `pnpm build` — PASS, static home route generated
-- `pnpm e2e` — PASS, 1 Chromium test
+- `pnpm test` — PASS, 5 files / 30 tests
 
 Human gate status:
 
@@ -24,4 +21,4 @@ Human gate status:
 
 Known defects: None recorded
 
-Next action: Execute checklist item 2: scene contracts, registries, validation, and fixtures.
+Next action: Execute checklist item 3: build the 2D editor and preset workflow.
