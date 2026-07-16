@@ -1,6 +1,7 @@
+import { deepFreeze } from "@/domain/deep-freeze";
 import type { SceneSpec } from "@/domain/scene/types";
 
-export const TREATED_ROOM_PRESET = {
+export const TREATED_ROOM_PRESET = deepFreeze({
   schemaVersion: "1.0",
   revision: 0,
   units: "m",
@@ -71,4 +72,4 @@ export const TREATED_ROOM_PRESET = {
     maxEarlyReflections: 6,
     hrtfEnabled: true,
   },
-} satisfies SceneSpec;
+} satisfies SceneSpec);

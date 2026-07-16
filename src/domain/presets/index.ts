@@ -1,3 +1,4 @@
+import { deepFreeze } from "@/domain/deep-freeze";
 import { CONCRETE_PARTITION_PRESET } from "@/domain/presets/concrete-partition";
 import { HARD_ROOM_PRESET } from "@/domain/presets/hard-room";
 import { TREATED_ROOM_PRESET } from "@/domain/presets/treated-room";
@@ -5,7 +6,7 @@ import type { SceneSpec } from "@/domain/scene/types";
 
 export type PresetId = "concrete-partition" | "hard-room" | "treated-room";
 
-export const PRESETS: Readonly<Record<PresetId, SceneSpec>> = Object.freeze({
+export const PRESETS: Readonly<Record<PresetId, SceneSpec>> = deepFreeze({
   "concrete-partition": CONCRETE_PARTITION_PRESET,
   "hard-room": HARD_ROOM_PRESET,
   "treated-room": TREATED_ROOM_PRESET,

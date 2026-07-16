@@ -123,13 +123,32 @@ export function portalFitsWall(
   wallB: Vec2,
 ): boolean {
   const wallLength = distance(wallA, wallB);
-  if (!pointOnSegment(center, wallA, wallB, PORTAL_ATTACHMENT_TOLERANCE_M)) {
+  if (wallLength <= EPSILON) {
     return false;
   }
 
+  const wallX = wallB.x - wallA.x;
+  const wallY = wallB.y - wallA.y;
+  const projectionParameter =
+    ((center.x - wallA.x) * wallX + (center.y - wallA.y) * wallY) /
+    (wallLength * wallLength);
+  const projectedCenter = {
+    x: wallA.x + projectionParameter * wallX,
+    y: wallA.y + projectionParameter * wallY,
+  };
+  const perpendicularDistance = distance(center, projectedCenter);
+
+  if (perpendicularDistance > PORTAL_ATTACHMENT_TOLERANCE_M + EPSILON) {
+    return false;
+  }
+
+  const projectedDistanceFromA = projectionParameter * wallLength;
+  const projectedDistanceFromB = wallLength - projectedDistanceFromA;
+  const halfWidth = widthM / 2;
+
   return (
-    distance(center, wallA) + EPSILON >= widthM / 2 &&
-    distance(center, wallB) + EPSILON >= widthM / 2 &&
+    projectedDistanceFromA + EPSILON >= halfWidth &&
+    projectedDistanceFromB + EPSILON >= halfWidth &&
     widthM <= wallLength + EPSILON
   );
 }

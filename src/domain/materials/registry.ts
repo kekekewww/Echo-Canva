@@ -1,4 +1,5 @@
 import type { Band3 } from "@/domain/scene/types";
+import { EPSILON } from "@/domain/scene/geometry-validation";
 
 export type AcousticMaterial = Readonly<{
   id: string;
@@ -9,7 +10,6 @@ export type AcousticMaterial = Readonly<{
   referenceThicknessM: number;
 }>;
 
-const EPSILON = 1e-8;
 const BANDS = ["low", "mid", "high"] as const;
 
 function defineMaterial(material: AcousticMaterial): AcousticMaterial {

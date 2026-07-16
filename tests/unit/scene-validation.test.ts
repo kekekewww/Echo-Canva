@@ -101,12 +101,93 @@ describe("validateScene", () => {
     expectIssue(validateScene(input), "portal_detached", "portals.0.center");
   });
 
-  it("rejects non-finite coordinates", () => {
+  it("rejects a portal whose projected half-width overhangs its host wall", () => {
+    const input = cloneFixture();
+    const hostWall = input.walls.find((wall) => wall.id === "partition_center")!;
+    hostWall.a = { x: 0, y: 0 };
+    hostWall.b = { x: 0.4, y: 0 };
+    input.portals[0]!.center = { x: 0.2001, y: 0.01 };
+    input.portals[0]!.widthM = 0.4;
+
+    expectIssue(validateScene(input), "portal_detached", "portals.0.center");
+  });
+
+  it("accepts a centered portal at the perpendicular attachment tolerance", () => {
+    const input = cloneFixture();
+    const hostWall = input.walls.find((wall) => wall.id === "partition_center")!;
+    hostWall.a = { x: 0, y: 0 };
+    hostWall.b = { x: 0.4, y: 0 };
+    input.portals[0]!.center = { x: 0.2, y: 0.01 };
+    input.portals[0]!.widthM = 0.4;
+
+    expect(validateScene(input).ok).toBe(true);
+  });
+
+  it("rejects a portal beyond the perpendicular attachment tolerance", () => {
+    const input = cloneFixture();
+    input.portals[0]!.center = { x: 6.0101, y: 4 };
+
+    expectIssue(validateScene(input), "portal_detached", "portals.0.center");
+  });
+
+  it("rejects a portal wider than its host wall", () => {
+    const input = cloneFixture();
+    const hostWall = input.walls.find((wall) => wall.id === "partition_center")!;
+    hostWall.a = { x: 0, y: 0 };
+    hostWall.b = { x: 0.4, y: 0 };
+    input.portals[0]!.center = { x: 0.2, y: 0 };
+    input.portals[0]!.widthM = 0.4001;
+
+    expectIssue(validateScene(input), "portal_detached", "portals.0.center");
+  });
+
+  it("rejects a portal taller than the room", () => {
+    const input = cloneFixture();
+    input.portals[0]!.heightM = input.room.heightM + 0.1;
+
+    expectIssue(validateScene(input), "portal_too_tall", "portals.0.heightM");
+  });
+
+  it.each([Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    "rejects the non-finite coordinate %s",
+    (coordinate) => {
+      const input = cloneFixture();
+      input.listener.position.x = coordinate;
+
+      expectIssue(validateScene(input), "invalid_type", "listener.position.x");
+    },
+  );
+
+  it("rejects NaN coordinates", () => {
     const input = cloneFixture();
     input.listener.position.x = Number.NaN;
 
     expectIssue(validateScene(input), "invalid_type", "listener.position.x");
   });
+
+  it.each([
+    [9, false],
+    [10, true],
+    [15, true],
+    [16, false],
+  ] as const)(
+    "enforces the 10-15 Hz acoustic update boundary at %i Hz",
+    (acousticUpdateHz, expectedOk) => {
+      const input = cloneFixture();
+      input.settings.acousticUpdateHz = acousticUpdateHz;
+
+      const result = validateScene(input);
+
+      expect(result.ok).toBe(expectedOk);
+      if (!expectedOk) {
+        expectIssue(
+          result,
+          "acoustic_update_rate_out_of_range",
+          "settings.acousticUpdateHz",
+        );
+      }
+    },
+  );
 
   it.each([
     ["walls", 101],

@@ -36,6 +36,23 @@ describe("scene presets", () => {
       HARD_ROOM_PRESET.walls.map((wall) => wall.materialId),
     );
   });
+
+  it("deeply freezes PRESETS and directly exported fixture mutation paths", () => {
+    const presetCoordinate = PRESETS["treated-room"].walls[0]!.a.x;
+    const directCoordinate = HARD_ROOM_PRESET.sources[0]!.position.x;
+
+    expect(() => {
+      PRESETS["treated-room"].walls[0]!.a.x = 999;
+    }).toThrow(TypeError);
+    expect(() => {
+      HARD_ROOM_PRESET.sources[0]!.position.x = 999;
+    }).toThrow(TypeError);
+
+    expect(PRESETS["treated-room"].walls[0]!.a.x).toBe(presetCoordinate);
+    expect(HARD_ROOM_PRESET.sources[0]!.position.x).toBe(directCoordinate);
+    expect(Object.isFrozen(PRESETS["treated-room"].walls[0]!.a)).toBe(true);
+    expect(Object.isFrozen(HARD_ROOM_PRESET.sources[0]!.position)).toBe(true);
+  });
 });
 
 describe("scene serialization", () => {

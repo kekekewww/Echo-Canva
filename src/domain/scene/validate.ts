@@ -77,6 +77,21 @@ function validateUniqueIds(scene: SceneSpec, errors: SceneValidationIssue[]): vo
   }
 }
 
+function validateSettings(scene: SceneSpec, errors: SceneValidationIssue[]): void {
+  if (
+    scene.settings.acousticUpdateHz < 10 ||
+    scene.settings.acousticUpdateHz > 15
+  ) {
+    errors.push(
+      issue(
+        "settings.acousticUpdateHz",
+        "acoustic_update_rate_out_of_range",
+        "Acoustic update rate must be between 10 and 15 Hz",
+      ),
+    );
+  }
+}
+
 function validateGeometry(scene: SceneSpec, errors: SceneValidationIssue[]): void {
   if (!isSimplePolygon(scene.room.outerPolygon)) {
     errors.push(
@@ -188,6 +203,7 @@ export function validateScene(input: unknown): SceneValidationResult {
   const errors: SceneValidationIssue[] = [];
   validateRegistryIds(parsed.data, errors);
   validateUniqueIds(parsed.data, errors);
+  validateSettings(parsed.data, errors);
   validateGeometry(parsed.data, errors);
 
   return errors.length === 0 ? { ok: true, scene: parsed.data } : { ok: false, errors };
