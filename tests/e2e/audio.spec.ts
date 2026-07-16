@@ -17,7 +17,7 @@ test("audio lifecycle is explicit, persistent, and error-free", async ({ page })
   await expect(diagnostics).toHaveAttribute("data-status", "running");
   await expect(diagnostics).toHaveAttribute("data-context-creations", "1");
   await expect(diagnostics).toHaveAttribute("data-source-starts", "2");
-  await expect(page.getByText(/Browser HRTF running/i)).toBeVisible();
+  await expect(page.getByText(/Browser spatializer running/i)).toBeVisible();
 
   await page.getByRole("button", { name: "Simulated" }).click();
   await expect(diagnostics).toHaveAttribute("data-mode", "simulated");

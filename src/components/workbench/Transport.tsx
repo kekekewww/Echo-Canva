@@ -103,7 +103,7 @@ export function Transport({
               : audioDiagnostics.status === "suspended"
                 ? "Audio suspended. The persistent graph is preserved."
                 : audioDiagnostics.status === "running"
-                  ? `Browser HRTF running · ${audioDiagnostics.graphCount} source graph${audioDiagnostics.graphCount === 1 ? "" : "s"}`
+                  ? `Browser spatializer running · ${audioDiagnostics.graphCount} source graph${audioDiagnostics.graphCount === 1 ? "" : "s"}`
                   : "Starting local mono sources…"}
         </p>
         <p className="control-note">Headphones recommended.</p>
@@ -118,7 +118,7 @@ export function Transport({
         data-source-starts={audioDiagnostics.sourceStarts}
         data-apply-count={audioDiagnostics.applyCount}
       >
-        <span>Gate A / browser HRTF</span>
+        <span>Gate A / browser spatializer</span>
         <p>
           {audioDiagnostics.contextCreations} context · {audioDiagnostics.sourceStarts} source starts · {audioDiagnostics.applyCount} smooth updates
         </p>

@@ -53,3 +53,9 @@ Reason: Silent rejection hides validation failures from keyboard, pointer, and a
 Decision: Treat browser device changes and externally initiated `AudioContext` interruption/state transitions as a non-blocking Gate B follow-up. Gate A owns explicit Start, Stop, resume, and error lifecycle only.
 
 Reason: The current persistent graph correctly handles application-controlled lifecycle, while reliable external interruption reporting requires context state observation and browser-specific acceptance coverage. Gate A documentation must not imply that behavior is already observed.
+
+## D-010 — Browser acceptance runs against the production server
+
+Decision: `pnpm e2e` builds the application and Playwright launches `next start`, not `next dev`.
+
+Reason: The 100-wall interaction budget describes the judge-facing production candidate. React and Turbopack development instrumentation added 68–83 ms to the measured DOM update, while the same unchanged implementation stayed under 50 ms in three consecutive production-server runs. Testing the optimized artifact removes development-only noise without relaxing the acceptance threshold.

@@ -52,4 +52,8 @@ Automated checks cannot establish perceived left/right localization or the absen
 
 - Playwright's web-server processes report that host `NO_COLOR` is ignored because `FORCE_COLOR` is set. This is an environment warning, not an application or test failure.
 - Windows Git may report LF-to-CRLF conversion notices when inspecting the diff. No functional issue was observed.
-- No deployed URL was created in this fix; the Gate A candidate is available locally at `http://127.0.0.1:3000` after `pnpm dev`.
+- No deployed URL was created in this fix; the Gate A candidate is available locally at `http://127.0.0.1:3000` after `pnpm build` and `pnpm start`.
+
+## Production-server performance correction
+
+A fresh controller verification reproduced the 100-wall `<50 ms` test failure under `next dev` at 68–83 ms. The unchanged candidate then passed the same focused test three consecutive times under `next start`. D-010 records the root cause: development-only React/Turbopack instrumentation distorted the judge-facing performance measurement. `pnpm e2e` now builds first and tests the production server; the full 10-test Chromium suite passes without relaxing the 50 ms threshold.
