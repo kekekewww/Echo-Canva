@@ -8,7 +8,7 @@ Last verified commands (2026-07-16):
 
 - `pnpm lint` — PASS
 - `pnpm typecheck` — PASS
-- `pnpm test` — PASS, 10 files / 83 tests
+- `pnpm test` — PASS, 11 files / 84 tests
 - `pnpm build` — PASS, optimized static production routes generated
 - `pnpm e2e` — PASS, 10 Chromium tests against the production server
 

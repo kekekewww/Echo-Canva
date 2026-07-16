@@ -56,6 +56,6 @@ Reason: The current persistent graph correctly handles application-controlled li
 
 ## D-010 — Browser acceptance runs against the production server
 
-Decision: `pnpm e2e` builds the application and Playwright launches `next start`, not `next dev`.
+Decision: `pnpm e2e` builds the application and Playwright launches a fresh `next start`; it never reuses an existing server on port 3000.
 
 Reason: The 100-wall interaction budget describes the judge-facing production candidate. React and Turbopack development instrumentation added 68–83 ms to the measured DOM update, while the same unchanged implementation stayed under 50 ms in three consecutive production-server runs. Testing the optimized artifact removes development-only noise without relaxing the acceptance threshold.

@@ -57,3 +57,5 @@ Automated checks cannot establish perceived left/right localization or the absen
 ## Production-server performance correction
 
 A fresh controller verification reproduced the 100-wall `<50 ms` test failure under `next dev` at 68–83 ms. The unchanged candidate then passed the same focused test three consecutive times under `next start`. D-010 records the root cause: development-only React/Turbopack instrumentation distorted the judge-facing performance measurement. `pnpm e2e` now builds first and tests the production server; the full 10-test Chromium suite passes without relaxing the 50 ms threshold.
+
+The release review then found that local Playwright could reuse an already-running server. A new config regression test first failed with `reuseExistingServer: true`; the configuration now requires `false`, so every release e2e run owns a fresh production server. Final verification passes 11 unit files / 84 tests and 10/10 production Chromium tests.
