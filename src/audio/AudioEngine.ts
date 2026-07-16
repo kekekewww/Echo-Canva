@@ -222,6 +222,7 @@ export class AudioEngine {
           scene.listener,
           buffers[index]!,
           this.mode,
+          scene.settings.hrtfEnabled,
         );
         staged.set(source.id, graph);
         this.sourceStarts += 1;
@@ -283,7 +284,12 @@ export class AudioEngine {
 
   private applySourceParameters(scene: SceneSpec, context: AudioContextLike): void {
     for (const source of scene.sources) {
-      this.sourceGraphs.get(source.id)?.apply(source, scene.listener, context.currentTime);
+      this.sourceGraphs.get(source.id)?.apply(
+        source,
+        scene.listener,
+        context.currentTime,
+        scene.settings.hrtfEnabled,
+      );
     }
   }
 

@@ -1,15 +1,16 @@
 import { dbToLinear, distanceAttenuation, linearToDb } from "@/audio/math";
 import type { AudioEngineDiagnostics } from "@/audio/types";
-import type { EditorSelection } from "@/domain/editor/state";
+import type { EditorSelection, PreviewMode } from "@/domain/editor/state";
 import type { SceneSpec } from "@/domain/scene/types";
 
 type ReadoutStripProps = Readonly<{
   scene: SceneSpec;
   selection: EditorSelection;
   audioDiagnostics: AudioEngineDiagnostics;
+  mode: PreviewMode;
 }>;
 
-export function ReadoutStrip({ scene, selection, audioDiagnostics }: ReadoutStripProps) {
+export function ReadoutStrip({ scene, selection, audioDiagnostics, mode }: ReadoutStripProps) {
   const selectedSource =
     selection?.type === "source"
       ? scene.sources.find(({ id }) => id === selection.id)
@@ -24,6 +25,7 @@ export function ReadoutStrip({ scene, selection, audioDiagnostics }: ReadoutStri
   const directGainDb = source
     ? linearToDb(dbToLinear(source.gainDb) * distanceAttenuation(distance))
     : -160;
+  const displayedGainDb = mode === "raw" ? source?.gainDb ?? -160 : directGainDb;
 
   return (
     <section className="diagnostic-strip" aria-label="Acoustic preview status">
@@ -41,8 +43,8 @@ export function ReadoutStrip({ scene, selection, audioDiagnostics }: ReadoutStri
           <dd>Direct preview</dd>
         </div>
         <div>
-          <dt>Gain</dt>
-          <dd>{directGainDb.toFixed(1)} dB</dd>
+          <dt>{mode === "raw" ? "Raw source gain" : "Simulated direct gain"}</dt>
+          <dd>{displayedGainDb.toFixed(1)} dB</dd>
         </div>
         <div>
           <dt>Audio</dt>

@@ -142,4 +142,66 @@ test.describe("editor workbench", () => {
     await portal.press(" ");
     await expect(page.getByRole("heading", { name: "Portal settings" })).toBeVisible();
   });
+
+  test("surfaces rejected geometry and clears the notice after recovery", async ({ page }) => {
+    const partition = page.getByTestId("wall-partition_center");
+    await partition.focus();
+    await partition.press("Enter");
+    await dragToWorld(page, page.getByTestId("endpoint-partition_center-a"), { x: 6, y: 7.5 });
+
+    const notice = page.getByRole("status", { name: "Editor notice" });
+    await expect(notice).toContainText(/hosted portal would become detached/i);
+
+    await page.getByTestId("source-radio").press("ArrowLeft");
+    await expect(notice).toHaveCount(0);
+  });
+
+  test("keeps selection and keyboard edits under 50 ms with 100 rendered walls", async ({ page }) => {
+    await page.getByLabel("Scene preset").selectOption("stress-100-walls");
+    await expect(page.getByRole("heading", { name: "Stress Test — 100 Walls" })).toBeVisible();
+    await expect(page.getByTestId(/^wall-stress_\d+$/)).toHaveCount(96);
+    await expect(page.getByTestId(/^wall-stress_boundary_/)).toHaveCount(4);
+
+    const selectionMs = await page.evaluate(() => new Promise<number>((resolve, reject) => {
+      const wall = document.querySelector<SVGElement>('[data-testid="wall-stress_0"]');
+      if (!wall) {
+        reject(new Error("Stress wall was not rendered."));
+        return;
+      }
+      const timeout = window.setTimeout(() => reject(new Error("Selection mutation timed out.")), 1000);
+      const observer = new MutationObserver(() => {
+        if (!wall.classList.contains("is-selected")) return;
+        window.clearTimeout(timeout);
+        observer.disconnect();
+        resolve(performance.now() - start);
+      });
+      observer.observe(wall, { attributes: true, attributeFilter: ["class"] });
+      const start = performance.now();
+      wall.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+    }));
+
+    const movementMs = await page.evaluate(() => new Promise<number>((resolve, reject) => {
+      const endpoint = document.querySelector<SVGElement>('[data-testid="endpoint-stress_0-a"]');
+      if (!endpoint) {
+        reject(new Error("Stress wall endpoint was not rendered."));
+        return;
+      }
+      const before = endpoint.dataset.position;
+      const timeout = window.setTimeout(() => reject(new Error("Movement mutation timed out.")), 1000);
+      const observer = new MutationObserver(() => {
+        if (endpoint.dataset.position === before) return;
+        window.clearTimeout(timeout);
+        observer.disconnect();
+        resolve(performance.now() - start);
+      });
+      observer.observe(endpoint, { attributes: true, attributeFilter: ["data-position"] });
+      const start = performance.now();
+      endpoint.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "ArrowRight" }));
+    }));
+
+    expect(selectionMs).toBeLessThan(50);
+    expect(movementMs).toBeLessThan(50);
+    await expect(page.getByRole("button", { name: "Add wall" })).toBeDisabled();
+    await expect(page.getByText("Wall limit reached. Delete a wall before adding another.")).toBeVisible();
+  });
 });

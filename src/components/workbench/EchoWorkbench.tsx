@@ -108,12 +108,14 @@ export function EchoWorkbench() {
             scene={state.scene}
             selection={state.selectedObject}
             audioDiagnostics={audio.diagnostics}
+            mode={state.mode}
           />
         </section>
 
         <Inspector
           scene={state.scene}
           selection={state.selectedObject}
+          editNotice={state.editNotice}
           onDeleteWall={(wallId) => dispatch({ type: "DELETE_WALL", wallId })}
           onMaterialChange={(wallId, materialId) =>
             dispatch({ type: "SET_WALL_MATERIAL", wallId, materialId })

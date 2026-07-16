@@ -1,5 +1,6 @@
 import { PRESETS, type PresetId } from "@/domain/presets";
 import type { SceneSpec } from "@/domain/scene/types";
+import type { SceneValidationIssue } from "@/domain/scene/types";
 import { validateScene } from "@/domain/scene/validate";
 import {
   selectionForScene,
@@ -10,6 +11,35 @@ import {
 } from "@/domain/editor/state";
 
 type Wall = SceneSpec["walls"][number];
+
+function rejectionMessage(errors: readonly SceneValidationIssue[]): string {
+  if (errors.some(({ code, path }) => code === "too_big" && path === "walls")) {
+    return "Wall limit reached (100). Delete a wall before adding another.";
+  }
+  if (errors.some(({ code }) => code === "unknown_material_id")) {
+    return "Material change rejected. Choose a built-in material preset.";
+  }
+  if (errors.some(({ code }) => code === "wall_too_short")) {
+    return "Wall edit rejected. Walls must be at least 0.10 m long.";
+  }
+  if (errors.some(({ code }) => code === "portal_detached")) {
+    return "Wall edit rejected. Its hosted portal would become detached or no longer fit; keep the portal on the wall.";
+  }
+  if (
+    errors.some(({ code, path }) =>
+      code === "position_out_of_bounds" ||
+      ((code === "too_big" || code === "too_small") &&
+        (path.startsWith("sources.") || path.startsWith("listener.position"))),
+    )
+  ) {
+    return "Move rejected. Keep sources and the listener inside the room.";
+  }
+  return `Edit rejected. ${errors[0]?.message ?? "Keep the scene within its documented limits."}`;
+}
+
+function rejectEdit(state: EditorState, message: string): EditorState {
+  return { ...state, editNotice: { kind: "rejection", message } };
+}
 
 export type EditorAction =
   | { type: "LOAD_PRESET"; presetId: PresetId }
@@ -36,16 +66,19 @@ function commitScene(
   const draft = structuredClone(state.scene);
   const didMutate = mutate(draft);
   if (didMutate === false) {
-    return state;
+    return rejectEdit(
+      state,
+      "Edit rejected. The selected object no longer exists; select it again.",
+    );
   }
 
   draft.revision = state.scene.revision + 1;
   const validation = validateScene(draft);
   if (!validation.ok) {
-    return state;
+    return rejectEdit(state, rejectionMessage(validation.errors));
   }
 
-  return { ...state, scene: validation.scene };
+  return { ...state, scene: validation.scene, editNotice: null };
 }
 
 function selectionExists(scene: SceneSpec, selection: EditorSelection): boolean {
@@ -68,6 +101,7 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         ...state,
         scene,
         selectedObject: selectionForScene(scene),
+        editNotice: null,
       };
     }
     case "SELECT_OBJECT":
@@ -88,8 +122,8 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
       const next = commitScene(state, (draft) => {
         draft.walls.push(structuredClone(action.wall));
       });
-      return next === state
-        ? state
+      return next.scene === state.scene
+        ? next
         : { ...next, selectedObject: { type: "wall", id: action.wall.id } };
     }
     case "MOVE_WALL_ENDPOINT":
@@ -127,8 +161,8 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
         draft.walls.splice(index, 1);
         draft.portals = draft.portals.filter(({ wallId }) => wallId !== action.wallId);
       });
-      return next === state
-        ? state
+      return next.scene === state.scene
+        ? next
         : {
             ...next,
             selectedObject: selectionExists(next.scene, state.selectedObject)

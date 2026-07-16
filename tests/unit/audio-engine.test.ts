@@ -255,6 +255,24 @@ describe("AudioEngine", () => {
     expect(harness.requestedUrls.every((url) => url.startsWith("/audio/"))).toBe(true);
   });
 
+  it("honors hrtfEnabled at start and updates panning models without rebuilding graphs", async () => {
+    const harness = makeHarness();
+    const scene = cloneScene();
+    scene.settings.hrtfEnabled = false;
+
+    await harness.engine.start(scene);
+    const before = harness.engine.getDiagnostics().sourceGraphIds;
+    expect(harness.context.panners.every((panner) => panner.panningModel === "equalpower")).toBe(true);
+
+    const enabled = structuredClone(scene);
+    enabled.revision += 1;
+    enabled.settings.hrtfEnabled = true;
+    await harness.engine.applyScene(enabled);
+
+    expect(harness.context.panners.every((panner) => panner.panningModel === "HRTF")).toBe(true);
+    expect(harness.engine.getDiagnostics().sourceGraphIds).toEqual(before);
+  });
+
   it("makes repeated start idempotent and keeps graph identity stable after movement", async () => {
     const harness = makeHarness();
     const scene = cloneScene();

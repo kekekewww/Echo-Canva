@@ -9,6 +9,9 @@ test("audio lifecycle is explicit, persistent, and error-free", async ({ page })
   await expect(diagnostics).toHaveAttribute("data-status", "idle");
   await expect(diagnostics).toHaveAttribute("data-context-creations", "0");
   await expect(page.getByText("Audio awaits an explicit gesture.")).toBeVisible();
+  const readout = page.getByRole("region", { name: "Acoustic preview status" });
+  await expect(readout.getByText("Raw source gain")).toBeVisible();
+  await expect(readout.getByText("-3.0 dB")).toBeVisible();
 
   await page.getByRole("button", { name: "Start Audio" }).click();
   await expect(diagnostics).toHaveAttribute("data-status", "running");
@@ -18,6 +21,7 @@ test("audio lifecycle is explicit, persistent, and error-free", async ({ page })
 
   await page.getByRole("button", { name: "Simulated" }).click();
   await expect(diagnostics).toHaveAttribute("data-mode", "simulated");
+  await expect(readout.getByText("Simulated direct gain")).toBeVisible();
   const applyCountBefore = Number(await diagnostics.getAttribute("data-apply-count"));
   await page.getByTestId("source-radio").focus();
   await page.getByTestId("source-radio").press("ArrowRight");

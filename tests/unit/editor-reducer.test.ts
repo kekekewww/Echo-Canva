@@ -136,7 +136,7 @@ describe("editorReducer", () => {
     expect(next.scene.revision).toBe(initial.scene.revision + 1);
   });
 
-  it("preserves state atomically for invalid mutations", () => {
+  it("preserves scene identity and surfaces precise notices for invalid mutations", () => {
     const initial = createEditorState(CONCRETE_PARTITION_PRESET);
     const unknownMaterial = editorReducer(initial, {
       type: "SET_WALL_MATERIAL",
@@ -164,13 +164,23 @@ describe("editorReducer", () => {
       selection: { type: "wall", id: "missing_wall" },
     });
 
-    expect(unknownMaterial).toBe(initial);
-    expect(outsideRoom).toBe(initial);
-    expect(shortWall).toBe(initial);
+    expect(unknownMaterial.scene).toBe(initial.scene);
+    expect(unknownMaterial.editNotice).toEqual({
+      kind: "rejection",
+      message: "Material change rejected. Choose a built-in material preset.",
+    });
+    expect(outsideRoom.scene).toBe(initial.scene);
+    expect(outsideRoom.editNotice?.message).toBe(
+      "Move rejected. Keep sources and the listener inside the room.",
+    );
+    expect(shortWall.scene).toBe(initial.scene);
+    expect(shortWall.editNotice?.message).toBe(
+      "Wall edit rejected. Walls must be at least 0.10 m long.",
+    );
     expect(unknownSelection).toBe(initial);
   });
 
-  it("preserves the exact state when moving a portal wall would make the portal invalid", () => {
+  it("preserves scene identity when a wall move would detach its portal", () => {
     const initial = createEditorState(CONCRETE_PARTITION_PRESET);
     const rejected = editorReducer(initial, {
       type: "MOVE_WALL_ENDPOINT",
@@ -179,10 +189,14 @@ describe("editorReducer", () => {
       position: { x: 6, y: 7.5 },
     });
 
-    expect(rejected).toBe(initial);
+    expect(rejected).not.toBe(initial);
+    expect(rejected.scene).toBe(initial.scene);
+    expect(rejected.editNotice?.message).toBe(
+      "Wall edit rejected. Its hosted portal would become detached or no longer fit; keep the portal on the wall.",
+    );
   });
 
-  it("rejects a 101st wall with the exact previous state", () => {
+  it("rejects a 101st wall with visible metadata and the exact previous scene", () => {
     const scene = structuredClone(CONCRETE_PARTITION_PRESET);
     scene.portals = [];
     scene.walls = Array.from({ length: 100 }, (_, index) => {
@@ -211,7 +225,31 @@ describe("editorReducer", () => {
       },
     });
 
-    expect(rejected).toBe(initial);
+    expect(rejected).not.toBe(initial);
+    expect(rejected.scene).toBe(initial.scene);
+    expect(rejected.editNotice?.message).toBe(
+      "Wall limit reached (100). Delete a wall before adding another.",
+    );
+  });
+
+  it("clears a rejection notice on the next successful scene edit", () => {
+    const initial = createEditorState(CONCRETE_PARTITION_PRESET);
+    const rejected = editorReducer(initial, {
+      type: "MOVE_SOURCE",
+      sourceId: "radio",
+      position: { x: 99, y: 99 },
+    });
+
+    const recovered = editorReducer(rejected, {
+      type: "MOVE_SOURCE",
+      sourceId: "radio",
+      position: { x: 8, y: 4 },
+    });
+
+    expect(rejected.scene).toBe(initial.scene);
+    expect(rejected.editNotice).not.toBeNull();
+    expect(recovered.scene).not.toBe(initial.scene);
+    expect(recovered.editNotice).toBeNull();
   });
 
   it("updates control state without changing the scene revision", () => {

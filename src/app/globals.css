@@ -833,3 +833,25 @@ select {
     opacity: 0.22;
   }
 }
+.editor-notice {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0 1rem 1rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--danger) 60%, transparent);
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--ink);
+}
+
+.editor-notice strong {
+  color: var(--danger);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.editor-notice span {
+  font-size: 0.78rem;
+  line-height: 1.45;
+}

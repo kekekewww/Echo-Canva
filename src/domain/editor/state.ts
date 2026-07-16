@@ -8,12 +8,17 @@ export type EditorSelection =
 
 export type PreviewMode = "raw" | "simulated";
 export type AudioStatus = "idle" | "ready";
+export type EditorNotice = Readonly<{
+  kind: "rejection";
+  message: string;
+}>;
 
 export type EditorState = Readonly<{
   scene: SceneSpec;
   selectedObject: EditorSelection;
   mode: PreviewMode;
   audioStatus: AudioStatus;
+  editNotice: EditorNotice | null;
 }>;
 
 function initialSelection(scene: SceneSpec): EditorSelection {
@@ -31,6 +36,7 @@ export function createEditorState(
     selectedObject: initialSelection(sceneCopy),
     mode: "raw",
     audioStatus: "idle",
+    editNotice: null,
   };
 }
 

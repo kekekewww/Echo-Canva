@@ -47,6 +47,7 @@ export class SourceGraph {
     listener: SceneListener,
     buffer: AudioBufferLike,
     mode: PreviewMode,
+    hrtfEnabled: boolean,
   ) {
     this.sourceId = source.id;
     this.clipId = source.clipId;
@@ -77,7 +78,7 @@ export class SourceGraph {
       this.simulatedModeGain = simulatedModeGain;
       this.panner = panner;
 
-      panner.panningModel = "HRTF";
+      panner.panningModel = hrtfEnabled ? "HRTF" : "equalpower";
       panner.distanceModel = "inverse";
       panner.refDistance = 1;
       panner.maxDistance = 50;
@@ -119,7 +120,12 @@ export class SourceGraph {
     return source.clipId === this.clipId && source.loop === this.loop;
   }
 
-  apply(source: SceneSource, listener: SceneListener, now: number): void {
+  apply(
+    source: SceneSource,
+    listener: SceneListener,
+    now: number,
+    hrtfEnabled: boolean,
+  ): void {
     const distanceM = Math.hypot(
       source.position.x - listener.position.x,
       source.position.y - listener.position.y,
@@ -129,6 +135,7 @@ export class SourceGraph {
     smoothParameter(this.panner.positionX, source.position.x - listener.position.x, now);
     smoothParameter(this.panner.positionY, 0, now);
     smoothParameter(this.panner.positionZ, -(source.position.y - listener.position.y), now);
+    this.panner.panningModel = hrtfEnabled ? "HRTF" : "equalpower";
   }
 
   applyMode(mode: PreviewMode, now: number): void {

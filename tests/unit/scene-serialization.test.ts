@@ -13,17 +13,19 @@ import type { SceneSpec } from "@/domain/scene/types";
 import { validateScene } from "@/domain/scene/validate";
 
 describe("scene presets", () => {
-  it("exposes exactly three deterministic valid fixtures", () => {
+  it("exposes the three demo fixtures plus a deterministic 100-wall stress fixture", () => {
     expect(Object.keys(PRESETS)).toEqual([
       "concrete-partition",
       "hard-room",
       "treated-room",
+      "stress-100-walls",
     ] satisfies PresetId[]);
     expect(DEFAULT_PRESET_ID).toBe("concrete-partition");
 
     for (const scene of Object.values(PRESETS)) {
       expect(validateScene(scene)).toEqual({ ok: true, scene });
     }
+    expect(PRESETS["stress-100-walls"].walls).toHaveLength(100);
   });
 
   it("keeps hard and treated comparison rooms geometrically identical", () => {

@@ -1,10 +1,11 @@
 import { MATERIALS } from "@/domain/materials/registry";
-import type { EditorSelection } from "@/domain/editor/state";
+import type { EditorNotice, EditorSelection } from "@/domain/editor/state";
 import type { SceneSpec } from "@/domain/scene/types";
 
 type InspectorProps = Readonly<{
   scene: SceneSpec;
   selection: EditorSelection;
+  editNotice: EditorNotice | null;
   onDeleteWall: (wallId: string) => void;
   onMaterialChange: (wallId: string, materialId: string) => void;
   onTogglePortal: (portalId: string) => void;
@@ -22,6 +23,7 @@ function Measurement({ label, value }: Readonly<{ label: string; value: string }
 export function Inspector({
   scene,
   selection,
+  editNotice,
   onDeleteWall,
   onMaterialChange,
   onTogglePortal,
@@ -55,6 +57,18 @@ export function Inspector({
                   : "Nothing selected"}
         </h2>
       </div>
+
+      {editNotice ? (
+        <div
+          className="editor-notice"
+          role="status"
+          aria-label="Editor notice"
+          aria-live="polite"
+        >
+          <strong>Edit not applied</strong>
+          <span>{editNotice.message}</span>
+        </div>
+      ) : null}
 
       {selectedWall ? (
         <div className="inspector-content">
