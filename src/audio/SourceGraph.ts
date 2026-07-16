@@ -16,6 +16,7 @@ import type { PreviewMode } from "@/domain/editor/state";
 import type { SceneSpec } from "@/domain/scene/types";
 
 let nextGraphIdentity = 1;
+const HALF_PI = Math.PI * 0.5;
 
 type SceneSource = SceneSpec["sources"][number];
 type SceneListener = SceneSpec["listener"];
@@ -33,9 +34,9 @@ export class SourceGraph {
   private readonly loop: boolean;
   private mode: PreviewMode;
   private modeTransition: Readonly<{
-    fromMix: number;
+    fromAngleRad: number;
     startTime: number;
-    toMix: number;
+    toAngleRad: number;
   }> | null = null;
   private disposed = false;
 
@@ -132,17 +133,17 @@ export class SourceGraph {
 
   applyMode(mode: PreviewMode, now: number): void {
     if (this.disposed || mode === this.mode) return;
-    const toMix = mode === "simulated" ? 1 : 0;
-    const fromMix = this.currentModeMix(now);
+    const toAngleRad = mode === "simulated" ? HALF_PI : 0;
+    const fromAngleRad = this.currentModeAngle(now);
     scheduleEqualPowerCrossfade(
       this.rawModeGain.gain,
       this.simulatedModeGain.gain,
-      fromMix,
-      toMix,
+      fromAngleRad,
+      toAngleRad,
       now,
     );
     this.mode = mode;
-    this.modeTransition = { fromMix, startTime: now, toMix };
+    this.modeTransition = { fromAngleRad, startTime: now, toAngleRad };
   }
 
   dispose(): void {
@@ -188,13 +189,14 @@ export class SourceGraph {
     this.simulatedModeGain.gain.value = coefficients.simulated;
   }
 
-  private currentModeMix(now: number): number {
+  private currentModeAngle(now: number): number {
     const transition = this.modeTransition;
-    if (!transition) return this.mode === "simulated" ? 1 : 0;
+    if (!transition) return this.mode === "simulated" ? HALF_PI : 0;
     const progress = Math.min(
       1,
       Math.max(0, (now - transition.startTime) / MODE_CROSSFADE_SECONDS),
     );
-    return transition.fromMix + (transition.toMix - transition.fromMix) * progress;
+    return transition.fromAngleRad +
+      (transition.toAngleRad - transition.fromAngleRad) * progress;
   }
 }

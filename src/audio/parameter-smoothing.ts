@@ -18,8 +18,8 @@ export function smoothParameter(
 export function scheduleEqualPowerCrossfade(
   raw: AudioParamLike,
   simulated: AudioParamLike,
-  fromMix: number,
-  toMix: number,
+  fromAngleRad: number,
+  toAngleRad: number,
   now: number,
 ): void {
   const rawCurve = new Float32Array(MODE_CROSSFADE_SAMPLE_COUNT);
@@ -27,14 +27,15 @@ export function scheduleEqualPowerCrossfade(
 
   for (let index = 0; index < MODE_CROSSFADE_SAMPLE_COUNT; index += 1) {
     const progress = index / (MODE_CROSSFADE_SAMPLE_COUNT - 1);
-    const mix = fromMix + (toMix - fromMix) * progress;
+    const angleRad = fromAngleRad + (toAngleRad - fromAngleRad) * progress;
+    const mix = angleRad / (Math.PI * 0.5);
     const coefficients = equalPowerCrossfade(mix);
     rawCurve[index] = coefficients.raw;
     simulatedCurve[index] = coefficients.simulated;
   }
 
-  raw.cancelScheduledValues(now);
-  simulated.cancelScheduledValues(now);
+  raw.cancelAndHoldAtTime(now);
+  simulated.cancelAndHoldAtTime(now);
   raw.setValueCurveAtTime(rawCurve, now, MODE_CROSSFADE_SECONDS);
   simulated.setValueCurveAtTime(simulatedCurve, now, MODE_CROSSFADE_SECONDS);
 }

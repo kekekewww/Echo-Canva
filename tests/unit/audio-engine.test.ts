@@ -24,6 +24,8 @@ class FakeParam implements AudioParamLike {
     duration: number;
   }> = [];
   readonly cancellations: number[] = [];
+  readonly holds: number[] = [];
+  private activeCurveEnd = Number.NEGATIVE_INFINITY;
 
   constructor(initialValue = 0) {
     this.value = initialValue;
@@ -39,12 +41,22 @@ class FakeParam implements AudioParamLike {
     startTime: number,
     duration: number,
   ): AudioParamLike {
+    if (startTime < this.activeCurveEnd - 1e-8) {
+      throw new Error("Overlapping value curves require cancelAndHoldAtTime.");
+    }
     this.curves.push({ values: Float32Array.from(values), startTime, duration });
+    this.activeCurveEnd = startTime + duration;
     return this;
   }
 
   cancelScheduledValues(startTime: number): AudioParamLike {
     this.cancellations.push(startTime);
+    return this;
+  }
+
+  cancelAndHoldAtTime(cancelTime: number): AudioParamLike {
+    this.holds.push(cancelTime);
+    this.activeCurveEnd = Math.min(this.activeCurveEnd, cancelTime);
     return this;
   }
 }
@@ -362,6 +374,32 @@ describe("AudioEngine", () => {
     }
   });
 
+  it("holds the in-flight equal-power mix before reversing mode without overlapping curves", async () => {
+    const harness = makeHarness();
+    await harness.engine.start(cloneScene());
+    harness.engine.setMode("simulated");
+    harness.context.currentTime += 0.04;
+
+    expect(() => harness.engine.setMode("raw")).not.toThrow();
+
+    const rawParam = harness.context.gains[2]!.gain;
+    const simulatedParam = harness.context.gains[3]!.gain;
+    expect(rawParam.holds.at(-1)).toBe(4.04);
+    expect(simulatedParam.holds.at(-1)).toBe(4.04);
+    const rawCurve = rawParam.curves.at(-1)!;
+    const simulatedCurve = simulatedParam.curves.at(-1)!;
+    expect(rawCurve.startTime).toBe(4.04);
+    expect(simulatedCurve.startTime).toBe(4.04);
+    expect(rawCurve.values[0]).toBeCloseTo(Math.SQRT1_2);
+    expect(simulatedCurve.values[0]).toBeCloseTo(Math.SQRT1_2);
+    expect(rawCurve.values.at(-1)).toBeCloseTo(1);
+    expect(simulatedCurve.values.at(-1)).toBeCloseTo(0);
+    for (let index = 0; index < rawCurve.values.length; index += 1) {
+      expect(rawCurve.values[index]! ** 2 + simulatedCurve.values[index]! ** 2)
+        .toBeCloseTo(1, 5);
+    }
+  });
+
   it("suspends, resumes the same sources, and disposes explicitly", async () => {
     const harness = makeHarness();
     const scene = cloneScene();
@@ -429,6 +467,86 @@ describe("AudioEngine", () => {
     expect(rainAttempts).toBe(2);
     expect(context.sources).toHaveLength(scene.sources.length);
     expect(engine.getDiagnostics().graphCount).toBe(scene.sources.length);
+  });
+
+  it("keeps scene updates inert after an initial Start failure until an explicit retry", async () => {
+    const context = new FakeAudioContext();
+    const firstLoad = deferred<ArrayBuffer>();
+    let fetchCalls = 0;
+    const engine = new AudioEngine({
+      createContext: () => context,
+      fetchArrayBuffer: () => {
+        fetchCalls += 1;
+        return fetchCalls === 1
+          ? firstLoad.promise
+          : Promise.resolve(new ArrayBuffer(16));
+      },
+    });
+    const initial = cloneScene();
+    initial.sources.splice(1);
+    const starting = engine.start(initial);
+    await waitFor(() => fetchCalls === 1);
+    firstLoad.reject(new Error("Injected initial Start failure."));
+    await expect(starting).rejects.toThrow(/initial Start failure/i);
+
+    const latest = structuredClone(initial);
+    latest.revision += 1;
+    latest.sources[0]!.position = { x: 8, y: 2 };
+    await engine.applyScene(latest);
+
+    expect(fetchCalls).toBe(1);
+    expect(context.decodeCalls).toBe(0);
+    expect(context.sources).toHaveLength(0);
+    expect(context.resumeCalls).toBe(0);
+
+    await engine.start(latest);
+    expect(fetchCalls).toBe(2);
+    expect(context.sources).toHaveLength(1);
+    expect(context.resumeCalls).toBe(1);
+    expect(engine.getDiagnostics().status).toBe("running");
+    expect(context.panners[0]!.positionX.targets.at(-1)?.target).toBe(
+      latest.sources[0]!.position.x - latest.listener.position.x,
+    );
+  });
+
+  it("does not let an older failed Start cancel a newer concurrent Start intent", async () => {
+    const context = new FakeAudioContext();
+    const firstLoad = deferred<ArrayBuffer>();
+    const secondLoad = deferred<ArrayBuffer>();
+    let fetchCalls = 0;
+    const engine = new AudioEngine({
+      createContext: () => context,
+      fetchArrayBuffer: () => {
+        fetchCalls += 1;
+        return fetchCalls === 1 ? firstLoad.promise : secondLoad.promise;
+      },
+    });
+    const initial = cloneScene();
+    initial.sources.splice(1);
+    const latest = structuredClone(initial);
+    latest.revision += 1;
+    latest.sources[0]!.position = { x: 9, y: 2 };
+
+    const firstOutcome = engine.start(initial).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    await waitFor(() => fetchCalls === 1);
+    const secondOutcome = engine.start(latest).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    firstLoad.reject(new Error("Injected obsolete Start failure."));
+    expect(await firstOutcome).toBeInstanceOf(Error);
+    await waitFor(() => fetchCalls === 2);
+    secondLoad.resolve(new ArrayBuffer(16));
+
+    expect(await secondOutcome).toBeNull();
+    expect(engine.getDiagnostics().status).toBe("running");
+    expect(context.sources).toHaveLength(1);
+    expect(context.panners[0]!.positionX.targets.at(-1)?.target).toBe(
+      latest.sources[0]!.position.x - latest.listener.position.x,
+    );
   });
 
   it("keeps committed graphs intact when replacement loading fails, then retries transactionally", async () => {
@@ -507,6 +625,8 @@ describe("AudioEngine", () => {
     await Promise.all([starting, stopping]);
 
     expect(context.resumeCalls).toBe(0);
+    expect(context.sources).toHaveLength(0);
+    expect(engine.getDiagnostics().sourceStarts).toBe(0);
     expect(engine.getDiagnostics().status).toBe("suspended");
   });
 

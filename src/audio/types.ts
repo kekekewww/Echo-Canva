@@ -2,6 +2,7 @@ import type { PreviewMode } from "@/domain/editor/state";
 
 export interface AudioParamLike {
   value: number;
+  cancelAndHoldAtTime(cancelTime: number): AudioParamLike;
   cancelScheduledValues(cancelTime: number): AudioParamLike;
   setValueCurveAtTime(
     values: Float32Array,

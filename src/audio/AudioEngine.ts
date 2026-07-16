@@ -49,11 +49,12 @@ export class AudioEngine {
   private sourceStarts = 0;
   private contextCreations = 0;
   private error: string | null = null;
-  private startPromise: Promise<void> | null = null;
   private operationTail: Promise<void> = Promise.resolve();
   private desiredScene: SceneSpec | null = null;
   private sceneVersion = 0;
   private desiredRunning = false;
+  private runIntentGeneration = 0;
+  private hasSuccessfullyStarted = false;
   private disposed = false;
 
   constructor(dependencies: AudioEngineDependencies = {}) {
@@ -63,30 +64,34 @@ export class AudioEngine {
 
   async start(scene: SceneSpec): Promise<void> {
     if (this.disposed) throw new Error("Audio engine has been disposed.");
+    const runIntent = this.runIntentGeneration + 1;
+    this.runIntentGeneration = runIntent;
     this.desiredRunning = true;
     this.requestScene(scene);
     this.status = "starting";
     this.error = null;
-    if (this.startPromise) {
-      await this.startPromise;
-      return;
-    }
     const operation = this.enqueue(() => this.reconcile());
-    this.startPromise = operation;
     try {
       await operation;
     } catch (error) {
-      this.recordError(error, "Audio failed to start.");
+      if (!this.disposed && runIntent === this.runIntentGeneration) {
+        this.desiredRunning = false;
+        this.recordError(error, "Audio failed to start.");
+      }
       throw error;
-    } finally {
-      if (this.startPromise === operation) this.startPromise = null;
     }
   }
 
   async applyScene(scene: SceneSpec): Promise<void> {
     if (this.disposed) return;
     this.requestScene(scene);
-    if (!this.context) return;
+    if (
+      !this.context ||
+      !this.desiredRunning ||
+      (!this.hasSuccessfullyStarted && this.status !== "starting")
+    ) {
+      return;
+    }
     try {
       await this.enqueue(() => this.reconcile());
       if (!this.disposed) this.applyCount += 1;
@@ -102,6 +107,7 @@ export class AudioEngine {
   }
 
   async stop(): Promise<void> {
+    this.runIntentGeneration += 1;
     this.desiredRunning = false;
     if (!this.context || this.disposed) return;
     this.status = "suspended";
@@ -118,6 +124,7 @@ export class AudioEngine {
   async dispose(): Promise<void> {
     if (this.disposed) return;
     this.disposed = true;
+    this.runIntentGeneration += 1;
     this.desiredRunning = false;
     this.desiredScene = null;
     this.sceneVersion += 1;
@@ -196,6 +203,7 @@ export class AudioEngine {
 
     if (
       this.disposed ||
+      !this.desiredRunning ||
       version !== this.sceneVersion ||
       context !== this.context ||
       output !== this.masterCompressor
@@ -225,6 +233,7 @@ export class AudioEngine {
 
     if (
       this.disposed ||
+      !this.desiredRunning ||
       version !== this.sceneVersion ||
       context !== this.context ||
       output !== this.masterCompressor
@@ -313,12 +322,20 @@ export class AudioEngine {
 
   private async reconcile(): Promise<void> {
     while (!this.disposed) {
+      if (!this.desiredRunning) {
+        if (this.context) this.status = "suspended";
+        return;
+      }
       const scene = this.desiredScene;
       if (!scene) return;
       const version = this.sceneVersion;
       const context = this.ensureContext();
       const committed = await this.syncSourceGraphs(scene, version, context);
       if (this.disposed) return;
+      if (!this.desiredRunning) {
+        this.status = "suspended";
+        return;
+      }
       if (!committed || version !== this.sceneVersion) continue;
 
       this.applyListener(scene, context);
@@ -338,6 +355,7 @@ export class AudioEngine {
       }
       if (version !== this.sceneVersion) continue;
       this.status = "running";
+      this.hasSuccessfullyStarted = true;
       return;
     }
   }
