@@ -35,3 +35,9 @@ Reason: Better stability and plausibility than estimating an entire late field f
 Decision: Native-node Schroeder reverb is the MVP; FDN is conditional.
 
 Reason: Lower implementation risk and easier browser compatibility.
+
+## D-007 — Pinned bootstrap toolchain and build allowlist
+
+Decision: Lock the Gate A bootstrap to concrete package versions and permit install scripts only for the transitive `sharp` and `unrs-resolver` packages in `pnpm-workspace.yaml`. TypeScript 5.9 and ESLint 9 remain pinned within the peer ranges of the Next.js lint stack.
+
+Reason: Reproducible installs and an explicit native-build policy reduce supply-chain and integration drift while preserving a warning-free lint toolchain.
