@@ -1,8 +1,8 @@
 # Status
 
-Current phase: Gate C Tasks 1-2 implemented; diagnostics, browser acceptance coverage, and final Gate C candidate preparation remain.
+Current phase: Gate C Tasks 1-3 implemented and verified; independent whole-Gate-C review and human acceptance remain.
 
-Current checklist state: Build Checklist items 5 (direct occlusion) and 6 (explicit portal routing) are implemented and verified. Gate B passed human acceptance on 2026-07-17. Gate C now supplies deterministic first-order reflection taps and three-band Eyring room estimates to `computeAcousticFrame`, renders those taps through a persistent six-tap bank, and uses a stable Schroeder late-reverb network. UI diagnostics and full browser acceptance coverage remain pending.
+Current checklist state: Build Checklist items 5 (direct occlusion), 6 (explicit portal routing), 7 (first-order early reflections), and 8 (room estimation and late reverberation) are implemented and verified. Gate B passed human acceptance on 2026-07-17. Gate C supplies deterministic first-order reflection taps and three-band Eyring room estimates to `computeAcousticFrame`, renders those taps through a persistent six-tap bank, uses a stable Schroeder late-reverb network, and displays only the matching Worker frame's diagnostics and paths.
 
 ## Gate C Task 1 verification - 2026-07-17
 
@@ -14,7 +14,7 @@ Current checklist state: Build Checklist items 5 (direct occlusion) and 6 (expli
 
 Known defects: no known deterministic-calculation defects in Gate C Task 1. Its browser-audio consumers are intentionally not implemented in this slice.
 
-Next action: expose reflection and RT60 diagnostics in the UI, add Gate C browser acceptance coverage, then prepare the Gate C human acceptance candidate.
+Next action: preserve the verified implementation for whole-Gate-C review, then prepare the Gate C human acceptance candidate.
 
 ## Gate C Task 2 verification - 2026-07-17
 
@@ -25,6 +25,19 @@ Next action: expose reflection and RT60 diagnostics in the UI, add Gate C browse
 - Task 2 independent re-review - PASS
 
 Known defects: no known Gate C audio-rendering defects. The fixed node graph is allocated once, updates through parameter automation, uses a true two-stage Schroeder all-pass topology, and gates reverb input in Raw mode.
+
+## Gate C Task 3 verification - 2026-07-17
+
+- production reverb diagnostics E2E - PASS, 1 Chromium test through a fresh `next start` server
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 23 files / 149 tests
+- `pnpm e2e` - PASS, 12 Chromium tests through the repository production wrapper on port 3000
+- `pnpm build` - PASS
+
+The production E2E loads Hard Room and Treated Room, verifies a matching-frame three-band Eyring RT60 readout, four visible first-order reflection paths, lower treated mid-band decay, and the required approximation language. The readout intentionally remains pending until an `AcousticFrame.revision` equals the current scene revision.
+
+Known deviations: the current curated sources are continuous loops, so there is no separate one-shot impulse control for isolating a decay tail. The editable room boundary is also not a room-scale control; the manual Gate C scale observation is limited to displayed deterministic estimates, while room-volume/pre-delay scale behavior is covered by unit tests. Neither limitation claims architectural-acoustics accuracy.
 
 ## Verification evidence - 2026-07-17
 
@@ -47,18 +60,18 @@ Earlier isolated-port evidence: before port 3000 was available, a fresh producti
 - Gate D: pending
 - Gate E: pending
 
-## Human Gate B candidate
+## Human Gate C candidate
 
 Build with `pnpm build`, then start with `pnpm start --hostname 127.0.0.1 --port 3000` and open `http://127.0.0.1:3000` in current desktop Chrome or Edge. Use headphones.
 
-1. Open the canonical **Concrete Partition** preset, press **Start Audio**, and select **Simulated**.
-2. Select the listener and move it down to approximately `(3, 2)` with the arrow keys, keeping it on the opposite side of the center partition and below the doorway.
-3. With the designated portal open, confirm **Portal route**, `partition_center`, Effective distance, Direct gain, Low-pass, and the cyan route/listener-facing portal marker are visible; listen for direction toward the doorway.
-4. Select the designated portal and close it. Confirm **Blocked fallback**, `partition_center` as an occluder, the red wall highlight, and lower direct gain/low-pass values.
-5. Reopen and close the portal once more while listening. Confirm the route and direction change smoothly, no click or burst occurs, and the inspector states: `Portal-aware sound propagation is an interactive acoustic approximation; it is not diffraction.`
+1. Load **Hard Room**, press **Start Audio**, choose **Simulated**, and note the Low/Mid/High `Estimated Eyring RT60`, the pre-delay, and the four amber dashed first-order paths on the plan.
+2. While the source is playing, load **Treated Room**. Confirm its Mid and High estimates are lower than Hard Room and listen for the less sustained / less bright simulated room character. The current loop-only assets do not provide a separately triggerable impulse tail.
+3. Compare the displayed Volume, Surface, and Pre-delay in the two fixed-size presets. Room-boundary scaling is not an editor control in this candidate; the deterministic volume/RT60/pre-delay scale formulas are covered by automated unit tests rather than a manual resize.
+4. Return to **Hard Room** and drag a wall endpoint, source, and listener continuously for about 20 seconds while audio plays. Confirm the UI remains responsive and there is no repeated click, burst, silence, or runaway feedback.
+5. Confirm `First-order early reflections`, the ranked tap count, and the `Interactive acoustic approximation` limitation are visible. Values must not be `NaN`/infinite, and no diagnostic should appear while a new scene revision is still computing.
 
-Expected result: the open portal provides a portal-aware route and the closed portal produces an occluded fallback. This is an interactive acoustic approximation for spatial-audio prototyping and previsualization, not architectural acoustics or diffraction.
+Expected result: Hard Room exposes a longer / brighter perceptually tuned room estimate than Treated Room, the plan exposes first-order early-reflection paths, and editing remains stable. This is an interactive acoustic approximation for spatial-audio prototyping and previsualization, not an architectural-acoustics measurement.
 
-Known deviations: browser automation verifies deterministic route selection, displayed frame values, overlays, control changes, and absence of page errors; it cannot verify individual headphone perception or hardware-specific clicks. The original test path was corrected under D-012 because it crossed the open doorway directly. No architectural-acoustics accuracy claim is made.
+Known deviations: browser automation verifies deterministic RT60 relationships, displayed frame values, reflection overlays, control changes, and absence of page errors; it cannot verify individual headphone perception, hardware-specific clicks, or a standalone impulse tail. The current editor also does not expose outer-room scale editing. No architectural-acoustics accuracy claim is made.
 
-Human result: `PASS` (2026-07-17). Gate C deterministic calculations are now implemented; browser-audio integration remains pending.
+Human result: pending `PASS` or `FAIL`.

@@ -569,6 +569,15 @@ select {
   stroke-width: 4;
 }
 
+.early-reflection-path {
+  fill: none;
+  pointer-events: none;
+  stroke: rgba(231, 173, 94, 0.82);
+  stroke-dasharray: 2 5;
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+
 @keyframes wavefront {
   from { opacity: 0.44; transform: scale(0.72); }
   to { opacity: 0; transform: scale(1.28); }
@@ -665,6 +674,100 @@ select {
 .diagnostic-strip dd {
   color: var(--ink);
   font-size: 0.66rem;
+}
+
+.room-acoustic-diagnostics {
+  background:
+    linear-gradient(90deg, rgba(231, 173, 94, 0.07), transparent 44%),
+    var(--panel-deep);
+  border: 1px solid var(--rule);
+  border-top: 0;
+  padding: 0.7rem;
+}
+
+.room-acoustic-heading {
+  align-items: end;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 0.65rem;
+}
+
+.room-acoustic-heading h3 {
+  color: var(--ink-soft);
+  font-size: 0.86rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.reflection-count {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  margin: 0;
+}
+
+.reflection-count strong {
+  color: var(--listener);
+  font-size: 0.88rem;
+}
+
+.room-metrics {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin: 0;
+}
+
+.room-metrics div {
+  border-left: 1px solid var(--rule-soft);
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.45rem 0.55rem;
+}
+
+.room-metrics div:first-child {
+  border-left: 0;
+}
+
+.room-metrics dt {
+  color: var(--muted);
+  font-size: 0.55rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.room-metrics dd {
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+
+.reflection-summary,
+.acoustic-limitation,
+.room-acoustic-pending {
+  color: var(--muted);
+  font-size: 0.68rem;
+  line-height: 1.45;
+  margin: 0.65rem 0 0;
+}
+
+.reflection-summary {
+  display: grid;
+  gap: 0.12rem;
+}
+
+.reflection-summary strong,
+.acoustic-limitation strong {
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.room-acoustic-pending {
+  background: var(--panel-deep);
+  border: 1px solid var(--rule);
+  border-top: 0;
+  padding: 0.65rem 0.7rem;
 }
 
 .inspector-content {
@@ -808,6 +911,20 @@ select {
 
   .diagnostic-strip dl div:first-child {
     border-left: 0;
+  }
+
+  .room-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .room-metrics div:nth-child(4) {
+    border-left: 0;
+    border-top: 1px solid var(--rule-soft);
+  }
+
+  .room-metrics div:nth-child(5),
+  .room-metrics div:nth-child(6) {
+    border-top: 1px solid var(--rule-soft);
   }
 
   .transport-panel,

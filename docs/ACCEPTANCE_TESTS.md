@@ -49,43 +49,15 @@ Automated evidence: the repository production wrapper passed the focused portal 
 
 ## Gate C — Reflections and reverb
 
-### C1. Material comparison
+1. Load **Hard Room**, press **Start Audio**, choose **Simulated**, and record the Low/Mid/High `Estimated Eyring RT60`, pre-delay, tap count, and amber dashed first-order paths.
+2. Load **Treated Room** while the source continues playing. Confirm that Mid/High RT60 are lower than Hard Room and listen for the less sustained / less bright room character. The curated sources are continuous loops, so a standalone impulse-tail audition is not exposed.
+3. Compare the displayed Volume, Surface, and Pre-delay in the two fixed-size presets. Outer-room scaling is not an editor control; deterministic scale behavior is instead covered by room-acoustics unit tests.
+4. Return to **Hard Room** and drag one wall endpoint, then the source and listener, continuously for 20 seconds during playback. Confirm there is no repeated click, burst, silence, or runaway feedback and that the UI remains responsive.
+5. Confirm the UI says `First-order early reflections` and `Interactive acoustic approximation`; check that the displayed values are finite and that room values do not appear until the matching scene revision has computed.
 
-1. Load Hard Concrete Room.
-2. Stop a transient or use a test impulse/percussion asset.
-3. Note tail and displayed RT60.
-4. Load Treated Room of identical dimensions.
+Pass when the hard/treatment material contrast is visible and perceptually coherent, four first-order paths are visible for the canonical rectangular rooms, all reported values are finite, and continuous edits remain stable. The Gate C model is an interactive acoustic approximation, not an architectural-acoustics measurement.
 
-Pass when:
-
-- hard room has a clearly longer/brighter tail;
-- treated room has lower high/mid RT60;
-- values do not become NaN/infinite;
-- transition does not glitch.
-
-### C2. Room scale
-
-1. Duplicate a rectangular room.
-2. Increase dimensions while retaining material proportions.
-3. Compare estimated RT60 and tail.
-
-Pass when:
-
-- larger room has a coherent longer pre-delay/decay tendency;
-- displayed volume and surface calculations update;
-- early-reflection paths and delays update.
-
-### C3. Continuous edit
-
-1. Play audio.
-2. Drag one wall for 20 seconds.
-3. Move source and listener during playback.
-
-Pass when:
-
-- audio does not stop;
-- no repeated click, burst, or runaway feedback occurs;
-- UI remains responsive.
+Automated evidence: `pnpm e2e` passed all 12 Chromium production-server tests on 2026-07-17. The reverb case asserts Hard Room and Treated Room matching-frame Eyring diagnostics, four reflection paths, a lower treated mid-band RT60, and truthful limitation language.
 
 ## Gate D — GPT-5.6 compiler and explanation
 

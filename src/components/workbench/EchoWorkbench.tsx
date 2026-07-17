@@ -71,7 +71,7 @@ export function EchoWorkbench() {
   }
 
   return (
-    <main className="app-shell" data-testid="app-shell">
+    <main className="app-shell" data-testid="app-shell" data-scene-revision={state.scene.revision}>
       <header className="masthead">
         <div className="brand-lockup">
           <span className="brand-index">EC</span>

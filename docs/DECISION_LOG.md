@@ -71,3 +71,9 @@ Reason: Sources and listeners may be placed on a supporting room boundary, which
 Decision: Move the canonical listener from `(3, 4)` to approximately `(3, 2)` in the Gate B browser scenario before asserting an open-portal route, then close the portal and assert the blocked fallback.
 
 Reason: The original Task 4 script expected a portal route for the default Radio `(9, 4)` to listener `(3, 4)` path. That segment passes through the open door centered at `(6, 4)`, which the established direct-path contract correctly treats as direct visibility. Moving the listener below the 1.2 m opening creates the intended blocked direct path while retaining the tested, truthful direct-through-open-door behavior. This is the actual Gate B perception case: open portal routing versus closed-portal obstruction.
+
+## D-013 ??Gate C diagnostics are frame-authoritative and explicitly limited
+
+Decision: Display Eyring RT60, room surface/volume, pre-delay, first-order reflection count, and reflection paths only when the `AcousticFrame.revision` matches the current `SceneSpec.revision`. Label the values as an interactive acoustic approximation, not measurement data.
+
+Reason: A Worker result for an earlier drag or preset must never be mistaken for the sound currently rendered. The Gate C candidate intentionally keeps curated continuous-loop sources and does not introduce an outer-room resize control or a one-shot impulse audition outside the frozen scope; those manual observations are documented as limitations while deterministic room-scale behavior remains unit-tested.

@@ -1,6 +1,6 @@
 # Echo Canvas
 
-Echo Canvas is a browser-based spatial-audio prototyping and previsualization tool for OpenAI Build Week 2026. The current Gate B candidate provides a deterministic 2D scene editor, local mono demo sources, Raw/Simulated A/B preview, browser HRTF rendering, Worker-driven direct-path occlusion, and portal-aware sound propagation.
+Echo Canvas is a browser-based spatial-audio prototyping and previsualization tool for OpenAI Build Week 2026. The current Gate C candidate provides a deterministic 2D scene editor, local mono demo sources, Raw/Simulated A/B preview, browser HRTF rendering, Worker-driven direct-path occlusion, portal-aware sound propagation, first-order early reflections, and a perceptually tuned Schroeder late-reverb preview.
 
 The product is an **interactive acoustic approximation**. It is not an architectural-acoustics measurement tool and does not claim physically accurate diffraction.
 
@@ -18,7 +18,7 @@ pnpm install
 pnpm dev
 ```
 
-Open `http://127.0.0.1:3000`. No account, OpenAI key, or network audio asset is required for the preset-only Gate B candidate. Audio begins only after **Start Audio** is pressed.
+Open `http://127.0.0.1:3000`. No account, OpenAI key, or network audio asset is required for the preset-only Gate C candidate. Audio begins only after **Start Audio** is pressed.
 
 ## Verify
 
@@ -32,7 +32,16 @@ pnpm e2e
 
 The browser suite starts its own local application server. The detailed human scripts and current verification evidence are in [`docs/STATUS.md`](docs/STATUS.md) and [`docs/ACCEPTANCE_TESTS.md`](docs/ACCEPTANCE_TESTS.md).
 
-## Gate B demo
+## Gate C demo
+
+### Reflection + room character
+
+1. Start audio and choose **Simulated**.
+2. Load **Hard Room** and inspect the Low/Mid/High Eyring RT60 estimates, pre-delay, room surface/volume, and amber dashed first-order reflection paths.
+3. Load **Treated Room** and compare the lower Mid/High decay estimates and less sustained simulated character.
+4. Move a source, listener, or wall while audio runs; only the current scene revision's acoustic frame is displayed.
+
+### Portal comparison
 
 1. Start audio in the Concrete Partition preset.
 2. Switch Raw and Simulated without restarting the source loops.
@@ -62,7 +71,7 @@ Raw bus <-> Simulated distance + browser HRTF bus
 headphones
 ```
 
-The persistent audio graph updates gain, low-pass, and panner parameters through automation. The Worker computes deterministic direct-path occlusion and portal routes; the UI renders the matching selected-source frame. The `SceneSpec.settings.hrtfEnabled` flag selects `HRTF` or `equalpower` panning without rebuilding source graphs. Later frozen-scope milestones are limited to first-order early reflections, Eyring RT60, and Schroeder late reverberation.
+The persistent audio graph updates gain, low-pass, panner, first-order reflection taps, and Schroeder reverb parameters through automation. The Worker computes deterministic direct-path occlusion, portal routes, image-source reflections, and three-band Eyring RT60; the UI renders only the matching selected-source frame. The `SceneSpec.settings.hrtfEnabled` flag selects `HRTF` or `equalpower` panning without rebuilding source graphs.
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/ACOUSTICS.md`](docs/ACOUSTICS.md), and [`docs/API_CONTRACTS.md`](docs/API_CONTRACTS.md) for the contracts and model boundaries.
 
@@ -78,4 +87,5 @@ GPT-5.6 is intentionally a control-plane component for later gates. It will comp
 - Application code is licensed under the [MIT License](LICENSE).
 - Primary browser targets are current desktop Chrome and Edge.
 - External device changes and browser-initiated `AudioContext` interruption observation remain a documented follow-up; explicit Start, Stop, resume, and error lifecycle are covered.
-- First-order reflections, late reverberation, GPT-5.6 endpoints, import/export UI, and deployment are later checklist items and are not represented as complete in this Gate B candidate.
+- First-order reflections and late reverberation are perceptually tuned approximations, not architectural-acoustics measurement or certification. The current loop-only assets do not include a separate one-shot impulse audition, and the editor does not expose outer-room scale editing; room-scale math is covered by deterministic unit tests.
+- GPT-5.6 endpoints, import/export UI, and deployment are later checklist items and are not represented as complete in this Gate C candidate.

@@ -325,6 +325,22 @@ export function SceneEditor({ scene, selection, acousticFrame, dispatch }: Scene
           />
         ) : null}
 
+        {activeSource && activeSourceFrame?.earlyReflections.map((reflection) => {
+          const sourcePoint = worldToSvg(activeSource.position, worldBounds, VIEWPORT);
+          const reflectionPoint = worldToSvg(reflection.reflectionPoint, worldBounds, VIEWPORT);
+          const listenerPoint = worldToSvg(scene.listener.position, worldBounds, VIEWPORT);
+          return (
+            <polyline
+              key={`${reflection.wallId}-${reflection.reflectionPoint.x}-${reflection.reflectionPoint.y}`}
+              data-testid="early-reflection-path"
+              data-wall-id={reflection.wallId}
+              points={`${sourcePoint.x},${sourcePoint.y} ${reflectionPoint.x},${reflectionPoint.y} ${listenerPoint.x},${listenerPoint.y}`}
+              className="early-reflection-path"
+              aria-hidden="true"
+            />
+          );
+        })}
+
         {listenerFacingPortal ? (() => {
           const point = worldToSvg(listenerFacingPortal.center, worldBounds, VIEWPORT);
           return (

@@ -140,7 +140,7 @@ export function Transport({
         data-acoustic-compute-ms={acousticMetrics?.computeMs ?? "pending"}
         data-acoustic-compute-source={acousticMetrics?.source ?? "pending"}
       >
-        <span>Gate B / acoustic diagnostics</span>
+        <span>Gate C / acoustic diagnostics</span>
         <p>
           {audioDiagnostics.contextCreations} context · {audioDiagnostics.sourceStarts} source starts · {audioDiagnostics.applyCount} smooth updates
         </p>

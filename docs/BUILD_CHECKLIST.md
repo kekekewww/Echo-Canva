@@ -76,7 +76,7 @@ Each item is complete only when its Acceptance and Verify sections pass.
   ```
   **Human Gate B:** occlusion and portal perception.
 
-- [ ] **7. Implement first-order image-source early reflections**
+- [x] **7. Implement first-order image-source early reflections**
   Spec ref: `ACOUSTICS.md > 9, 11`
   What to build: source reflection across arbitrary wall line, candidate validation, visibility checks, ranking, six-tap fixed pool, reflected panning, debug reflection paths.
   Acceptance: Canonical rectangular fixture yields expected reflection points/path lengths; moving a wall updates taps smoothly; disabled taps are silent without node destruction.
@@ -85,7 +85,7 @@ Each item is complete only when its Acceptance and Verify sections pass.
   pnpm test -- image-source early-reflections
   ```
 
-- [ ] **8. Implement room estimation and late reverberation**
+- [x] **8. Implement room estimation and late reverberation**
   Spec ref: `ACOUSTICS.md > 3, 10, 12`
   What to build: area/perimeter/surface/volume calculations, three-band Eyring RT60, open-portal absorption approximation, pre-delay, stable stereo Schroeder network, damping, reverb sends.
   Acceptance: Hard room has longer/brighter tail than treated room; increased volume increases RT60 under equivalent material conditions; requested decay is approximately reproduced; editing does not glitch.
