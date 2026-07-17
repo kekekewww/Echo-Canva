@@ -13,7 +13,7 @@ export interface AudioParamLike {
 }
 
 export interface AudioNodeLike {
-  connect(destination: AudioNodeLike): AudioNodeLike;
+  connect(destination: AudioNodeLike, output?: number, input?: number): AudioNodeLike;
   disconnect(): void;
 }
 
@@ -36,6 +36,13 @@ export interface BiquadFilterNodeLike extends AudioNodeLike {
   type: BiquadFilterType;
   readonly frequency: AudioParamLike;
 }
+
+export interface DelayNodeLike extends AudioNodeLike {
+  readonly delayTime: AudioParamLike;
+}
+
+export type ChannelSplitterNodeLike = AudioNodeLike;
+export type ChannelMergerNodeLike = AudioNodeLike;
 
 export type AudioBufferLike = Readonly<{
   numberOfChannels: number;
@@ -69,6 +76,9 @@ export interface AudioContextLike {
   readonly listener: AudioListenerLike;
   createGain(): GainNodeLike;
   createBiquadFilter(): BiquadFilterNodeLike;
+  createDelay(maxDelayTime?: number): DelayNodeLike;
+  createChannelSplitter(numberOfOutputs: number): ChannelSplitterNodeLike;
+  createChannelMerger(numberOfInputs: number): ChannelMergerNodeLike;
   createPanner(): PannerNodeLike;
   createBufferSource(): AudioBufferSourceNodeLike;
   createDynamicsCompressor(): DynamicsCompressorNodeLike;

@@ -97,6 +97,10 @@ class FakeBiquadFilterNode extends FakeNode {
   readonly frequency = new FakeParam(20_000);
 }
 
+class FakeDelayNode extends FakeNode {
+  readonly delayTime = new FakeParam();
+}
+
 class FakeBufferSourceNode extends FakeNode implements AudioBufferSourceNodeLike {
   buffer: AudioBufferLike | null = null;
   loop = false;
@@ -143,6 +147,7 @@ class FakeAudioContext implements AudioContextLike {
   readonly gains: FakeGainNode[] = [];
   readonly panners: FakePannerNode[] = [];
   readonly filters: FakeBiquadFilterNode[] = [];
+  readonly delays: FakeDelayNode[] = [];
   readonly sources: FakeBufferSourceNode[] = [];
   readonly compressors: FakeCompressorNode[] = [];
   readonly gainValuesAtSourceStart: number[][] = [];
@@ -168,6 +173,20 @@ class FakeAudioContext implements AudioContextLike {
     const node = new FakeBiquadFilterNode();
     this.filters.push(node);
     return node;
+  }
+
+  createDelay(): FakeDelayNode {
+    const node = new FakeDelayNode();
+    this.delays.push(node);
+    return node;
+  }
+
+  createChannelSplitter(): FakeNode {
+    return new FakeNode();
+  }
+
+  createChannelMerger(): FakeNode {
+    return new FakeNode();
   }
 
   createBufferSource(): AudioBufferSourceNodeLike {
@@ -312,7 +331,7 @@ describe("AudioEngine", () => {
     harness.engine.applyAcousticFrame(blockedFrame);
 
     expect(harness.context.gains).toContainEqual(expect.objectContaining({ gain: expect.anything() }));
-    expect(harness.context.filters[0]?.frequency.targets.at(-1)?.target).toBe(
+    expect(harness.context.filters[4]?.frequency.targets.at(-1)?.target).toBe(
       blockedFrame.sources[0]?.lowpassHz,
     );
     expect(harness.context.panners[0]?.positionX.targets.at(-1)?.target).toBe(
@@ -320,9 +339,9 @@ describe("AudioEngine", () => {
     );
     expect(harness.engine.getDiagnostics().sourceStarts).toBe(2);
 
-    const filterTargetCount = harness.context.filters[0]?.frequency.targets.length;
+    const filterTargetCount = harness.context.filters[4]?.frequency.targets.length;
     harness.engine.applyAcousticFrame({ ...blockedFrame, revision: scene.revision + 1 });
-    expect(harness.context.filters[0]?.frequency.targets).toHaveLength(filterTargetCount ?? 0);
+    expect(harness.context.filters[4]?.frequency.targets).toHaveLength(filterTargetCount ?? 0);
 
     harness.engine.applyAcousticFrame(blockedFrame);
     expect(harness.context.sources).toHaveLength(scene.sources.length);
@@ -364,7 +383,7 @@ describe("AudioEngine", () => {
     expect(harness.context.panners[0]?.positionX.targets.at(-1)?.target).toBe(
       frame.sources[0]?.virtualPosition.x - scene.listener.position.x,
     );
-    expect(harness.context.filters[0]?.frequency.targets.at(-1)?.target).toBe(
+    expect(harness.context.filters[4]?.frequency.targets.at(-1)?.target).toBe(
       frame.sources[0]?.lowpassHz,
     );
   });
@@ -394,10 +413,51 @@ describe("AudioEngine", () => {
     };
 
     await harness.engine.start(scene);
-    const rawGainTargets = harness.context.gains[2]?.gain.targets.length;
+    const rawGainTargets = harness.context.gains[14]?.gain.targets.length;
     harness.engine.applyAcousticFrame(frame);
 
-    expect(harness.context.gains[2]?.gain.targets).toHaveLength(rawGainTargets ?? 0);
+    expect(harness.context.gains[14]?.gain.targets).toHaveLength(rawGainTargets ?? 0);
+  });
+
+  it("keeps reflection and late-reverb nodes persistent while applying acoustic frames", async () => {
+    const harness = makeHarness();
+    const scene = cloneScene();
+    const frame: AcousticFrame = {
+      revision: scene.revision,
+      generatedAtMs: 100,
+      room: { volumeM3: 80, totalSurfaceM2: 150, rt60S: { low: 1.8, mid: 1.4, high: 0.5 }, preDelayMs: 28 },
+      sources: scene.sources.map((source) => ({
+        sourceId: source.id,
+        routeType: "direct" as const,
+        directVisible: true,
+        physicalDistanceM: 4,
+        effectiveDistanceM: 4,
+        dryGainDb: -3,
+        lowpassHz: 20_000,
+        reverbSendDb: -12,
+        virtualPosition: source.position,
+        occluderWallIds: [],
+        portalIds: [],
+        routePolyline: [source.position, scene.listener.position],
+        earlyReflections: [{
+          wallId: "north",
+          reflectionPoint: { x: 5, y: 0 },
+          pathLengthM: 8,
+          delayMs: 12,
+          gainDb: -9,
+          lowpassHz: 4_000,
+        }],
+      })),
+    };
+
+    await harness.engine.start(scene);
+    expect(harness.context.delays).toHaveLength(19);
+    const nodeCounts = [harness.context.delays.length, harness.context.gains.length, harness.context.filters.length, harness.context.panners.length];
+    harness.engine.applyAcousticFrame(frame);
+    harness.engine.applyAcousticFrame({ ...frame, generatedAtMs: 200 });
+
+    expect([harness.context.delays.length, harness.context.gains.length, harness.context.filters.length, harness.context.panners.length])
+      .toEqual(nodeCounts);
   });
 
   it("is lazy until explicit start and creates one persistent HRTF graph per source", async () => {
@@ -493,7 +553,7 @@ describe("AudioEngine", () => {
 
     expect(context.sources).toHaveLength(1);
     expect(engine.getDiagnostics().graphCount).toBe(1);
-    expect(context.panners).toHaveLength(1);
+    expect(context.panners).toHaveLength(7);
     expect(context.panners[0]!.positionX.targets.at(-1)?.target).toBe(
       latest.sources[0]!.position.x - latest.listener.position.x,
     );
@@ -533,16 +593,16 @@ describe("AudioEngine", () => {
     await harness.engine.start(cloneScene());
     const before = harness.engine.getDiagnostics();
 
-    expect(harness.context.gainValuesAtSourceStart[0]![2]).toBe(1);
-    expect(harness.context.gainValuesAtSourceStart[0]![3]).toBe(0);
+    expect(harness.context.gainValuesAtSourceStart[0]![14]).toBe(1);
+    expect(harness.context.gainValuesAtSourceStart[0]![15]).toBe(0);
 
     harness.engine.setMode("simulated");
     const after = harness.engine.getDiagnostics();
 
     expect(after.sourceGraphIds).toEqual(before.sourceGraphIds);
     expect(after.mode).toBe("simulated");
-    const rawCurve = harness.context.gains[2]!.gain.curves.at(-1)!;
-    const simulatedCurve = harness.context.gains[3]!.gain.curves.at(-1)!;
+    const rawCurve = harness.context.gains[14]!.gain.curves.at(-1)!;
+    const simulatedCurve = harness.context.gains[15]!.gain.curves.at(-1)!;
     expect(rawCurve.duration).toBe(0.08);
     expect(simulatedCurve.duration).toBe(0.08);
     expect(rawCurve.values[0]).toBeCloseTo(1);
@@ -564,8 +624,8 @@ describe("AudioEngine", () => {
 
     expect(() => harness.engine.setMode("raw")).not.toThrow();
 
-    const rawParam = harness.context.gains[2]!.gain;
-    const simulatedParam = harness.context.gains[3]!.gain;
+    const rawParam = harness.context.gains[14]!.gain;
+    const simulatedParam = harness.context.gains[15]!.gain;
     expect(rawParam.holds.at(-1)).toBe(4.04);
     expect(simulatedParam.holds.at(-1)).toBe(4.04);
     const rawCurve = rawParam.curves.at(-1)!;

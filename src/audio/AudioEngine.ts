@@ -1,4 +1,5 @@
 import { SourceGraph } from "@/audio/SourceGraph";
+import { SchroederReverb } from "@/audio/SchroederReverb";
 import { smoothParameter } from "@/audio/parameter-smoothing";
 import type {
   AudioBufferLike,
@@ -6,6 +7,7 @@ import type {
   AudioEngineDiagnostics,
   AudioEngineStatus,
   DynamicsCompressorNodeLike,
+  GainNodeLike,
 } from "@/audio/types";
 import { AUDIO_ASSETS } from "@/domain/audio-assets/registry";
 import type { PreviewMode } from "@/domain/editor/state";
@@ -44,6 +46,8 @@ export class AudioEngine {
   private readonly bufferCache = new Map<string, Promise<AudioBufferLike>>();
   private context: AudioContextLike | null = null;
   private masterCompressor: DynamicsCompressorNodeLike | null = null;
+  private simulatedReverbReturn: GainNodeLike | null = null;
+  private schroederReverb: SchroederReverb | null = null;
   private status: AudioEngineStatus = "idle";
   private mode: PreviewMode = "raw";
   private applyCount = 0;
@@ -145,6 +149,14 @@ export class AudioEngine {
     for (const graph of this.sourceGraphs.values()) graph.dispose();
     this.sourceGraphs.clear();
     this.bufferCache.clear();
+    this.schroederReverb?.dispose();
+    this.schroederReverb = null;
+    try {
+      this.simulatedReverbReturn?.disconnect();
+    } catch {
+      // Continue terminal cleanup even if a browser node is already disconnected.
+    }
+    this.simulatedReverbReturn = null;
     try {
       this.masterCompressor?.disconnect();
     } catch {
@@ -178,10 +190,22 @@ export class AudioEngine {
     const context = this.createContext();
     this.contextCreations += 1;
     let compressor: DynamicsCompressorNodeLike | null = null;
+    let simulatedReverbReturn: GainNodeLike | null = null;
+    let schroederReverb: SchroederReverb | null = null;
     try {
       compressor = context.createDynamicsCompressor();
       compressor.connect(context.destination);
+      simulatedReverbReturn = context.createGain();
+      simulatedReverbReturn.gain.value = this.mode === "simulated" ? 1 : 0;
+      simulatedReverbReturn.connect(compressor);
+      schroederReverb = new SchroederReverb(context, simulatedReverbReturn);
     } catch (error) {
+      schroederReverb?.dispose();
+      try {
+        simulatedReverbReturn?.disconnect();
+      } catch {
+        // Best-effort rollback of a context that was never committed.
+      }
       try {
         compressor?.disconnect();
       } catch {
@@ -194,6 +218,8 @@ export class AudioEngine {
     }
     this.context = context;
     this.masterCompressor = compressor;
+    this.simulatedReverbReturn = simulatedReverbReturn;
+    this.schroederReverb = schroederReverb;
     return context;
   }
 
@@ -203,7 +229,8 @@ export class AudioEngine {
     context: AudioContextLike,
   ): Promise<boolean> {
     const output = this.masterCompressor;
-    if (!output || context !== this.context) return false;
+    const reverbInput = this.schroederReverb?.input;
+    if (!output || !reverbInput || context !== this.context) return false;
 
     const additions = scene.sources.filter((source) => {
       const committed = this.sourceGraphs.get(source.id);
@@ -230,6 +257,7 @@ export class AudioEngine {
         const graph = new SourceGraph(
           context,
           output,
+          reverbInput,
           source,
           scene.listener,
           buffers[index]!,
@@ -313,6 +341,7 @@ export class AudioEngine {
     context: AudioContextLike,
   ): void {
     if (frame.revision !== scene.revision) return;
+    this.schroederReverb?.apply(frame.room, context.currentTime);
     for (const sourceFrame of frame.sources) {
       this.sourceGraphs.get(sourceFrame.sourceId)?.applyFrame(
         sourceFrame,
@@ -339,6 +368,13 @@ export class AudioEngine {
 
   private applyMode(): void {
     if (!this.context) return;
+    if (this.simulatedReverbReturn) {
+      smoothParameter(
+        this.simulatedReverbReturn.gain,
+        this.mode === "simulated" ? 1 : 0,
+        this.context.currentTime,
+      );
+    }
     for (const graph of this.sourceGraphs.values()) {
       graph.applyMode(this.mode, this.context.currentTime);
     }

@@ -140,6 +140,13 @@ describe("findFirstOrderReflections", () => {
     expect(reflections.map((reflection) => reflection.gainDb)).toEqual(
       [...reflections.map((reflection) => reflection.gainDb)].sort((a, b) => b - a),
     );
+    for (let index = 1; index < reflections.length; index += 1) {
+      const previous = reflections[index - 1]!;
+      const current = reflections[index]!;
+      if (Math.abs(previous.gainDb - current.gainDb) < 1e-10) {
+        expect(previous.wallId.localeCompare(current.wallId)).toBeLessThan(0);
+      }
+    }
     expect(findFirstOrderReflections({ x: -1, y: 0 }, { x: 1, y: 0 }, reflectionScene(walls), 99))
       .toEqual(reflections);
   });

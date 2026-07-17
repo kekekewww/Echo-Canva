@@ -1,4 +1,5 @@
 import { dbToLinear, distanceAttenuation, equalPowerCrossfade } from "@/audio/math";
+import { EarlyReflectionBank } from "@/audio/EarlyReflectionBank";
 import {
   MODE_CROSSFADE_SECONDS,
   scheduleEqualPowerCrossfade,
@@ -33,6 +34,9 @@ export class SourceGraph {
   private readonly rawModeGain: GainNodeLike;
   private readonly simulatedModeGain: GainNodeLike;
   private readonly panner: PannerNodeLike;
+  private readonly reverbSend: GainNodeLike;
+  private readonly earlyReflectionBank: EarlyReflectionBank;
+  private listenerPosition: SceneListener["position"];
   private readonly clipId: string;
   private readonly loop: boolean;
   private mode: PreviewMode;
@@ -46,6 +50,7 @@ export class SourceGraph {
   constructor(
     context: AudioContextLike,
     output: AudioNodeLike,
+    reverbInput: AudioNodeLike,
     source: SceneSource,
     listener: SceneListener,
     buffer: AudioBufferLike,
@@ -56,9 +61,11 @@ export class SourceGraph {
     this.clipId = source.clipId;
     this.loop = source.loop;
     this.mode = mode;
+    this.listenerPosition = listener.position;
 
     const createdNodes: AudioNodeLike[] = [];
     let sourceNode: AudioBufferSourceNodeLike | null = null;
+    let earlyReflectionBank: EarlyReflectionBank | null = null;
     let started = false;
     try {
       sourceNode = context.createBufferSource();
@@ -75,6 +82,8 @@ export class SourceGraph {
       createdNodes.push(simulatedModeGain);
       const panner = context.createPanner();
       createdNodes.push(panner);
+      const reverbSend = context.createGain();
+      createdNodes.push(reverbSend);
 
       this.sourceNode = sourceNode;
       this.sourceGain = sourceGain;
@@ -83,6 +92,7 @@ export class SourceGraph {
       this.rawModeGain = rawModeGain;
       this.simulatedModeGain = simulatedModeGain;
       this.panner = panner;
+      this.reverbSend = reverbSend;
 
       panner.panningModel = hrtfEnabled ? "HRTF" : "equalpower";
       panner.distanceModel = "inverse";
@@ -91,6 +101,7 @@ export class SourceGraph {
       panner.rolloffFactor = 0;
       lowPass.type = "lowpass";
       lowPass.frequency.value = 20_000;
+      reverbSend.gain.value = dbToLinear(-12);
 
       sourceNode.buffer = buffer;
       sourceNode.loop = source.loop;
@@ -102,11 +113,22 @@ export class SourceGraph {
       lowPass.connect(panner);
       panner.connect(simulatedModeGain);
       simulatedModeGain.connect(output);
+      panner.connect(reverbSend);
+      reverbSend.connect(reverbInput);
+      earlyReflectionBank = new EarlyReflectionBank(
+        context,
+        sourceGain,
+        simulatedModeGain,
+        () => this.listenerPosition,
+        hrtfEnabled,
+      );
+      this.earlyReflectionBank = earlyReflectionBank;
 
       this.initializeParameters(source, listener, mode);
       sourceNode.start();
       started = true;
     } catch (error) {
+      earlyReflectionBank?.dispose();
       if (started && sourceNode) {
         try {
           sourceNode.stop();
@@ -136,8 +158,10 @@ export class SourceGraph {
     hrtfEnabled: boolean,
     applySimulatedFallback: boolean,
   ): void {
+    this.listenerPosition = listener.position;
     smoothParameter(this.sourceGain.gain, dbToLinear(source.gainDb), now);
     this.panner.panningModel = hrtfEnabled ? "HRTF" : "equalpower";
+    this.earlyReflectionBank.setHrtfEnabled(hrtfEnabled);
     if (!applySimulatedFallback) return;
 
     const distanceM = Math.hypot(
@@ -167,6 +191,7 @@ export class SourceGraph {
 
   applyFrame(sourceFrame: AcousticFrameSource, listener: SceneListener, now: number): void {
     if (this.disposed) return;
+    this.listenerPosition = listener.position;
     smoothParameter(
       this.distanceGain.gain,
       dbToLinear(sourceFrame.dryGainDb) * distanceAttenuation(sourceFrame.effectiveDistanceM),
@@ -184,6 +209,8 @@ export class SourceGraph {
       -(sourceFrame.virtualPosition.y - listener.position.y),
       now,
     );
+    smoothParameter(this.reverbSend.gain, dbToLinear(sourceFrame.reverbSendDb), now);
+    this.earlyReflectionBank.apply(sourceFrame.earlyReflections, now);
   }
 
   dispose(): void {
@@ -200,6 +227,7 @@ export class SourceGraph {
       this.distanceGain,
       this.lowPass,
       this.panner,
+      this.reverbSend,
       this.rawModeGain,
       this.simulatedModeGain,
     ]) {
@@ -209,6 +237,7 @@ export class SourceGraph {
         // Disconnect is best-effort during terminal cleanup.
       }
     }
+    this.earlyReflectionBank.dispose();
   }
 
   private initializeParameters(
