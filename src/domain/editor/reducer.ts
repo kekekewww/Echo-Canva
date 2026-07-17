@@ -43,6 +43,7 @@ function rejectEdit(state: EditorState, message: string): EditorState {
 
 export type EditorAction =
   | { type: "LOAD_PRESET"; presetId: PresetId }
+  | { type: "REPLACE_SCENE"; scene: SceneSpec }
   | { type: "SELECT_OBJECT"; selection: EditorSelection }
   | { type: "MOVE_LISTENER"; position: SceneSpec["listener"]["position"] }
   | { type: "MOVE_SOURCE"; sourceId: string; position: SceneSpec["listener"]["position"] }
@@ -96,6 +97,21 @@ export function editorReducer(state: EditorState, action: EditorAction): EditorS
   switch (action.type) {
     case "LOAD_PRESET": {
       const scene = structuredClone(PRESETS[action.presetId]);
+      scene.revision = state.scene.revision + 1;
+      return {
+        ...state,
+        scene,
+        selectedObject: selectionForScene(scene),
+        editNotice: null,
+      };
+    }
+    case "REPLACE_SCENE": {
+      const candidate = validateScene(action.scene);
+      if (!candidate.ok) {
+        return rejectEdit(state, rejectionMessage(candidate.errors));
+      }
+
+      const scene = structuredClone(candidate.scene);
       scene.revision = state.scene.revision + 1;
       return {
         ...state,

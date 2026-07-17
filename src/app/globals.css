@@ -39,7 +39,8 @@ body {
 }
 
 button,
-select {
+select,
+textarea {
   color: inherit;
   font: inherit;
 }
@@ -52,6 +53,7 @@ select,
 
 button:focus-visible,
 select:focus-visible,
+textarea:focus-visible,
 [role="button"]:focus-visible {
   box-shadow: 0 0 0 2px var(--base), 0 0 0 4px var(--focus);
 }
@@ -857,6 +859,56 @@ select {
   transform: translateX(0.85rem);
 }
 
+.ai-scene-panel {
+  align-self: start;
+  background: color-mix(in srgb, var(--panel) 95%, transparent);
+  border: 1px solid var(--rule);
+  box-shadow: 0 1.4rem 4rem rgba(0, 0, 0, 0.17);
+  min-width: 0;
+  padding: 0.9rem;
+}
+
+.ai-scene-panel textarea {
+  background: var(--panel-deep);
+  border: 1px solid var(--rule);
+  color: var(--ink);
+  font: inherit;
+  line-height: 1.45;
+  min-height: 7rem;
+  padding: 0.6rem 0.65rem;
+  resize: vertical;
+  width: 100%;
+}
+
+.scene-candidate,
+.compiler-error {
+  border-top: 1px solid var(--rule-soft);
+  margin-top: 1rem;
+  padding-top: 0.9rem;
+}
+
+.candidate-name {
+  color: var(--signal-bright);
+  font-size: 0.78rem;
+  margin-bottom: 0.35rem;
+}
+
+.compiler-meta {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  line-height: 1.45;
+  margin: 0.5rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.compiler-error {
+  color: #f0a69c;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 74rem) {
   .workstation {
     grid-template-columns: minmax(11.5rem, 0.75fr) minmax(31rem, 2.6fr);
@@ -928,7 +980,8 @@ select {
   }
 
   .transport-panel,
-  .inspector-panel {
+  .inspector-panel,
+  .ai-scene-panel {
     width: 100%;
   }
 

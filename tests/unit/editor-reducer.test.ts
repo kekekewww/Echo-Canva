@@ -264,4 +264,31 @@ describe("editorReducer", () => {
     expect(ready.audioStatus).toBe("ready");
     expect(ready.scene.revision).toBe(initial.scene.revision);
   });
+
+  it("applies only a valid generated scene and increments the local revision", () => {
+    const initial = createEditorState(CONCRETE_PARTITION_PRESET);
+    const validScene = structuredClone(HARD_ROOM_PRESET);
+    validScene.name = "Generated hard room";
+
+    const next = editorReducer(initial, { type: "REPLACE_SCENE", scene: validScene });
+
+    expect(next.scene).toMatchObject({
+      name: validScene.name,
+      revision: initial.scene.revision + 1,
+    });
+    expect(next.selectedObject).toEqual({ type: "source", id: "hard_radio" });
+    expect(next.editNotice).toBeNull();
+  });
+
+  it("keeps the existing scene when a generated scene is invalid", () => {
+    const initial = createEditorState(CONCRETE_PARTITION_PRESET);
+    const invalidScene = structuredClone(HARD_ROOM_PRESET);
+    invalidScene.sources[0]!.clipId = "https://example.test/untrusted.mp3";
+
+    const next = editorReducer(initial, { type: "REPLACE_SCENE", scene: invalidScene });
+
+    expect(next.scene).toBe(initial.scene);
+    expect(next.selectedObject).toBe(initial.selectedObject);
+    expect(next.editNotice?.kind).toBe("rejection");
+  });
 });

@@ -3,6 +3,10 @@
 import { useEffect, useReducer, useState } from "react";
 
 import { Inspector } from "@/components/workbench/Inspector";
+import {
+  AiScenePanel,
+  type SceneCompilerState,
+} from "@/components/workbench/AiScenePanel";
 import { ReadoutStrip } from "@/components/workbench/ReadoutStrip";
 import { SceneEditor } from "@/components/workbench/SceneEditor";
 import { Transport } from "@/components/workbench/Transport";
@@ -13,12 +17,23 @@ import { APP_NAME } from "@/domain/app-meta";
 import { useAudioEngine } from "@/hooks/useAudioEngine";
 import { useAcousticFrame } from "@/hooks/useAcousticFrame";
 import { installGateCAudioRenderValidation } from "@/audio/gate-c-render-validation";
+import { requestSceneCompilation } from "@/ai/client";
+
+const INITIAL_COMPILER_STATE: SceneCompilerState = {
+  status: "idle",
+  candidate: null,
+  error: null,
+  model: null,
+  repairAttempted: false,
+  warnings: [],
+};
 
 export function EchoWorkbench() {
   const [state, dispatch] = useReducer(editorReducer, undefined, () =>
     createEditorState(PRESETS[DEFAULT_PRESET_ID]),
   );
   const [activePresetId, setActivePresetId] = useState<PresetId>(DEFAULT_PRESET_ID);
+  const [compiler, setCompiler] = useState<SceneCompilerState>(INITIAL_COMPILER_STATE);
   const acoustic = useAcousticFrame(state.scene);
   const audio = useAudioEngine(
     state.scene,
@@ -70,6 +85,28 @@ export function EchoWorkbench() {
         materialId: "concrete_hard",
         kind: "partition",
       },
+    });
+  }
+
+  async function generateScene(prompt: string): Promise<void> {
+    setCompiler({ ...INITIAL_COMPILER_STATE, status: "loading" });
+    const result = await requestSceneCompilation(prompt, state.scene);
+    if (!result.ok) {
+      setCompiler({
+        ...INITIAL_COMPILER_STATE,
+        status: "error",
+        error: result.error.message,
+      });
+      return;
+    }
+
+    setCompiler({
+      status: "success",
+      candidate: result.scene,
+      error: null,
+      model: result.model,
+      repairAttempted: result.repairAttempted,
+      warnings: result.warnings,
     });
   }
 
@@ -139,6 +176,14 @@ export function EchoWorkbench() {
             dispatch({ type: "SET_WALL_MATERIAL", wallId, materialId })
           }
           onTogglePortal={(portalId) => dispatch({ type: "TOGGLE_PORTAL", portalId })}
+        />
+
+        <AiScenePanel
+          compiler={compiler}
+          currentScene={state.scene}
+          onApplyScene={(scene) => dispatch({ type: "REPLACE_SCENE", scene })}
+          onExplain={() => undefined}
+          onGenerate={generateScene}
         />
       </section>
     </main>
