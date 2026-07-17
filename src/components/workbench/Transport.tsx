@@ -107,6 +107,11 @@ export function Transport({
                   : "Starting local mono sources…"}
         </p>
         <p className="control-note">Headphones recommended.</p>
+        {audioDiagnostics.acousticFallbackNotice ? (
+          <p className="control-note" role="status">
+            {audioDiagnostics.acousticFallbackNotice}
+          </p>
+        ) : null}
       </div>
 
       <div

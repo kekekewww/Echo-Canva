@@ -32,6 +32,11 @@ export interface PannerNodeLike extends AudioNodeLike {
   readonly positionZ: AudioParamLike;
 }
 
+export interface BiquadFilterNodeLike extends AudioNodeLike {
+  type: BiquadFilterType;
+  readonly frequency: AudioParamLike;
+}
+
 export type AudioBufferLike = Readonly<{
   numberOfChannels: number;
 }>;
@@ -63,6 +68,7 @@ export interface AudioContextLike {
   readonly destination: AudioNodeLike;
   readonly listener: AudioListenerLike;
   createGain(): GainNodeLike;
+  createBiquadFilter(): BiquadFilterNodeLike;
   createPanner(): PannerNodeLike;
   createBufferSource(): AudioBufferSourceNodeLike;
   createDynamicsCompressor(): DynamicsCompressorNodeLike;
@@ -89,4 +95,5 @@ export type AudioEngineDiagnostics = Readonly<{
   contextCreations: number;
   sourceGraphIds: Readonly<Record<string, number>>;
   error: string | null;
+  acousticFallbackNotice: string | null;
 }>;

@@ -10,6 +10,7 @@ import type {
 import { AUDIO_ASSETS } from "@/domain/audio-assets/registry";
 import type { PreviewMode } from "@/domain/editor/state";
 import type { SceneSpec } from "@/domain/scene/types";
+import type { AcousticFrame } from "@/acoustics/compute-frame";
 
 type AudioEngineDependencies = Readonly<{
   createContext?: () => AudioContextLike;
@@ -51,6 +52,7 @@ export class AudioEngine {
   private error: string | null = null;
   private operationTail: Promise<void> = Promise.resolve();
   private desiredScene: SceneSpec | null = null;
+  private latestAcousticFrame: AcousticFrame | null = null;
   private sceneVersion = 0;
   private desiredRunning = false;
   private runIntentGeneration = 0;
@@ -106,6 +108,15 @@ export class AudioEngine {
     this.applyMode();
   }
 
+  applyAcousticFrame(frame: AcousticFrame): void {
+    if (this.disposed || frame.revision !== this.desiredScene?.revision) return;
+    this.latestAcousticFrame = frame;
+    const context = this.context;
+    const scene = this.desiredScene;
+    if (!context || !scene) return;
+    this.applyFrameParameters(frame, scene, context);
+  }
+
   async stop(): Promise<void> {
     this.runIntentGeneration += 1;
     this.desiredRunning = false;
@@ -157,6 +168,7 @@ export class AudioEngine {
         [...this.sourceGraphs].map(([sourceId, graph]) => [sourceId, graph.identity]),
       ),
       error: this.error,
+      acousticFallbackNotice: null,
     };
   }
 
@@ -293,6 +305,21 @@ export class AudioEngine {
     }
   }
 
+  private applyFrameParameters(
+    frame: AcousticFrame,
+    scene: SceneSpec,
+    context: AudioContextLike,
+  ): void {
+    if (frame.revision !== scene.revision) return;
+    for (const sourceFrame of frame.sources) {
+      this.sourceGraphs.get(sourceFrame.sourceId)?.applyFrame(
+        sourceFrame,
+        scene.listener,
+        context.currentTime,
+      );
+    }
+  }
+
   private applyListener(scene: SceneSpec, context: AudioContextLike): void {
     const listener = context.listener;
     const now = context.currentTime;
@@ -346,6 +373,9 @@ export class AudioEngine {
 
       this.applyListener(scene, context);
       this.applySourceParameters(scene, context);
+      if (this.latestAcousticFrame?.revision === scene.revision) {
+        this.applyFrameParameters(this.latestAcousticFrame, scene, context);
+      }
       this.applyMode();
       this.error = null;
 

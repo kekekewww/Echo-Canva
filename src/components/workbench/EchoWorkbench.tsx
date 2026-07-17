@@ -11,13 +11,20 @@ import { createEditorState } from "@/domain/editor/state";
 import { DEFAULT_PRESET_ID, PRESETS, type PresetId } from "@/domain/presets";
 import { APP_NAME } from "@/domain/app-meta";
 import { useAudioEngine } from "@/hooks/useAudioEngine";
+import { useAcousticFrame } from "@/hooks/useAcousticFrame";
 
 export function EchoWorkbench() {
   const [state, dispatch] = useReducer(editorReducer, undefined, () =>
     createEditorState(PRESETS[DEFAULT_PRESET_ID]),
   );
   const [activePresetId, setActivePresetId] = useState<PresetId>(DEFAULT_PRESET_ID);
-  const audio = useAudioEngine(state.scene, state.mode);
+  const acoustic = useAcousticFrame(state.scene);
+  const audio = useAudioEngine(
+    state.scene,
+    state.mode,
+    acoustic.frame,
+    acoustic.fallbackNotice,
+  );
 
   async function toggleAudio(): Promise<void> {
     if (state.audioStatus === "idle") {

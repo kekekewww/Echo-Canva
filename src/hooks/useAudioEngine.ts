@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AudioEngine } from "@/audio/AudioEngine";
 import type { AudioEngineDiagnostics } from "@/audio/types";
 import type { PreviewMode } from "@/domain/editor/state";
 import type { SceneSpec } from "@/domain/scene/types";
+import type { AcousticFrame } from "@/acoustics/compute-frame";
 
 type AudioEngineControls = Readonly<{
   diagnostics: AudioEngineDiagnostics;
@@ -13,7 +14,12 @@ type AudioEngineControls = Readonly<{
   stopAudio: () => Promise<void>;
 }>;
 
-export function useAudioEngine(scene: SceneSpec, mode: PreviewMode): AudioEngineControls {
+export function useAudioEngine(
+  scene: SceneSpec,
+  mode: PreviewMode,
+  acousticFrame: AcousticFrame | null,
+  acousticFallbackNotice: string | null,
+): AudioEngineControls {
   const [engine] = useState(() => new AudioEngine());
   const [diagnostics, setDiagnostics] = useState(() => engine.getDiagnostics());
   const mounted = useRef(true);
@@ -31,6 +37,12 @@ export function useAudioEngine(scene: SceneSpec, mode: PreviewMode): AudioEngine
   useEffect(() => {
     void engine.applyScene(scene).then(refreshDiagnostics, refreshDiagnostics);
   }, [engine, refreshDiagnostics, scene]);
+
+  useEffect(() => {
+    if (acousticFrame === null) return;
+    engine.applyAcousticFrame(acousticFrame);
+    refreshDiagnostics();
+  }, [acousticFrame, engine, refreshDiagnostics]);
 
   useEffect(() => {
     mounted.current = true;
@@ -57,5 +69,10 @@ export function useAudioEngine(scene: SceneSpec, mode: PreviewMode): AudioEngine
     }
   }, [engine, refreshDiagnostics]);
 
-  return { diagnostics, startAudio, stopAudio };
+  const diagnosticsWithFrameNotice = useMemo(
+    () => ({ ...diagnostics, acousticFallbackNotice }),
+    [acousticFallbackNotice, diagnostics],
+  );
+
+  return { diagnostics: diagnosticsWithFrameNotice, startAudio, stopAudio };
 }

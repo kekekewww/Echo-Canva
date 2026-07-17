@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { AudioEngine } from "@/audio/AudioEngine";
+import type { AcousticFrame } from "@/acoustics/compute-frame";
 import type {
   AudioBufferLike,
   AudioBufferSourceNodeLike,
@@ -91,6 +92,11 @@ class FakePannerNode extends FakeNode implements PannerNodeLike {
   readonly positionZ = new FakeParam();
 }
 
+class FakeBiquadFilterNode extends FakeNode {
+  type: BiquadFilterType = "lowpass";
+  readonly frequency = new FakeParam(20_000);
+}
+
 class FakeBufferSourceNode extends FakeNode implements AudioBufferSourceNodeLike {
   buffer: AudioBufferLike | null = null;
   loop = false;
@@ -136,6 +142,7 @@ class FakeAudioContext implements AudioContextLike {
   readonly listener = new FakeListener();
   readonly gains: FakeGainNode[] = [];
   readonly panners: FakePannerNode[] = [];
+  readonly filters: FakeBiquadFilterNode[] = [];
   readonly sources: FakeBufferSourceNode[] = [];
   readonly compressors: FakeCompressorNode[] = [];
   readonly gainValuesAtSourceStart: number[][] = [];
@@ -154,6 +161,12 @@ class FakeAudioContext implements AudioContextLike {
   createPanner(): PannerNodeLike {
     const node = new FakePannerNode();
     this.panners.push(node);
+    return node;
+  }
+
+  createBiquadFilter(): FakeBiquadFilterNode {
+    const node = new FakeBiquadFilterNode();
+    this.filters.push(node);
     return node;
   }
 
@@ -236,6 +249,56 @@ function makeHarness() {
 }
 
 describe("AudioEngine", () => {
+  it("applies blocked-frame direct gain, filter, route distance, and virtual panner position without creating another graph", async () => {
+    const harness = makeHarness();
+    const scene = cloneScene();
+    const blockedFrame: AcousticFrame = {
+      revision: scene.revision,
+      generatedAtMs: 100,
+      room: {
+        volumeM3: 0,
+        totalSurfaceM2: 0,
+        rt60S: { low: 0, mid: 0, high: 0 },
+        preDelayMs: 0,
+      },
+      sources: scene.sources.map((source) => ({
+        sourceId: source.id,
+        routeType: "blocked",
+        directVisible: false,
+        physicalDistanceM: 5,
+        effectiveDistanceM: 8,
+        dryGainDb: -12,
+        lowpassHz: 1_500,
+        reverbSendDb: 0,
+        virtualPosition: { x: 4, y: 1 },
+        occluderWallIds: ["partition"],
+        portalIds: [],
+        routePolyline: [source.position, scene.listener.position],
+        earlyReflections: [],
+      })),
+    };
+
+    await harness.engine.start(scene);
+    harness.engine.applyAcousticFrame(blockedFrame);
+
+    expect(harness.context.gains).toContainEqual(expect.objectContaining({ gain: expect.anything() }));
+    expect(harness.context.filters[0]?.frequency.targets.at(-1)?.target).toBe(
+      blockedFrame.sources[0]?.lowpassHz,
+    );
+    expect(harness.context.panners[0]?.positionX.targets.at(-1)?.target).toBe(
+      blockedFrame.sources[0]?.virtualPosition.x - scene.listener.position.x,
+    );
+    expect(harness.engine.getDiagnostics().sourceStarts).toBe(2);
+
+    const filterTargetCount = harness.context.filters[0]?.frequency.targets.length;
+    harness.engine.applyAcousticFrame({ ...blockedFrame, revision: scene.revision + 1 });
+    expect(harness.context.filters[0]?.frequency.targets).toHaveLength(filterTargetCount ?? 0);
+
+    harness.engine.applyAcousticFrame(blockedFrame);
+    expect(harness.context.sources).toHaveLength(scene.sources.length);
+    expect(harness.engine.getDiagnostics().sourceStarts).toBe(2);
+  });
+
   it("is lazy until explicit start and creates one persistent HRTF graph per source", async () => {
     const harness = makeHarness();
     const scene = cloneScene();

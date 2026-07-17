@@ -7,6 +7,7 @@ import {
 import type {
   AudioBufferLike,
   AudioBufferSourceNodeLike,
+  BiquadFilterNodeLike,
   AudioContextLike,
   AudioNodeLike,
   GainNodeLike,
@@ -14,6 +15,7 @@ import type {
 } from "@/audio/types";
 import type { PreviewMode } from "@/domain/editor/state";
 import type { SceneSpec } from "@/domain/scene/types";
+import type { AcousticFrameSource } from "@/acoustics/compute-frame";
 
 let nextGraphIdentity = 1;
 const HALF_PI = Math.PI * 0.5;
@@ -27,6 +29,7 @@ export class SourceGraph {
   private readonly sourceNode: AudioBufferSourceNodeLike;
   private readonly sourceGain: GainNodeLike;
   private readonly distanceGain: GainNodeLike;
+  private readonly lowPass: BiquadFilterNodeLike;
   private readonly rawModeGain: GainNodeLike;
   private readonly simulatedModeGain: GainNodeLike;
   private readonly panner: PannerNodeLike;
@@ -64,6 +67,8 @@ export class SourceGraph {
       createdNodes.push(sourceGain);
       const distanceGain = context.createGain();
       createdNodes.push(distanceGain);
+      const lowPass = context.createBiquadFilter();
+      createdNodes.push(lowPass);
       const rawModeGain = context.createGain();
       createdNodes.push(rawModeGain);
       const simulatedModeGain = context.createGain();
@@ -74,6 +79,7 @@ export class SourceGraph {
       this.sourceNode = sourceNode;
       this.sourceGain = sourceGain;
       this.distanceGain = distanceGain;
+      this.lowPass = lowPass;
       this.rawModeGain = rawModeGain;
       this.simulatedModeGain = simulatedModeGain;
       this.panner = panner;
@@ -83,6 +89,8 @@ export class SourceGraph {
       panner.refDistance = 1;
       panner.maxDistance = 50;
       panner.rolloffFactor = 0;
+      lowPass.type = "lowpass";
+      lowPass.frequency.value = 20_000;
 
       sourceNode.buffer = buffer;
       sourceNode.loop = source.loop;
@@ -90,7 +98,8 @@ export class SourceGraph {
       sourceGain.connect(rawModeGain);
       rawModeGain.connect(output);
       sourceGain.connect(distanceGain);
-      distanceGain.connect(panner);
+      distanceGain.connect(lowPass);
+      lowPass.connect(panner);
       panner.connect(simulatedModeGain);
       simulatedModeGain.connect(output);
 
@@ -153,6 +162,27 @@ export class SourceGraph {
     this.modeTransition = { fromAngleRad, startTime: now, toAngleRad };
   }
 
+  applyFrame(sourceFrame: AcousticFrameSource, listener: SceneListener, now: number): void {
+    if (this.disposed) return;
+    smoothParameter(
+      this.distanceGain.gain,
+      dbToLinear(sourceFrame.dryGainDb) * distanceAttenuation(sourceFrame.effectiveDistanceM),
+      now,
+    );
+    smoothParameter(this.lowPass.frequency, sourceFrame.lowpassHz, now);
+    smoothParameter(
+      this.panner.positionX,
+      sourceFrame.virtualPosition.x - listener.position.x,
+      now,
+    );
+    smoothParameter(this.panner.positionY, 0, now);
+    smoothParameter(
+      this.panner.positionZ,
+      -(sourceFrame.virtualPosition.y - listener.position.y),
+      now,
+    );
+  }
+
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
@@ -165,6 +195,7 @@ export class SourceGraph {
       this.sourceNode,
       this.sourceGain,
       this.distanceGain,
+      this.lowPass,
       this.panner,
       this.rawModeGain,
       this.simulatedModeGain,
