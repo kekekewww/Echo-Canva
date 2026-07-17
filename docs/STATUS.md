@@ -29,8 +29,8 @@ Known defects: no known Gate C audio-rendering defects. The fixed node graph is 
 ## Gate C browser audio-render validation - 2026-07-17
 
 - Production Chromium OfflineAudioContext test - PASS
-- `SchroederReverb` rendered an actual 0.8 s equal-band impulse response: finite, 0.00350 peak, 0.82 s estimated RT60 (within the ±20% acceptance band)
-- The native equal-power Raw/Simulated crossfade rendered a non-zero finite signal with 0.14143 peak and 0.000040 maximum adjacent-sample step throughout the 80 ms transition
+- `SchroederReverb` rendered an actual 0.8 s equal-band stereo impulse response: both channels finite, 0.00694 / 0.00694 peak, 0.82 s `stereo-energy` estimated RT60 (within the +/- 20% acceptance band)
+- The native equal-power Raw/Simulated crossfade rendered a non-zero finite signal with 0.14143 peak, 0.000040 maximum adjacent-sample step, and 0.000282 relative step ratio (below the 1% limit) throughout the 80 ms transition
 
 This is rendered-buffer evidence for the production Schroeder implementation and shared crossfade scheduler. It does not substitute for individual headphone perception or hardware-specific click testing.
 
@@ -40,7 +40,7 @@ This is rendered-buffer evidence for the production Schroeder implementation and
 - `pnpm lint` - PASS
 - `pnpm typecheck` - PASS
 - `pnpm test` - PASS, 23 files / 149 tests
-- `pnpm e2e` - PASS, 12 Chromium tests through the repository production wrapper on port 3000
+- `pnpm e2e` - PASS, 13 Chromium tests through the repository production wrapper on port 3000 (including rendered stereo reverb validation)
 - `pnpm build` - PASS
 
 The production E2E loads Hard Room and Treated Room, verifies a matching-frame three-band Eyring RT60 readout, four visible first-order reflection paths, lower treated mid-band decay, and the required approximation language. The readout intentionally remains pending until an `AcousticFrame.revision` equals the current scene revision.

@@ -57,7 +57,7 @@ Automated evidence: the repository production wrapper passed the focused portal 
 
 Pass when the hard/treatment material contrast is visible and perceptually coherent, four first-order paths are visible for the canonical rectangular rooms, all reported values are finite, and continuous edits remain stable. The Gate C model is an interactive acoustic approximation, not an architectural-acoustics measurement.
 
-Automated evidence: `pnpm e2e` passed all 13 Chromium production-server tests on 2026-07-17. The reverb diagnostics case asserts Hard Room and Treated Room matching-frame Eyring diagnostics, four reflection paths, a lower treated mid-band RT60, and truthful limitation language. A separate production Chromium `OfflineAudioContext` case renders the real `SchroederReverb` implementation: it requires finite/non-zero output below full scale, a 0.8 s equal-band target to render within ±20% (observed 0.82 s), and no sample discontinuity during the shared 80 ms Raw/Simulated crossfade.
+Automated evidence: `pnpm e2e` passed all 13 Chromium production-server tests on 2026-07-17. The reverb diagnostics case asserts Hard Room and Treated Room matching-frame Eyring diagnostics, four reflection paths, a lower treated mid-band RT60, and truthful limitation language. A separate production Chromium `OfflineAudioContext` case renders the real `SchroederReverb` implementation: it requires each stereo channel to be finite/non-zero/below full scale, derives RT60 from summed unsigned stereo energy, verifies a 0.8 s equal-band target within +/- 20% (observed 0.82 s), and requires the shared 80 ms Raw/Simulated crossfade's largest adjacent-sample step to stay at or below 1% of its measured peak (observed 0.0282%).
 
 ## Gate D — GPT-5.6 compiler and explanation
 
@@ -164,8 +164,8 @@ Audio-oriented automated checks:
 
 - an occluded test path lowers high-frequency energy relative to direct mode;
 - browser-rendered `SchroederReverb` impulse response remains finite, non-zero, and does not clip;
-- an equal-band 0.8 s target reaches approximately -60 dB within ±20% in browser `OfflineAudioContext` rendered data;
-- the shared mode crossfade has no discontinuity in browser-rendered offline data.
+- an equal-band 0.8 s target reaches approximately -60 dB within +/- 20% using summed unsigned stereo energy in browser `OfflineAudioContext` rendered data;
+- the shared mode crossfade's adjacent-sample step stays at or below 1% of its rendered peak.
 
 ## Defect severity
 

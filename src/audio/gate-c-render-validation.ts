@@ -15,11 +15,17 @@ const RT60_ENERGY_RATIO = 1e-6;
 export type GateCAudioRenderValidation = Readonly<{
   available: boolean;
   finite: boolean;
+  reverbChannels: readonly Readonly<{
+    finite: boolean;
+    peak: number;
+  }>[];
   peak: number;
   estimatedRt60Seconds: number;
+  estimatedRt60Method: "stereo-energy";
   targetRt60Seconds: number;
   transitionMaxStep: number;
   transitionPeak: number;
+  transitionMaxStepRatio: number;
 }>;
 
 declare global {
@@ -49,22 +55,27 @@ export async function renderGateCAudioValidation(): Promise<GateCAudioRenderVali
 
   const reverbBuffer = await renderSchroederImpulse();
   const transitionBuffer = await renderModeTransition();
-  const reverbSamples = mixToMono(reverbBuffer);
-  const transitionSamples = mixToMono(transitionBuffer);
+  const reverbChannels = inspectChannels(reverbBuffer);
+  const transitionSamples = transitionBuffer.getChannelData(0);
+  const transitionMaxStep = maxSampleStep(
+    transitionSamples,
+    transitionBuffer.sampleRate,
+    TRANSITION_START_SECONDS,
+    TRANSITION_START_SECONDS + 0.08,
+  );
+  const transitionPeak = peakAmplitude(transitionSamples);
 
   return {
     available: true,
-    finite: reverbSamples.every(Number.isFinite) && transitionSamples.every(Number.isFinite),
-    peak: peakAmplitude(reverbSamples),
-    estimatedRt60Seconds: estimateRt60Seconds(reverbSamples, reverbBuffer.sampleRate),
+    finite: reverbChannels.every((channel) => channel.finite) && transitionSamples.every(Number.isFinite),
+    reverbChannels,
+    peak: Math.max(...reverbChannels.map((channel) => channel.peak)),
+    estimatedRt60Seconds: estimateRt60Seconds(reverbBuffer),
+    estimatedRt60Method: "stereo-energy",
     targetRt60Seconds: TARGET_RT60_SECONDS,
-    transitionMaxStep: maxSampleStep(
-      transitionSamples,
-      transitionBuffer.sampleRate,
-      TRANSITION_START_SECONDS,
-      TRANSITION_START_SECONDS + 0.08,
-    ),
-    transitionPeak: peakAmplitude(transitionSamples),
+    transitionMaxStep,
+    transitionPeak,
+    transitionMaxStepRatio: transitionPeak > 0 ? transitionMaxStep / transitionPeak : Number.NaN,
   };
 }
 
@@ -91,16 +102,20 @@ async function renderSchroederImpulse(): Promise<AudioBuffer> {
   const impulse = context.createBuffer(1, 1, SAMPLE_RATE);
   impulse.getChannelData(0)[0] = 0.1;
   source.buffer = impulse;
+  const stereoInput = context.createChannelMerger(2);
 
   const reverb = new SchroederReverb(
     context as unknown as AudioContextLike,
     context.destination as unknown as AudioContextLike["destination"],
   );
   reverb.apply(VALIDATION_ROOM, 0);
-  source.connect(reverb.input as unknown as AudioNode);
+  source.connect(stereoInput, 0, 0);
+  source.connect(stereoInput, 0, 1);
+  stereoInput.connect(reverb.input as unknown as AudioNode);
   source.start(IMPULSE_START_SECONDS);
 
   const rendered = await context.startRendering();
+  stereoInput.disconnect();
   reverb.dispose();
   return rendered;
 }
@@ -134,23 +149,24 @@ function unavailableValidation(): GateCAudioRenderValidation {
   return {
     available: false,
     finite: false,
+    reverbChannels: [],
     peak: Number.NaN,
     estimatedRt60Seconds: Number.NaN,
+    estimatedRt60Method: "stereo-energy",
     targetRt60Seconds: TARGET_RT60_SECONDS,
     transitionMaxStep: Number.NaN,
     transitionPeak: Number.NaN,
+    transitionMaxStepRatio: Number.NaN,
   };
 }
 
-function mixToMono(buffer: AudioBuffer): Float32Array {
-  const output = new Float32Array(buffer.length);
+function inspectChannels(buffer: AudioBuffer): readonly Readonly<{ finite: boolean; peak: number }>[] {
+  const channels: Array<Readonly<{ finite: boolean; peak: number }>> = [];
   for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
     const samples = buffer.getChannelData(channel);
-    for (let index = 0; index < samples.length; index += 1) {
-      output[index] += samples[index]! / buffer.numberOfChannels;
-    }
+    channels.push({ finite: samples.every(Number.isFinite), peak: peakAmplitude(samples) });
   }
-  return output;
+  return channels;
 }
 
 function peakAmplitude(samples: Float32Array): number {
@@ -159,23 +175,25 @@ function peakAmplitude(samples: Float32Array): number {
   return peak;
 }
 
-function estimateRt60Seconds(samples: Float32Array, sampleRate: number): number {
-  return estimateDecaySeconds(samples, sampleRate, RT60_ENERGY_RATIO);
+function estimateRt60Seconds(buffer: AudioBuffer): number {
+  return estimateDecaySeconds(buffer, RT60_ENERGY_RATIO);
 }
 
 function estimateDecaySeconds(
-  samples: Float32Array,
-  sampleRate: number,
+  buffer: AudioBuffer,
   energyRatio: number,
 ): number {
-  const windowLength = Math.max(1, Math.round(WINDOW_SECONDS * sampleRate));
-  const windowCount = Math.floor(samples.length / windowLength);
+  const windowLength = Math.max(1, Math.round(WINDOW_SECONDS * buffer.sampleRate));
+  const windowCount = Math.floor(buffer.length / windowLength);
   const energy = new Float64Array(windowCount);
-  for (let windowIndex = 0; windowIndex < windowCount; windowIndex += 1) {
-    const offset = windowIndex * windowLength;
-    for (let index = 0; index < windowLength; index += 1) {
-      const sample = samples[offset + index]!;
-      energy[windowIndex] += sample * sample;
+  for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
+    const samples = buffer.getChannelData(channel);
+    for (let windowIndex = 0; windowIndex < windowCount; windowIndex += 1) {
+      const offset = windowIndex * windowLength;
+      for (let index = 0; index < windowLength; index += 1) {
+        const sample = samples[offset + index]!;
+        energy[windowIndex] += sample * sample;
+      }
     }
   }
 
