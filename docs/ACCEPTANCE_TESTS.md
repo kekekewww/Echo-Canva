@@ -37,33 +37,13 @@ Pass when:
 
 ## Gate B — Occlusion and portal perception
 
-### B1. Wall obstruction
+1. Open the canonical **Concrete Partition** preset, press **Start Audio**, and select **Simulated**.
+2. Select the listener and move it down to approximately `(3, 2)` with the arrow keys, keeping it on the opposite side of the center partition and below the doorway.
+3. With the designated portal open, confirm **Portal route**, `partition_center`, Effective distance, Direct gain, Low-pass, and the cyan route/first-portal marker are visible; listen for direction toward the doorway.
+4. Select the designated portal and close it. Confirm **Blocked fallback**, `partition_center` as an occluder, the red wall highlight, and lower direct gain/low-pass values.
+5. Reopen and close the portal once more while listening. Confirm the route and direction change smoothly, no click or burst occurs, and the inspector states: `Portal-aware sound propagation is an interactive acoustic approximation; it is not diffraction.`
 
-1. Use the canonical Concrete Partition preset.
-2. Keep source and listener visible to one another; note level and brightness.
-3. Move the listener behind the partition.
-4. Read debug values.
-
-Pass when:
-
-- route becomes blocked or portal-routed as appropriate;
-- high frequencies and direct level decrease audibly;
-- obstructing wall ID is displayed;
-- transition takes less than roughly 200 ms but is not abrupt.
-
-### B2. Portal open/closed
-
-1. Keep direct path blocked.
-2. Open the designated portal.
-3. Listen and inspect the route.
-4. Close it.
-
-Pass when:
-
-- open state draws a route through the portal;
-- perceived source direction moves toward the portal;
-- closing the portal removes that route;
-- UI says portal approximation, not diffraction.
+Pass when the open portal draws its route and redirects perception toward the doorway, the closed portal removes that route and shows the blocked diagnostic, and all transitions remain smooth. This interactive acoustic approximation is not architectural acoustics or diffraction.
 
 ## Gate C — Reflections and reverb
 

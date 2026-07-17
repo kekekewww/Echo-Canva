@@ -94,6 +94,7 @@ export function EchoWorkbench() {
           activePresetId={activePresetId}
           audioDiagnostics={audio.diagnostics}
           audioStatus={state.audioStatus}
+          acousticFrame={acoustic.frame}
           mode={state.mode}
           wallCount={state.scene.walls.length}
           onAddWall={addWall}
@@ -110,11 +111,17 @@ export function EchoWorkbench() {
             </div>
             <p className="canvas-scale">Grid 1.0 m <span>·</span> {state.scene.walls.length} walls</p>
           </div>
-          <SceneEditor scene={state.scene} selection={state.selectedObject} dispatch={dispatch} />
+          <SceneEditor
+            scene={state.scene}
+            selection={state.selectedObject}
+            acousticFrame={acoustic.frame}
+            dispatch={dispatch}
+          />
           <ReadoutStrip
             scene={state.scene}
             selection={state.selectedObject}
             audioDiagnostics={audio.diagnostics}
+            acousticFrame={acoustic.frame}
             mode={state.mode}
           />
         </section>

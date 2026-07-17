@@ -65,3 +65,9 @@ Reason: The 100-wall interaction budget describes the judge-facing production ca
 Decision: A finite segment intersection exactly at the source or listener is retained by the low-level predicate but excluded from direct-trace crossings; only intervening interior contacts can occlude. Per-wall adjusted transmission loss is floored at 0 dB in each band before accumulation, while the accumulated diagnostic loss remains otherwise uncapped.
 
 Reason: Sources and listeners may be placed on a supporting room boundary, which is not an intervening obstruction. A material transmission-loss heuristic must never become a gain for schema-valid thin walls. The per-band 0 dB floor preserves a physically meaningful diagnostic, and keeping the accumulated value uncapped still exposes all attenuation before the separate 24 dB render cap.
+
+## D-012 — Gate B portal E2E uses a genuinely blocked direct path
+
+Decision: Move the canonical listener from `(3, 4)` to approximately `(3, 2)` in the Gate B browser scenario before asserting an open-portal route, then close the portal and assert the blocked fallback.
+
+Reason: The original Task 4 script expected a portal route for the default Radio `(9, 4)` to listener `(3, 4)` path. That segment passes through the open door centered at `(6, 4)`, which the established direct-path contract correctly treats as direct visibility. Moving the listener below the 1.2 m opening creates the intended blocked direct path while retaining the tested, truthful direct-through-open-door behavior. This is the actual Gate B perception case: open portal routing versus closed-portal obstruction.

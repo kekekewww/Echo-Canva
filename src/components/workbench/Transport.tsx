@@ -1,11 +1,13 @@
-import { PRESETS, type PresetId } from "@/domain/presets";
-import type { AudioStatus, PreviewMode } from "@/domain/editor/state";
+import type { AcousticFrame } from "@/acoustics/compute-frame";
 import type { AudioEngineDiagnostics } from "@/audio/types";
+import type { AudioStatus, PreviewMode } from "@/domain/editor/state";
+import { PRESETS, type PresetId } from "@/domain/presets";
 
 type TransportProps = Readonly<{
   activePresetId: PresetId;
   audioDiagnostics: AudioEngineDiagnostics;
   audioStatus: AudioStatus;
+  acousticFrame: AcousticFrame | null;
   mode: PreviewMode;
   wallCount: number;
   onAddWall: () => void;
@@ -18,6 +20,7 @@ export function Transport({
   activePresetId,
   audioDiagnostics,
   audioStatus,
+  acousticFrame,
   mode,
   wallCount,
   onAddWall,
@@ -54,7 +57,7 @@ export function Transport({
         type="button"
         onClick={onAddWall}
       >
-        <span aria-hidden="true">＋</span>
+        <span aria-hidden="true">+</span>
         Add wall
       </button>
       <p className="control-note" id="wall-limit-status" aria-live="polite">
@@ -88,9 +91,7 @@ export function Transport({
         <button
           className="audio-button"
           type="button"
-          onClick={() =>
-            onAudioStatusChange(audioStatus === "idle" ? "ready" : "idle")
-          }
+          onClick={() => onAudioStatusChange(audioStatus === "idle" ? "ready" : "idle")}
         >
           <span className="button-status-dot" aria-hidden="true" />
           {audioStatus === "idle" ? "Start Audio" : "Stop Audio"}
@@ -122,10 +123,19 @@ export function Transport({
         data-context-creations={audioDiagnostics.contextCreations}
         data-source-starts={audioDiagnostics.sourceStarts}
         data-apply-count={audioDiagnostics.applyCount}
+        data-acoustic-frame-revision={acousticFrame?.revision ?? "pending"}
+        data-worker-frame-generated-at={acousticFrame?.generatedAtMs ?? "pending"}
       >
-        <span>Gate A / browser spatializer</span>
+        <span>Gate B / acoustic diagnostics</span>
         <p>
           {audioDiagnostics.contextCreations} context · {audioDiagnostics.sourceStarts} source starts · {audioDiagnostics.applyCount} smooth updates
+        </p>
+        <p>
+          {acousticFrame === null
+            ? "Computing acoustic preview…"
+            : acousticFrame.generatedAtMs > 0
+              ? `Frame revision ${acousticFrame.revision} · Worker timestamp ${acousticFrame.generatedAtMs} ms`
+              : `Frame revision ${acousticFrame.revision} · Worker timing unavailable in fallback`}
         </p>
       </div>
     </aside>

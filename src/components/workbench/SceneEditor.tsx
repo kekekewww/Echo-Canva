@@ -15,6 +15,7 @@ import {
 import type { EditorAction } from "@/domain/editor/reducer";
 import type { EditorSelection } from "@/domain/editor/state";
 import type { SceneSpec, Vec2 } from "@/domain/scene/types";
+import type { AcousticFrame } from "@/acoustics/compute-frame";
 
 const SVG_WIDTH = 900;
 const SVG_HEIGHT = 600;
@@ -30,6 +31,7 @@ type DragTarget =
 type SceneEditorProps = Readonly<{
   scene: SceneSpec;
   selection: EditorSelection;
+  acousticFrame: AcousticFrame | null;
   dispatch: (action: EditorAction) => void;
 }>;
 
@@ -60,13 +62,20 @@ function portalSegment(scene: SceneSpec, portal: SceneSpec["portals"][number]): 
   ];
 }
 
-export function SceneEditor({ scene, selection, dispatch }: SceneEditorProps) {
+export function SceneEditor({ scene, selection, acousticFrame, dispatch }: SceneEditorProps) {
   const [dragTarget, setDragTarget] = useState<DragTarget | null>(null);
   const worldBounds = getWorldBounds(scene);
   const selectedSource =
     selection?.type === "source"
       ? scene.sources.find(({ id }) => id === selection.id)
       : undefined;
+  const activeSource = selectedSource ?? scene.sources[0];
+  const activeSourceFrame = activeSource
+    ? acousticFrame?.sources.find(({ sourceId }) => sourceId === activeSource.id)
+    : undefined;
+  const firstPortal = activeSourceFrame?.portalIds[0]
+    ? scene.portals.find(({ id }) => id === activeSourceFrame.portalIds[0])
+    : undefined;
 
   function eventToWorld(event: ReactPointerEvent<SVGElement>): Vec2 {
     const svg = event.currentTarget.ownerSVGElement ?? (event.currentTarget as SVGSVGElement);
@@ -220,20 +229,13 @@ export function SceneEditor({ scene, selection, dispatch }: SceneEditorProps) {
           return <text key={`y-${index}`} x="44" y={point.y + 3} className="axis-label axis-label-y">{index}</text>;
         })}
 
-        {selectedSource ? (() => {
-          const center = worldToSvg(selectedSource.position, worldBounds, VIEWPORT);
+        {activeSource ? (() => {
+          const center = worldToSvg(activeSource.position, worldBounds, VIEWPORT);
           return (
             <g className="wavefront-signature" aria-hidden="true">
               {[34, 74, 118].map((radius, index) => (
                 <circle key={radius} cx={center.x} cy={center.y} r={radius} style={{ animationDelay: `${index * -0.65}s` }} />
               ))}
-              <line
-                x1={center.x}
-                y1={center.y}
-                x2={worldToSvg(scene.listener.position, worldBounds, VIEWPORT).x}
-                y2={worldToSvg(scene.listener.position, worldBounds, VIEWPORT).y}
-                className="source-listener-line"
-              />
             </g>
           );
         })() : null}
@@ -255,7 +257,13 @@ export function SceneEditor({ scene, selection, dispatch }: SceneEditorProps) {
                 onKeyDown={keyboardSelect({ type: "wall", id: wall.id })}
               >
                 <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} className="wall-hit-line" />
-                <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} className={`wall-line wall-${wall.kind}`} />
+                <line
+                  x1={a.x}
+                  y1={a.y}
+                  x2={b.x}
+                  y2={b.y}
+                  className={`wall-line wall-${wall.kind}${activeSourceFrame?.occluderWallIds.includes(wall.id) ? " is-occluder" : ""}`}
+                />
               </g>
               {selected ? (["a", "b"] as const).map((endpoint) => {
                 const position = endpoint === "a" ? a : b;
@@ -292,6 +300,34 @@ export function SceneEditor({ scene, selection, dispatch }: SceneEditorProps) {
             </g>
           );
         })}
+
+        {activeSourceFrame?.routePolyline.length ? (
+          <polyline
+            data-testid="acoustic-route-overlay"
+            points={activeSourceFrame.routePolyline
+              .map((point) => {
+                const svgPoint = worldToSvg(point, worldBounds, VIEWPORT);
+                return `${svgPoint.x},${svgPoint.y}`;
+              })
+              .join(" ")}
+            className="acoustic-route-overlay"
+            aria-hidden="true"
+          />
+        ) : null}
+
+        {firstPortal ? (() => {
+          const point = worldToSvg(firstPortal.center, worldBounds, VIEWPORT);
+          return (
+            <circle
+              data-testid="first-portal-route-marker"
+              cx={point.x}
+              cy={point.y}
+              r="9"
+              className="first-portal-route-marker"
+              aria-hidden="true"
+            />
+          );
+        })() : null}
 
         {scene.portals.map((portal) => {
           const segment = portalSegment(scene, portal);

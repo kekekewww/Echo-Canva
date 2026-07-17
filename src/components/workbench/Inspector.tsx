@@ -93,7 +93,7 @@ export function Inspector({
             <Measurement label="Thickness" value={`${selectedWall.thicknessM.toFixed(2)} m`} />
             <Measurement label="Type" value={selectedWall.kind} />
           </dl>
-          <p className="inspector-hint">Drag the cyan endpoint handles to reshape this wall.</p>
+          <p className="inspector-hint">Material choices are perceptually tuned presets. Drag the cyan endpoint handles to reshape this wall.</p>
           <button
             type="button"
             className="danger-action"
@@ -123,7 +123,7 @@ export function Inspector({
             <Measurement label="Loss" value={`${selectedPortal.lossDb.toFixed(1)} dB`} />
             <Measurement label="Host wall" value={selectedPortal.wallId} />
           </dl>
-          <p className="inspector-hint">Portal-aware sound propagation connects in Gate B.</p>
+          <p className="inspector-hint">Portal-aware sound propagation is an interactive acoustic approximation; it is not diffraction.</p>
         </div>
       ) : selectedSource ? (
         <div className="inspector-content">

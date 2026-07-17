@@ -418,6 +418,11 @@ select {
   stroke-width: 4;
 }
 
+.wall-line.is-occluder {
+  stroke: var(--danger);
+  stroke-width: 7;
+}
+
 .wall-hit-target:hover .wall-line,
 .wall-hit-target.is-selected .wall-line {
   filter: url(#signal-glow);
@@ -549,6 +554,21 @@ select {
   stroke-width: 1;
 }
 
+.acoustic-route-overlay {
+  fill: none;
+  pointer-events: none;
+  stroke: var(--signal-bright);
+  stroke-dasharray: 8 6;
+  stroke-width: 3;
+}
+
+.first-portal-route-marker {
+  fill: var(--canvas);
+  pointer-events: none;
+  stroke: var(--signal-bright);
+  stroke-width: 4;
+}
+
 @keyframes wavefront {
   from { opacity: 0.44; transform: scale(0.72); }
   to { opacity: 0; transform: scale(1.28); }
@@ -617,7 +637,7 @@ select {
 
 .diagnostic-strip dl {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   margin: 0;
 }
 
