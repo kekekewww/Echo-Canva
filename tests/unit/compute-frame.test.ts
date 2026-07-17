@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { computeAcousticFrame } from "@/acoustics/compute-frame";
+import { CONCRETE_PARTITION_PRESET } from "@/domain/presets/concrete-partition";
 import type { SceneSpec } from "@/domain/scene/types";
 
 const visibleScene: SceneSpec = {
@@ -55,5 +56,28 @@ describe("computeAcousticFrame", () => {
       routePolyline: [{ x: 6, y: 3 }, { x: 2, y: 3 }],
       earlyReflections: [],
     });
+  });
+
+  it("uses portal direction and total route distance only after direct visibility is blocked", () => {
+    const openPortalScene = {
+      ...CONCRETE_PARTITION_PRESET,
+      sources: [
+        {
+          ...CONCRETE_PARTITION_PRESET.sources[0]!,
+          position: { x: 9, y: 1.5 },
+        },
+      ],
+      listener: { ...CONCRETE_PARTITION_PRESET.listener, position: { x: 3, y: 1.5 } },
+    };
+
+    const sourceFrame = computeAcousticFrame(openPortalScene).sources[0]!;
+
+    expect(sourceFrame).toMatchObject({
+      routeType: "portal",
+      directVisible: false,
+      portalIds: ["partition_door"],
+      virtualPosition: { x: 6, y: 4 },
+    });
+    expect(sourceFrame.effectiveDistanceM).toBeGreaterThan(sourceFrame.physicalDistanceM);
   });
 });

@@ -27,3 +27,13 @@ export type OcclusionEstimate = Readonly<{
   occluderWallIds: readonly string[];
   transmissionLossDb: Band3;
 }>;
+
+export type PortalRoute = Readonly<{
+  portalIds: readonly string[];
+  polyline: readonly Vec2[];
+  effectiveDistanceM: number;
+  cost: number;
+  virtualPosition: Vec2;
+  dryGainDb: number;
+  lowpassHz: number;
+}>;

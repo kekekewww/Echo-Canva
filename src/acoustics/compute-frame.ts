@@ -1,10 +1,11 @@
 import { distance, traceDirectPath } from "@/acoustics/geometry";
 import { estimateDirectOcclusion } from "@/acoustics/occlusion";
+import { findBestPortalRoute } from "@/acoustics/portal";
 import type { Band3, SceneSpec, Vec2 } from "@/domain/scene/types";
 
 export type AcousticFrameSource = Readonly<{
   sourceId: string;
-  routeType: "direct" | "blocked";
+  routeType: "direct" | "portal" | "blocked";
   directVisible: boolean;
   physicalDistanceM: number;
   effectiveDistanceM: number;
@@ -57,21 +58,24 @@ export function computeAcousticFrame(
     sources: scene.sources.map((source) => {
       const trace = traceDirectPath(source.position, scene.listener.position, scene);
       const occlusion = estimateDirectOcclusion(trace);
+      const portalRoute = trace.visible
+        ? null
+        : findBestPortalRoute(source.position, scene.listener.position, scene);
       const physicalDistanceM = distance(source.position, scene.listener.position);
 
       return {
         sourceId: source.id,
-        routeType: trace.visible ? "direct" : "blocked",
+        routeType: trace.visible ? "direct" : portalRoute === null ? "blocked" : "portal",
         directVisible: trace.visible,
         physicalDistanceM,
-        effectiveDistanceM: physicalDistanceM,
-        dryGainDb: occlusion.dryGainDb,
-        lowpassHz: occlusion.lowpassHz,
+        effectiveDistanceM: portalRoute?.effectiveDistanceM ?? physicalDistanceM,
+        dryGainDb: portalRoute?.dryGainDb ?? occlusion.dryGainDb,
+        lowpassHz: portalRoute?.lowpassHz ?? occlusion.lowpassHz,
         reverbSendDb: 0,
-        virtualPosition: source.position,
-        occluderWallIds: occlusion.occluderWallIds,
-        portalIds: [],
-        routePolyline: trace.polyline,
+        virtualPosition: portalRoute?.virtualPosition ?? source.position,
+        occluderWallIds: portalRoute === null ? occlusion.occluderWallIds : [],
+        portalIds: portalRoute?.portalIds ?? [],
+        routePolyline: portalRoute?.polyline ?? trace.polyline,
         earlyReflections: [],
       };
     }),
