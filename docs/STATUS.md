@@ -1,8 +1,8 @@
 # Status
 
-Current phase: Gate C Task 1 implemented; remaining Gate C audio integration is pending.
+Current phase: Gate C Tasks 1-2 implemented; diagnostics, browser acceptance coverage, and final Gate C candidate preparation remain.
 
-Current checklist state: Build Checklist items 5 (direct occlusion) and 6 (explicit portal routing) are implemented and verified. Gate B passed human acceptance on 2026-07-17. Gate C Task 1 now supplies deterministic first-order reflection taps and three-band Eyring room estimates to `computeAcousticFrame`; persistent reflection-tap audio rendering and late reverberation remain pending.
+Current checklist state: Build Checklist items 5 (direct occlusion) and 6 (explicit portal routing) are implemented and verified. Gate B passed human acceptance on 2026-07-17. Gate C now supplies deterministic first-order reflection taps and three-band Eyring room estimates to `computeAcousticFrame`, renders those taps through a persistent six-tap bank, and uses a stable Schroeder late-reverb network. UI diagnostics and full browser acceptance coverage remain pending.
 
 ## Gate C Task 1 verification - 2026-07-17
 
@@ -14,7 +14,17 @@ Current checklist state: Build Checklist items 5 (direct occlusion) and 6 (expli
 
 Known defects: no known deterministic-calculation defects in Gate C Task 1. Its browser-audio consumers are intentionally not implemented in this slice.
 
-Next action: implement and test the fixed early-reflection tap bank and stable late-reverb network, then prepare the Gate C human acceptance candidate.
+Next action: expose reflection and RT60 diagnostics in the UI, add Gate C browser acceptance coverage, then prepare the Gate C human acceptance candidate.
+
+## Gate C Task 2 verification - 2026-07-17
+
+- focused audio tests - PASS, 23 files / 149 tests
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 23 files / 149 tests
+- Task 2 independent re-review - PASS
+
+Known defects: no known Gate C audio-rendering defects. The fixed node graph is allocated once, updates through parameter automation, uses a true two-stage Schroeder all-pass topology, and gates reverb input in Raw mode.
 
 ## Verification evidence - 2026-07-17
 
