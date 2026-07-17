@@ -1,8 +1,8 @@
 # Status
 
-Current phase: Gate B human acceptance candidate.
+Current phase: Gate C implementation planning.
 
-Current checklist state: Build Checklist items 5 (direct occlusion) and 6 (explicit portal routing) are implemented and verified. Gate B is awaiting the defined human `PASS` or `FAIL` verdict; no Gate C or later work is in scope.
+Current checklist state: Build Checklist items 5 (direct occlusion) and 6 (explicit portal routing) are implemented and verified. Gate B passed human acceptance on 2026-07-17; Gate C will add first-order early reflections and late reverberation.
 
 ## Verification evidence - 2026-07-17
 
@@ -20,7 +20,7 @@ Earlier isolated-port evidence: before port 3000 was available, a fresh producti
 ## Human gate status
 
 - Gate A: PASS (2026-07-17)
-- Gate B: candidate ready - human verdict pending
+- Gate B: PASS (2026-07-17)
 - Gate C: pending
 - Gate D: pending
 - Gate E: pending
@@ -39,4 +39,4 @@ Expected result: the open portal provides a portal-aware route and the closed po
 
 Known deviations: browser automation verifies deterministic route selection, displayed frame values, overlays, control changes, and absence of page errors; it cannot verify individual headphone perception or hardware-specific clicks. The original test path was corrected under D-012 because it crossed the open doorway directly. No architectural-acoustics accuracy claim is made.
 
-Verdict requested: **PASS or FAIL**.
+Human result: `PASS` (2026-07-17). The next action is Gate C planning; no new Gate C audio behavior has been implemented yet.
