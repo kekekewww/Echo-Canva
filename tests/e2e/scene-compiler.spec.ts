@@ -47,5 +47,7 @@ test("scene compiler preserves the prior scene on a typed adversarial failure", 
   expect((await page.locator("script").allTextContents()).join("\n")).not.toContain(
     "window.__unsafe = true",
   );
-  await expect(page.locator('audio[src="https://example.test/untrusted.mp3"]')).toHaveCount(0);
+  await expect(
+    page.locator('[src="https://example.test/untrusted.mp3"], [href="https://example.test/untrusted.mp3"]'),
+  ).toHaveCount(0);
 });

@@ -18,7 +18,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isPresetId(value: unknown): value is PresetId {
-  return typeof value === "string" && value in PRESETS;
+  return typeof value === "string" && Object.hasOwn(PRESETS, value);
 }
 
 function typedFailure(message = INVALID_RESPONSE_MESSAGE): CompileSceneFailure {

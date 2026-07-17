@@ -44,4 +44,29 @@ describe("requestSceneCompilation", () => {
       fallbackSceneId: "concrete-partition",
     });
   });
+
+  it.each(["toString", "__proto__"])("rejects inherited fallback preset ID %s", async (fallbackSceneId) => {
+    const response = await requestSceneCompilation(
+      "A room",
+      CONCRETE_PARTITION_PRESET,
+      async () =>
+        new Response(
+          JSON.stringify({
+            ok: false,
+            error: {
+              code: "SCENE_VALIDATION_FAILED",
+              message: "The generated scene could not be validated.",
+            },
+            fallbackSceneId,
+          }),
+          { status: 422, headers: { "content-type": "application/json" } },
+        ),
+    );
+
+    expect(response).toMatchObject({
+      ok: false,
+      fallbackSceneId: "concrete-partition",
+      error: { code: "SCENE_VALIDATION_FAILED" },
+    });
+  });
 });
