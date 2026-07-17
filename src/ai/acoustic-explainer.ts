@@ -78,7 +78,7 @@ function hasOnlyProjectedNumbers(value: string, snapshot: AcousticSnapshotProjec
   if (
     /[-+]?(?:\d+(?:\.\d+)?|\.\d+)[eE][-+]?\d+/.test(value) ||
     /(?:\d|\.\d)[A-Za-z_]/.test(value) ||
-    /\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion)\b/i.test(
+    /\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion|dozen|half)\b/i.test(
       value,
     )
   ) {
@@ -90,7 +90,7 @@ function hasOnlyProjectedNumbers(value: string, snapshot: AcousticSnapshotProjec
 }
 
 function isUnsupportedClaim(value: string): boolean {
-  return /\b(?:heard|listen(?:ed|ing)?|sound(?:s|ed|ing)?|realistic|accurate|accuracy|physically accurate|scientifically validated|architectural(?:[- ]acoustics?)?)\b/i.test(
+  return /\b(?:heard|listen(?:ed|ing)?|sound(?:s|ed|ing)?|audible|perceive(?:d|s|ing)?|realistic|lifelike|accurate|accuracy|physically accurate|scientifically validated|architectural(?:[- ]acoustics?)?)\b/i.test(
     value,
   );
 }

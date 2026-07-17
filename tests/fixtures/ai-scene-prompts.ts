@@ -12,7 +12,9 @@ export type CanonicalScenePromptFixture = Readonly<{
     sourceCount: number;
     sourceZone: "center" | "east" | "northwest";
     geometry: "compact" | "corridor" | "courtyard" | "partitioned";
-    requiresOpenPortal?: boolean;
+    openPortalCount: number;
+    centeredListener?: boolean;
+    oppositeSidesOfPartition?: boolean;
   }>;
 }>;
 
@@ -34,6 +36,7 @@ type SemanticSceneOptions = Readonly<{
   source: Readonly<{ name: string; clipId: string; position: SceneSpec["sources"][number]["position"] }>;
   portalSide?: "east" | "south";
   partition?: boolean;
+  listenerPosition?: SceneSpec["listener"]["position"];
 }>;
 
 function semanticScene(options: SemanticSceneOptions): SceneSpec {
@@ -83,7 +86,7 @@ function semanticScene(options: SemanticSceneOptions): SceneSpec {
       loop: true,
     },
   ];
-  scene.listener = { position: { x: width / 2, y: height / 2 }, headingDeg: 0 };
+  scene.listener = { position: options.listenerPosition ?? { x: width / 2, y: height / 2 }, headingDeg: 0 };
   return scene;
 }
 
@@ -115,21 +118,21 @@ function tooManyWalls(): unknown {
 }
 
 export const CANONICAL_SCENE_PROMPT_FIXTURES: readonly CanonicalScenePromptFixture[] = [
-  { name: "concrete room", prompt: "A small concrete room with a radio in the northwest corner and the listener near the center.", firstCandidate: semanticScene({ name: "Concrete radio room", width: 8, height: 6, materialId: "concrete_hard", source: { name: "Radio", clipId: "radio_loop", position: { x: 1, y: 1 } } }), expected: { materialId: "concrete_hard", clipId: "radio_loop", sourceCount: 1, sourceZone: "northwest", geometry: "compact" } },
-  { name: "wood corridor", prompt: "A narrow wood corridor with an open doorway at the east end and rain outside.", firstCandidate: semanticScene({ name: "Wood rain corridor", width: 18, height: 4, materialId: "wood_medium", source: { name: "Rain", clipId: "rain_loop", position: { x: 16, y: 2 } }, portalSide: "east" }), expected: { materialId: "wood_medium", clipId: "rain_loop", sourceCount: 1, sourceZone: "east", geometry: "corridor", requiresOpenPortal: true } },
-  { name: "podcast room", prompt: "A treated podcast room with one voice source.", firstCandidate: semanticScene({ name: "Treated podcast room", width: 8, height: 6, materialId: "acoustic_treatment", source: { name: "Voice", clipId: "voice_loop", position: { x: 4, y: 3 } } }), expected: { materialId: "acoustic_treatment", clipId: "voice_loop", sourceCount: 1, sourceZone: "center", geometry: "compact" } },
-  { name: "hard courtyard", prompt: "A hard courtyard with water ambience and an opening to the south.", firstCandidate: semanticScene({ name: "Hard water courtyard", width: 12, height: 12, materialId: "concrete_hard", source: { name: "Water", clipId: "water_loop", position: { x: 6, y: 6 } }, portalSide: "south" }), expected: { materialId: "concrete_hard", clipId: "water_loop", sourceCount: 1, sourceZone: "center", geometry: "courtyard", requiresOpenPortal: true } },
-  { name: "partition", prompt: "A room divided by a concrete partition with the radio behind it.", firstCandidate: semanticScene({ name: "Partition radio room", width: 12, height: 8, materialId: "concrete_hard", source: { name: "Radio", clipId: "radio_loop", position: { x: 9, y: 4 } }, partition: true }), expected: { materialId: "concrete_hard", clipId: "radio_loop", sourceCount: 1, sourceZone: "east", geometry: "partitioned" } },
-  { name: "small studio", prompt: "A compact wood studio with one radio source and a centered listener.", firstCandidate: semanticScene({ name: "Compact wood studio", width: 8, height: 6, materialId: "wood_medium", source: { name: "Radio", clipId: "radio_loop", position: { x: 6, y: 3 } } }), expected: { materialId: "wood_medium", clipId: "radio_loop", sourceCount: 1, sourceZone: "east", geometry: "compact" } },
-  { name: "treated booth", prompt: "A treated voice booth with one looped voice source.", firstCandidate: semanticScene({ name: "Treated voice booth", width: 5, height: 4, materialId: "acoustic_treatment", source: { name: "Voice", clipId: "voice_loop", position: { x: 2.5, y: 2 } } }), expected: { materialId: "acoustic_treatment", clipId: "voice_loop", sourceCount: 1, sourceZone: "center", geometry: "compact" } },
-  { name: "rain shelter", prompt: "A concrete rain shelter with rain ambience and an open side.", firstCandidate: semanticScene({ name: "Concrete rain shelter", width: 9, height: 6, materialId: "concrete_hard", source: { name: "Rain", clipId: "rain_loop", position: { x: 7, y: 3 } }, portalSide: "east" }), expected: { materialId: "concrete_hard", clipId: "rain_loop", sourceCount: 1, sourceZone: "east", geometry: "compact", requiresOpenPortal: true } },
-  { name: "quiet room", prompt: "A small acoustic-treatment room with a radio near the east wall.", firstCandidate: semanticScene({ name: "Quiet treatment room", width: 8, height: 6, materialId: "acoustic_treatment", source: { name: "Radio", clipId: "radio_loop", position: { x: 6.5, y: 3 } } }), expected: { materialId: "acoustic_treatment", clipId: "radio_loop", sourceCount: 1, sourceZone: "east", geometry: "compact" } },
+  { name: "concrete room", prompt: "A small concrete room with a radio in the northwest corner and the listener near the center.", firstCandidate: semanticScene({ name: "Concrete radio room", width: 8, height: 6, materialId: "concrete_hard", source: { name: "Radio", clipId: "radio_loop", position: { x: 1, y: 1 } } }), expected: { materialId: "concrete_hard", clipId: "radio_loop", sourceCount: 1, sourceZone: "northwest", geometry: "compact", openPortalCount: 0, centeredListener: true } },
+  { name: "wood corridor", prompt: "A narrow wood corridor with an open doorway at the east end and rain outside.", firstCandidate: semanticScene({ name: "Wood rain corridor", width: 18, height: 4, materialId: "wood_medium", source: { name: "Rain", clipId: "rain_loop", position: { x: 16, y: 2 } }, portalSide: "east" }), expected: { materialId: "wood_medium", clipId: "rain_loop", sourceCount: 1, sourceZone: "east", geometry: "corridor", openPortalCount: 1 } },
+  { name: "podcast room", prompt: "A treated podcast room with one voice source.", firstCandidate: semanticScene({ name: "Treated podcast room", width: 8, height: 6, materialId: "acoustic_treatment", source: { name: "Voice", clipId: "voice_loop", position: { x: 4, y: 3 } } }), expected: { materialId: "acoustic_treatment", clipId: "voice_loop", sourceCount: 1, sourceZone: "center", geometry: "compact", openPortalCount: 0 } },
+  { name: "hard courtyard", prompt: "A hard courtyard with water ambience and an opening to the south.", firstCandidate: semanticScene({ name: "Hard water courtyard", width: 12, height: 12, materialId: "concrete_hard", source: { name: "Water", clipId: "water_loop", position: { x: 6, y: 6 } }, portalSide: "south" }), expected: { materialId: "concrete_hard", clipId: "water_loop", sourceCount: 1, sourceZone: "center", geometry: "courtyard", openPortalCount: 1 } },
+  { name: "partition", prompt: "A room divided by a concrete partition with the radio behind it.", firstCandidate: semanticScene({ name: "Partition radio room", width: 12, height: 8, materialId: "concrete_hard", source: { name: "Radio", clipId: "radio_loop", position: { x: 9, y: 4 } }, partition: true, listenerPosition: { x: 3, y: 4 } }), expected: { materialId: "concrete_hard", clipId: "radio_loop", sourceCount: 1, sourceZone: "east", geometry: "partitioned", openPortalCount: 0, oppositeSidesOfPartition: true } },
+  { name: "small studio", prompt: "A compact wood studio with one radio source and a centered listener.", firstCandidate: semanticScene({ name: "Compact wood studio", width: 8, height: 6, materialId: "wood_medium", source: { name: "Radio", clipId: "radio_loop", position: { x: 6, y: 3 } } }), expected: { materialId: "wood_medium", clipId: "radio_loop", sourceCount: 1, sourceZone: "east", geometry: "compact", openPortalCount: 0, centeredListener: true } },
+  { name: "treated booth", prompt: "A treated voice booth with one looped voice source.", firstCandidate: semanticScene({ name: "Treated voice booth", width: 5, height: 4, materialId: "acoustic_treatment", source: { name: "Voice", clipId: "voice_loop", position: { x: 2.5, y: 2 } } }), expected: { materialId: "acoustic_treatment", clipId: "voice_loop", sourceCount: 1, sourceZone: "center", geometry: "compact", openPortalCount: 0 } },
+  { name: "rain shelter", prompt: "A concrete rain shelter with rain ambience and an open side.", firstCandidate: semanticScene({ name: "Concrete rain shelter", width: 9, height: 6, materialId: "concrete_hard", source: { name: "Rain", clipId: "rain_loop", position: { x: 7, y: 3 } }, portalSide: "east" }), expected: { materialId: "concrete_hard", clipId: "rain_loop", sourceCount: 1, sourceZone: "east", geometry: "compact", openPortalCount: 1 } },
+  { name: "quiet room", prompt: "A small acoustic-treatment room with a radio near the east wall.", firstCandidate: semanticScene({ name: "Quiet treatment room", width: 8, height: 6, materialId: "acoustic_treatment", source: { name: "Radio", clipId: "radio_loop", position: { x: 6.5, y: 3 } } }), expected: { materialId: "acoustic_treatment", clipId: "radio_loop", sourceCount: 1, sourceZone: "east", geometry: "compact", openPortalCount: 0 } },
   {
     name: "repairable corridor",
     prompt: "A narrow concrete corridor with a radio and one open portal.",
     firstCandidate: { schemaVersion: "1.0" },
     repairedCandidate: semanticScene({ name: "Repaired concrete corridor", width: 18, height: 4, materialId: "concrete_hard", source: { name: "Radio", clipId: "radio_loop", position: { x: 16, y: 2 } }, portalSide: "east" }),
-    expected: { materialId: "concrete_hard", clipId: "radio_loop", sourceCount: 1, sourceZone: "east", geometry: "corridor", requiresOpenPortal: true },
+    expected: { materialId: "concrete_hard", clipId: "radio_loop", sourceCount: 1, sourceZone: "east", geometry: "corridor", openPortalCount: 1 },
   },
 ];
 

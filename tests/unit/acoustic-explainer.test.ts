@@ -78,8 +78,13 @@ describe("explainAcoustics", () => {
     "The cutoff is 20Hz.",
     "The cutoff is 2e3 Hz.",
     "The cutoff is twenty hertz.",
+    "The cutoff is a dozen hertz.",
+    "The cutoff is half the usual value.",
     "I heard the source behind the wall.",
+    "The source is audible behind the wall.",
+    "You will perceive the portal route.",
     "The result sounds realistic.",
+    "The result is lifelike.",
     "This is an accurate acoustic result.",
     "This has architectural accuracy.",
   ])("rejects a grounding bypass: %s", async (evidence) => {

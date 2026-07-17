@@ -56,8 +56,20 @@ describe("deterministic AI scene prompt evaluation fixtures", () => {
       } else {
         expect(Math.max(width, height)).toBeLessThanOrEqual(12);
       }
-      if (expected.requiresOpenPortal) {
-        expect(result.scene.portals.some((portal) => portal.open)).toBe(true);
+      expect(result.scene.portals.filter((portal) => portal.open)).toHaveLength(expected.openPortalCount);
+      if (expected.centeredListener) {
+        expect(result.scene.listener.position.x).toBeCloseTo(width / 2);
+        expect(result.scene.listener.position.y).toBeCloseTo(height / 2);
+      }
+      if (expected.oppositeSidesOfPartition) {
+        const partition = result.scene.walls.find((wall) => wall.kind === "partition");
+        expect(partition).toBeDefined();
+        if (!partition) {
+          return;
+        }
+        expect(
+          (source.position.x - partition.a.x) * (result.scene.listener.position.x - partition.a.x),
+        ).toBeLessThan(0);
       }
     },
   );

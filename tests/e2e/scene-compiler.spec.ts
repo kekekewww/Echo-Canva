@@ -66,26 +66,26 @@ test("scene explanation renders only evidence from the current deterministic sna
     const request = route.request();
     const body = JSON.parse(request.postData() ?? "{}") as { snapshot: Snapshot };
     requestedSnapshots.push(body.snapshot);
-    await route.fulfill({
-      json: {
-        ok: true,
-        model: "gpt-5.6",
-        explanation: {
-          summary: "This is a deterministic snapshot explanation.",
-          factors: [
-            { label: "Route", evidence: body.snapshot.routeType },
-            { label: "Effective distance", evidence: `${body.snapshot.effectiveDistanceM} m` },
-            { label: "Direct gain", evidence: `${body.snapshot.dryGainDb} dB` },
-            { label: "Low-pass", evidence: `${body.snapshot.lowpassHz} Hz` },
-            { label: "Portal count", evidence: String(body.snapshot.portalCount) },
-            { label: "RT60 low", evidence: `${body.snapshot.rt60S.low} s` },
-            { label: "RT60 mid", evidence: `${body.snapshot.rt60S.mid} s` },
-            { label: "RT60 high", evidence: `${body.snapshot.rt60S.high} s` },
-          ],
-          limitations: ["Portal routing is a geometric perceptual approximation."],
+    const explanation = {
+      summary: "This is a deterministic snapshot explanation.",
+      factors: [
+        {
+          label: "Route and portals",
+          evidence: `${body.snapshot.routeType}; ${body.snapshot.portalCount}`,
         },
-      },
-    });
+        {
+          label: "Distance and direct gain",
+          evidence: `${body.snapshot.effectiveDistanceM} m; ${body.snapshot.dryGainDb} dB`,
+        },
+        { label: "Low-pass", evidence: `${body.snapshot.lowpassHz} Hz` },
+        { label: "RT60 low", evidence: `${body.snapshot.rt60S.low} s` },
+        { label: "RT60 mid", evidence: `${body.snapshot.rt60S.mid} s` },
+        { label: "RT60 high", evidence: `${body.snapshot.rt60S.high} s` },
+      ],
+      limitations: ["Portal routing is a geometric perceptual approximation."],
+    };
+    expect(explanation.factors).toHaveLength(6);
+    await route.fulfill({ json: { ok: true, model: "gpt-5.6", explanation } });
   });
 
   await page.goto("/");
