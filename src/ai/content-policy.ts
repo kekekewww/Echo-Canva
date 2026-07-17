@@ -4,7 +4,7 @@
  * control plane from accepting untrusted prose as application content.
  */
 const UNSAFE_MODEL_TEXT =
-  /(?:\b(?:https?|ftp):\/\/|\bwww\.|\b(?:javascript|data|file|vbscript):|<[^>]*>|\[[^\]]*\]\([^)]*\)|\bignore\s+(?:all\s+)?(?:previous|prior)\s+instructions?\b|\b(?:system|developer)\s+(?:message|instruction)s?\b)/i;
+  /(?:\b(?:https?|ftp):\/\/|\bwww\.|(?:^|[^\w/])\/\/[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(?=$|[\s/?#.,;:!])|\bmailto:[^\s@]+@[^\s@]+|\b[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.[a-z]{2,}(?=$|[\s/?#.,;:!])|\b(?:javascript|data|file|vbscript):|<[^>]*>|\[[^\]]*\]\([^)]*\)|\bignore\s+(?:all\s+)?(?:previous|prior)\s+instructions?\b|\b(?:system|developer)\s+(?:message|instruction)s?\b|\bfollow\s+(?:the\s+)?(?:system|developer)\s+(?:prompt|message|instructions?)\b|\bdisregard\s+(?:all\s+)?(?:safety|system|developer)\s+(?:rules?|instructions?)\b)/i;
 
 const SAFE_LABEL = /^[\p{L}\p{N}][\p{L}\p{N} &'(),._-]*$/u;
 

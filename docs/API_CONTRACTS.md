@@ -139,10 +139,11 @@ Request:
 
 ```json
 {
-  "prompt": "A narrow concrete passage with rain outside an open doorway.",
-  "baseScene": null
+  "prompt": "A narrow concrete passage with rain outside an open doorway."
 }
 ```
+
+`baseScene` is optional; when supplied it must be a complete valid `SceneSpec` (not `null`).
 
 Response success:
 
@@ -209,20 +210,20 @@ Response success:
 
 ```json
 {
-  "summary": "The direct radio path is blocked...",
-  "factors": [
-    {
-      "label": "Direct obstruction",
-      "evidence": "Rendered direct loss: 13.4 dB"
-    },
-    {
-      "label": "Portal route",
-      "evidence": "Perceived direction is redirected to one open portal"
-    }
-  ],
-  "limitations": [
-    "Portal routing is a geometric perceptual approximation."
-  ]
+  "ok": true,
+  "model": "gpt-5.6",
+  "explanation": {
+    "summary": "The deterministic snapshot describes a portal route.",
+    "factors": [
+      {
+        "label": "Route",
+        "evidence": "The route type is portal."
+      }
+    ],
+    "limitations": [
+      "Portal routing is a geometric perceptual approximation."
+    ]
+  }
 }
 ```
 
@@ -250,7 +251,7 @@ Explanation:
 - temperature/control settings only if supported by the selected API configuration;
 - never infer values absent from the snapshot.
 - use static developer policy only; untrusted scene/source labels and the deterministic snapshot are sent as user data, never as developer instructions;
-- reject model URLs, markup, executable protocols, and instruction-like free-form text before accepting scene/source names or explanation fields.
+- reject model URLs (including bare domains, protocol-relative links, and `mailto:`), markup, executable protocols, and the explicitly tested instruction patterns: prior-instruction overrides, system/developer messages or instructions, “Follow the system prompt”, and “Disregard safety rules”.
 
 ## Security
 

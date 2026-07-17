@@ -16,6 +16,8 @@ Current phase: Gate D Task 3 implementation verified; Human Gate D remains pendi
 
 Known deviations: no deployment or acoustic/audio-architecture change was made in this repair. The Next build lock left by an interrupted verification runner was removed only after confirming no active Next build process; the fresh `pnpm e2e` and standalone `pnpm build` above passed.
 
+Final follow-up: bare-domain, protocol-relative, and `mailto:` URL-like model content plus the explicitly tested “Follow the system prompt” and “Disregard safety rules” instruction patterns are now rejected server-side. `pnpm lint`, `pnpm typecheck`, `pnpm test` (31 files / 235 tests), `pnpm e2e` (23 tests), `pnpm build`, and `git diff --check` passed.
+
 Current checklist state: Build Checklist items 5 (direct occlusion), 6 (explicit portal routing), 7 (first-order early reflections), 8 (room estimation and late reverberation), and 9 (GPT-5.6 scene compiler) are implemented and verified. Gate D now adds a server-only grounded explanation endpoint and matching-frame evidence UI; item 10 remains open for JSON import/export and its remaining polish scope.
 
 ## Gate D Task 3 verification - 2026-07-18

@@ -63,4 +63,20 @@ describe("compileScene", () => {
 
     expect(result).toMatchObject({ ok: false, error: { code: "SCENE_VALIDATION_FAILED" } });
   });
+
+  it.each(["evil.example", "//evil.example", "mailto:user@example.com"])(
+    "rejects %s in model-generated scene and source labels",
+    async (unsafeLabel) => {
+      const invalidScene = structuredClone(CONCRETE_PARTITION_PRESET);
+      invalidScene.name = unsafeLabel;
+      invalidScene.sources[0]!.name = unsafeLabel;
+
+      const result = await compileScene(
+        { prompt: "small treated room" },
+        { generateScene: vi.fn().mockResolvedValue(invalidScene) },
+      );
+
+      expect(result).toMatchObject({ ok: false, error: { code: "SCENE_VALIDATION_FAILED" } });
+    },
+  );
 });
