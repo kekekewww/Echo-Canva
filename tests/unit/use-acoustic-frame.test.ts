@@ -51,21 +51,49 @@ function sceneAt(revision: number): SceneSpec {
 describe("AcousticFrameClient", () => {
   it("posts only the newest client-side scene revision from a burst", () => {
     const timers = new FakeTimers();
+    const frameTimers = new FakeTimers();
     const worker = new FakeWorker();
     const client = new AcousticFrameClient({
       cancel: (timer) => timers.cancel(timer as number),
+      cancelFrame: (frame) => frameTimers.cancel(frame as number),
       createWorker: () => worker,
       onFallback: () => undefined,
       onFrame: () => undefined,
       schedule: timers.schedule,
+      scheduleFrame: frameTimers.schedule,
     });
 
     client.start(sceneAt(40));
     client.updateScene(sceneAt(41));
     client.updateScene(sceneAt(42));
     timers.flush();
+    frameTimers.flush();
 
     expect(worker.posted).toEqual([{ type: "UPDATE_SCENE", scene: sceneAt(42) }]);
+  });
+
+  it("retains the newest scene when a later pointer update follows the settle callback", () => {
+    const timers = new FakeTimers();
+    const frameTimers = new FakeTimers();
+    const worker = new FakeWorker();
+    const client = new AcousticFrameClient({
+      cancel: (timer) => timers.cancel(timer as number),
+      cancelFrame: (frame) => frameTimers.cancel(frame as number),
+      createWorker: () => worker,
+      onFallback: () => undefined,
+      onFrame: () => undefined,
+      schedule: timers.schedule,
+      scheduleFrame: frameTimers.schedule,
+    });
+
+    client.start(sceneAt(43));
+    client.updateScene(sceneAt(44));
+    timers.flush();
+    client.updateScene(sceneAt(45));
+
+    expect(worker.posted).toEqual([]);
+    frameTimers.flush();
+    expect(worker.posted).toEqual([{ type: "UPDATE_SCENE", scene: sceneAt(45) }]);
   });
 
   it.each(["unavailable", "onerror", "onmessageerror"])(
@@ -76,6 +104,7 @@ describe("AcousticFrameClient", () => {
       const worker = new FakeWorker();
       const client = new AcousticFrameClient({
         cancel: (timer) => timers.cancel(timer as number),
+        cancelFrame: (frame) => timers.cancel(frame as number),
         createWorker: () => {
           if (failureMode === "unavailable") throw new Error("Worker unavailable");
           return worker;
@@ -83,6 +112,7 @@ describe("AcousticFrameClient", () => {
         onFallback: (frame) => fallbackRevisions.push(frame.revision),
         onFrame: () => undefined,
         schedule: timers.schedule,
+        scheduleFrame: timers.schedule,
       });
 
       client.start(sceneAt(50));
