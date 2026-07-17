@@ -26,8 +26,12 @@ type CombNodes = Readonly<{
 }>;
 
 type AllPassNodes = Readonly<{
+  input: GainNodeLike;
   delay: DelayNodeLike;
   feedback: GainNodeLike;
+  feedForward: GainNodeLike;
+  bypass: GainNodeLike;
+  output: GainNodeLike;
 }>;
 
 export function feedbackGainForRt60(delaySeconds: number, rt60MidSeconds: number): number {
@@ -56,62 +60,119 @@ export class SchroederReverb {
   private disposed = false;
 
   constructor(context: AudioContextLike, output: AudioNodeLike) {
-    const preDelay = context.createDelay(0.1);
-    const splitter = context.createChannelSplitter(2);
-    const merger = context.createChannelMerger(2);
-    const combs = COMB_DELAYS_SECONDS.map((delaySeconds) => {
-      const delay = context.createDelay(0.1);
-      const damping = context.createBiquadFilter();
-      const feedback = context.createGain();
-      const combOutput = context.createGain();
-      delay.delayTime.value = delaySeconds;
-      damping.type = "lowpass";
-      damping.frequency.value = 20_000;
-      feedback.gain.value = feedbackGainForRt60(delaySeconds, 0.8);
-      delay.connect(damping);
-      damping.connect(feedback);
-      feedback.connect(delay);
-      damping.connect(combOutput);
-      return { delay, damping, feedback, output: combOutput };
-    });
-    const allPasses = ALL_PASS_DELAYS_SECONDS.map((delaySeconds) => {
-      const delay = context.createDelay(0.1);
-      const feedback = context.createGain();
-      delay.delayTime.value = delaySeconds;
-      feedback.gain.value = 0.5;
-      delay.connect(feedback);
-      feedback.connect(delay);
-      return { delay, feedback };
-    });
-    const wetReturn = context.createGain();
-    wetReturn.gain.value = MASTER_SAFE_WET_GAIN;
+    const createdNodes: AudioNodeLike[] = [];
+    const createDelay = (maxDelayTime: number): DelayNodeLike => {
+      const node = context.createDelay(maxDelayTime);
+      createdNodes.push(node);
+      return node;
+    };
+    const createGain = (): GainNodeLike => {
+      const node = context.createGain();
+      createdNodes.push(node);
+      return node;
+    };
+    const createFilter = (): BiquadFilterNodeLike => {
+      const node = context.createBiquadFilter();
+      createdNodes.push(node);
+      return node;
+    };
+    const createSplitter = (): ChannelSplitterNodeLike => {
+      const node = context.createChannelSplitter(2);
+      createdNodes.push(node);
+      return node;
+    };
+    const createMerger = (): ChannelMergerNodeLike => {
+      const node = context.createChannelMerger(2);
+      createdNodes.push(node);
+      return node;
+    };
 
-    preDelay.connect(splitter);
-    for (let index = 0; index < combs.length; index += 1) {
-      const comb = combs[index]!;
-      splitter.connect(comb.delay, index % 2);
-      comb.output.connect(merger, 0, index % 2);
+    try {
+      const preDelay = createDelay(0.1);
+      const splitter = createSplitter();
+      const merger = createMerger();
+      const combs = COMB_DELAYS_SECONDS.map((delaySeconds) => {
+        const delay = createDelay(0.1);
+        const damping = createFilter();
+        const feedback = createGain();
+        const combOutput = createGain();
+        delay.delayTime.value = delaySeconds;
+        damping.type = "lowpass";
+        damping.frequency.value = 20_000;
+        feedback.gain.value = feedbackGainForRt60(delaySeconds, 0.8);
+        delay.connect(damping);
+        damping.connect(feedback);
+        feedback.connect(delay);
+        damping.connect(combOutput);
+        return { delay, damping, feedback, output: combOutput };
+      });
+      const allPasses = ALL_PASS_DELAYS_SECONDS.map((delaySeconds) => {
+        const input = createGain();
+        const delay = createDelay(0.1);
+        const feedback = createGain();
+        const feedForward = createGain();
+        const bypass = createGain();
+        const allPassOutput = createGain();
+        const coefficient = 0.5;
+        delay.delayTime.value = delaySeconds;
+        feedback.gain.value = coefficient;
+        feedForward.gain.value = -coefficient;
+        bypass.gain.value = 1 - coefficient ** 2;
+        input.connect(delay);
+        delay.connect(feedback);
+        feedback.connect(delay);
+        input.connect(feedForward);
+        feedForward.connect(allPassOutput);
+        delay.connect(bypass);
+        bypass.connect(allPassOutput);
+        return { input, delay, feedback, feedForward, bypass, output: allPassOutput };
+      });
+      const wetReturn = createGain();
+      wetReturn.gain.value = MASTER_SAFE_WET_GAIN;
+
+      preDelay.connect(splitter);
+      for (let index = 0; index < combs.length; index += 1) {
+        const comb = combs[index]!;
+        splitter.connect(comb.delay, index % 2);
+        comb.output.connect(merger, 0, index % 2);
+      }
+      merger.connect(allPasses[0]!.input);
+      allPasses[0]!.output.connect(allPasses[1]!.input);
+      allPasses[1]!.output.connect(wetReturn);
+      wetReturn.connect(output);
+
+      this.input = preDelay;
+      this.preDelay = preDelay;
+      this.splitter = splitter;
+      this.merger = merger;
+      this.combs = combs;
+      this.allPasses = allPasses;
+      this.wetReturn = wetReturn;
+      this.nodes = [
+        preDelay,
+        splitter,
+        ...combs.flatMap((comb) => [comb.delay, comb.damping, comb.feedback, comb.output]),
+        ...allPasses.flatMap((allPass) => [
+          allPass.input,
+          allPass.delay,
+          allPass.feedback,
+          allPass.feedForward,
+          allPass.bypass,
+          allPass.output,
+        ]),
+        merger,
+        wetReturn,
+      ];
+    } catch (error) {
+      for (const node of createdNodes.reverse()) {
+        try {
+          node.disconnect();
+        } catch {
+          // Roll back any partially allocated reverb nodes before surfacing the failure.
+        }
+      }
+      throw error;
     }
-    merger.connect(allPasses[0]!.delay);
-    allPasses[0]!.delay.connect(allPasses[1]!.delay);
-    allPasses[1]!.delay.connect(wetReturn);
-    wetReturn.connect(output);
-
-    this.input = preDelay;
-    this.preDelay = preDelay;
-    this.splitter = splitter;
-    this.merger = merger;
-    this.combs = combs;
-    this.allPasses = allPasses;
-    this.wetReturn = wetReturn;
-    this.nodes = [
-      preDelay,
-      splitter,
-      ...combs.flatMap((comb) => [comb.delay, comb.damping, comb.feedback, comb.output]),
-      ...allPasses.flatMap((allPass) => [allPass.delay, allPass.feedback]),
-      merger,
-      wetReturn,
-    ];
   }
 
   apply(room: RoomAcousticFrame, now: number): void {

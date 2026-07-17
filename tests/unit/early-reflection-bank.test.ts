@@ -30,6 +30,7 @@ class FakeNode implements AudioNodeLike {
 }
 
 class FakeContext {
+  readonly allNodes: FakeNode[] = [];
   readonly delays: Array<FakeNode & { delayTime: FakeParam }> = [];
   readonly gains: Array<FakeNode & { gain: FakeParam }> = [];
   readonly filters: Array<FakeNode & { frequency: FakeParam; type: BiquadFilterType }> = [];
@@ -43,32 +44,41 @@ class FakeContext {
     refDistance: number;
     maxDistance: number;
   }> = [];
+  failOnCreation: number | null = null;
+  private creationCount = 0;
 
   createDelay() {
-    const node = Object.assign(new FakeNode(), { delayTime: new FakeParam() });
+    const node = this.track(Object.assign(new FakeNode(), { delayTime: new FakeParam() }));
     this.delays.push(node);
     return node;
   }
 
   createGain() {
-    const node = Object.assign(new FakeNode(), { gain: new FakeParam(1) });
+    const node = this.track(Object.assign(new FakeNode(), { gain: new FakeParam(1) }));
     this.gains.push(node);
     return node;
   }
 
   createBiquadFilter() {
-    const node = Object.assign(new FakeNode(), { frequency: new FakeParam(20_000), type: "lowpass" as BiquadFilterType });
+    const node = this.track(Object.assign(new FakeNode(), { frequency: new FakeParam(20_000), type: "lowpass" as BiquadFilterType }));
     this.filters.push(node);
     return node;
   }
 
   createPanner() {
-    const node = Object.assign(new FakeNode(), {
+    const node = this.track(Object.assign(new FakeNode(), {
       positionX: new FakeParam(), positionY: new FakeParam(), positionZ: new FakeParam(),
       panningModel: "equalpower" as PanningModelType, distanceModel: "inverse" as DistanceModelType,
       rolloffFactor: 1, refDistance: 1, maxDistance: 10_000,
-    });
+    }));
     this.panners.push(node);
+    return node;
+  }
+
+  private track<T extends FakeNode>(node: T): T {
+    this.creationCount += 1;
+    if (this.creationCount === this.failOnCreation) throw new Error("Injected node factory failure.");
+    this.allNodes.push(node);
     return node;
   }
 }
@@ -109,5 +119,21 @@ describe("EarlyReflectionBank", () => {
     expect(context.gains.slice(1).every((gain) => gain.gain.targets.at(-1)?.target === 0)).toBe(true);
     expect([context.delays.length, context.gains.length, context.filters.length, context.panners.length])
       .toEqual(nodeCounts);
+  });
+
+  it("rolls back partial tap allocation and disconnects all owned nodes on disposal", () => {
+    const failed = new FakeContext();
+    failed.failOnCreation = 6;
+
+    expect(() => new EarlyReflectionBank(failed as never, new FakeNode(), new FakeNode(), () => listener, true))
+      .toThrow(/factory failure/i);
+    expect(failed.allNodes).not.toHaveLength(0);
+    expect(failed.allNodes.every((node) => node.disconnectCalls === 1)).toBe(true);
+
+    const context = new FakeContext();
+    const bank = new EarlyReflectionBank(context as never, new FakeNode(), new FakeNode(), () => listener, true);
+    bank.dispose();
+    bank.dispose();
+    expect(context.allNodes.every((node) => node.disconnectCalls === 1)).toBe(true);
   });
 });

@@ -113,7 +113,7 @@ export class SourceGraph {
       lowPass.connect(panner);
       panner.connect(simulatedModeGain);
       simulatedModeGain.connect(output);
-      panner.connect(reverbSend);
+      simulatedModeGain.connect(reverbSend);
       reverbSend.connect(reverbInput);
       earlyReflectionBank = new EarlyReflectionBank(
         context,

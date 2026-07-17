@@ -33,26 +33,44 @@ export class EarlyReflectionBank {
     private readonly listenerPosition: () => Vec2,
     hrtfEnabled: boolean,
   ) {
-    this.taps = Array.from({ length: MAX_EARLY_REFLECTION_TAPS }, () => {
-      const delay = context.createDelay(MAX_EARLY_DELAY_SECONDS);
-      const gain = context.createGain();
-      const filter = context.createBiquadFilter();
-      const panner = context.createPanner();
-      filter.type = "lowpass";
-      filter.frequency.value = 20_000;
-      gain.gain.value = 0;
-      panner.panningModel = hrtfEnabled ? "HRTF" : "equalpower";
-      panner.distanceModel = "inverse";
-      panner.rolloffFactor = 0;
-      panner.refDistance = 1;
-      panner.maxDistance = 50;
-      input.connect(delay);
-      delay.connect(gain);
-      gain.connect(filter);
-      filter.connect(panner);
-      panner.connect(output);
-      return { delay, gain, filter, panner };
-    });
+    const createdNodes: AudioNodeLike[] = [];
+    const taps: ReflectionTapNodes[] = [];
+    try {
+      for (let index = 0; index < MAX_EARLY_REFLECTION_TAPS; index += 1) {
+        const delay = context.createDelay(MAX_EARLY_DELAY_SECONDS);
+        createdNodes.push(delay);
+        const gain = context.createGain();
+        createdNodes.push(gain);
+        const filter = context.createBiquadFilter();
+        createdNodes.push(filter);
+        const panner = context.createPanner();
+        createdNodes.push(panner);
+        filter.type = "lowpass";
+        filter.frequency.value = 20_000;
+        gain.gain.value = 0;
+        panner.panningModel = hrtfEnabled ? "HRTF" : "equalpower";
+        panner.distanceModel = "inverse";
+        panner.rolloffFactor = 0;
+        panner.refDistance = 1;
+        panner.maxDistance = 50;
+        input.connect(delay);
+        delay.connect(gain);
+        gain.connect(filter);
+        filter.connect(panner);
+        panner.connect(output);
+        taps.push({ delay, gain, filter, panner });
+      }
+    } catch (error) {
+      for (const node of createdNodes.reverse()) {
+        try {
+          node.disconnect();
+        } catch {
+          // Roll back any partially allocated tap nodes before surfacing the failure.
+        }
+      }
+      throw error;
+    }
+    this.taps = taps;
   }
 
   apply(reflections: readonly AcousticEarlyReflection[], now: number): void {

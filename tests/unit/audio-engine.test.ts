@@ -267,6 +267,31 @@ function makeHarness() {
   return { context, engine, requestedUrls, contextCreations: () => contextCreations };
 }
 
+function firstSourceControls(context: FakeAudioContext): Readonly<{
+  raw: FakeGainNode;
+  simulated: FakeGainNode;
+  panner: FakePannerNode;
+}> {
+  const sourceGain = context.sources[0]!.connections[0] as FakeGainNode;
+  const raw = sourceGain.connections.find(
+    (node): node is FakeGainNode => node instanceof FakeGainNode && node.connections.includes(context.compressors[0]!),
+  );
+  const distance = sourceGain.connections.find(
+    (node): node is FakeGainNode => node instanceof FakeGainNode && node !== raw,
+  );
+  const lowPass = distance?.connections.find(
+    (node): node is FakeBiquadFilterNode => node instanceof FakeBiquadFilterNode,
+  );
+  const panner = lowPass?.connections.find(
+    (node): node is FakePannerNode => node instanceof FakePannerNode,
+  );
+  const simulated = panner?.connections.find(
+    (node): node is FakeGainNode => node instanceof FakeGainNode,
+  );
+  if (!raw || !panner || !simulated) throw new Error("Expected the first source graph controls.");
+  return { raw, simulated, panner };
+}
+
 describe("AudioEngine", () => {
   it("maps a multi-portal frame to the listener-facing final portal", async () => {
     const harness = makeHarness();
@@ -413,10 +438,34 @@ describe("AudioEngine", () => {
     };
 
     await harness.engine.start(scene);
-    const rawGainTargets = harness.context.gains[14]?.gain.targets.length;
+    const rawGainTargets = firstSourceControls(harness.context).raw.gain.targets.length;
     harness.engine.applyAcousticFrame(frame);
 
-    expect(harness.context.gains[14]?.gain.targets).toHaveLength(rawGainTargets ?? 0);
+    expect(firstSourceControls(harness.context).raw.gain.targets).toHaveLength(rawGainTargets);
+  });
+
+  it("gates reverb input through the simulated mode and mutes the wet return in Raw mode", async () => {
+    const harness = makeHarness();
+    await harness.engine.start(cloneScene());
+    const { panner, simulated } = firstSourceControls(harness.context);
+    const reverbSend = simulated.connections.find(
+      (node): node is FakeGainNode => node instanceof FakeGainNode,
+    );
+    const wetReturn = harness.context.gains.find(
+      (gain) => gain !== simulated && gain.connections.includes(harness.context.compressors[0]!) && gain.gain.value === 0,
+    );
+
+    expect(reverbSend).toBeDefined();
+    expect(panner.connections).not.toContain(reverbSend);
+    expect(simulated.gain.value).toBe(0);
+    expect(wetReturn?.gain.value).toBe(0);
+
+    harness.engine.setMode("simulated");
+    expect(simulated.gain.curves.at(-1)?.duration).toBe(0.08);
+    expect(wetReturn?.gain.targets.at(-1)).toMatchObject({ target: 1, timeConstant: 0.08 });
+
+    harness.engine.setMode("raw");
+    expect(wetReturn?.gain.targets.at(-1)).toMatchObject({ target: 0, timeConstant: 0.08 });
   });
 
   it("keeps reflection and late-reverb nodes persistent while applying acoustic frames", async () => {
@@ -593,16 +642,16 @@ describe("AudioEngine", () => {
     await harness.engine.start(cloneScene());
     const before = harness.engine.getDiagnostics();
 
-    expect(harness.context.gainValuesAtSourceStart[0]![14]).toBe(1);
-    expect(harness.context.gainValuesAtSourceStart[0]![15]).toBe(0);
+    expect(firstSourceControls(harness.context).raw.gain.value).toBe(1);
+    expect(firstSourceControls(harness.context).simulated.gain.value).toBe(0);
 
     harness.engine.setMode("simulated");
     const after = harness.engine.getDiagnostics();
 
     expect(after.sourceGraphIds).toEqual(before.sourceGraphIds);
     expect(after.mode).toBe("simulated");
-    const rawCurve = harness.context.gains[14]!.gain.curves.at(-1)!;
-    const simulatedCurve = harness.context.gains[15]!.gain.curves.at(-1)!;
+    const rawCurve = firstSourceControls(harness.context).raw.gain.curves.at(-1)!;
+    const simulatedCurve = firstSourceControls(harness.context).simulated.gain.curves.at(-1)!;
     expect(rawCurve.duration).toBe(0.08);
     expect(simulatedCurve.duration).toBe(0.08);
     expect(rawCurve.values[0]).toBeCloseTo(1);
@@ -624,8 +673,8 @@ describe("AudioEngine", () => {
 
     expect(() => harness.engine.setMode("raw")).not.toThrow();
 
-    const rawParam = harness.context.gains[14]!.gain;
-    const simulatedParam = harness.context.gains[15]!.gain;
+    const rawParam = firstSourceControls(harness.context).raw.gain;
+    const simulatedParam = firstSourceControls(harness.context).simulated.gain;
     expect(rawParam.holds.at(-1)).toBe(4.04);
     expect(simulatedParam.holds.at(-1)).toBe(4.04);
     const rawCurve = rawParam.curves.at(-1)!;
