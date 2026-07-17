@@ -75,13 +75,22 @@ function projectedNumbers(snapshot: AcousticSnapshotProjection): readonly number
 }
 
 function hasOnlyProjectedNumbers(value: string, snapshot: AcousticSnapshotProjection): boolean {
+  if (
+    /[-+]?(?:\d+(?:\.\d+)?|\.\d+)[eE][-+]?\d+/.test(value) ||
+    /(?:\d|\.\d)[A-Za-z_]/.test(value) ||
+    /\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million|billion)\b/i.test(
+      value,
+    )
+  ) {
+    return false;
+  }
   const allowed = projectedNumbers(snapshot);
   const numericTokens = value.match(/(?<![A-Za-z_])[-+]?(?:\d+(?:\.\d+)?|\.\d+)(?![A-Za-z_])/g) ?? [];
   return numericTokens.every((token) => allowed.some((number) => Number(token) === number));
 }
 
 function isUnsupportedClaim(value: string): boolean {
-  return /\b(?:heard|listen(?:ed|ing)?|physically accurate|scientifically validated|architectural-acoustics measurement)\b/i.test(
+  return /\b(?:heard|listen(?:ed|ing)?|sound(?:s|ed|ing)?|realistic|accurate|accuracy|physically accurate|scientifically validated|architectural(?:[- ]acoustics?)?)\b/i.test(
     value,
   );
 }
@@ -102,7 +111,7 @@ export function buildAcousticExplanationPrompt(request: ExplainAcousticsRequest)
     "Explain only the deterministic acoustic projection below.",
     "Do not calculate, infer, or introduce measurements not present in the projection.",
     "Do not claim to hear audio or claim physical/scientific accuracy.",
-    "Use concise prose. Any numeric token you display must exactly represent a provided value.",
+    "Use concise prose. Any numeric token you display must exactly represent a provided value; do not use attached units, scientific notation, or spelled-out numbers.",
     "Return only the strict JSON object requested by the schema.",
     JSON.stringify(request),
   ].join("\n");

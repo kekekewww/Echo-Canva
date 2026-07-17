@@ -55,8 +55,10 @@ test("scene compiler preserves the prior scene on a typed adversarial failure", 
 test("scene explanation renders only evidence from the current deterministic snapshot", async ({ page }) => {
   type Snapshot = {
     routeType: string;
+    effectiveDistanceM: number;
     dryGainDb: number;
     lowpassHz: number;
+    portalCount: number;
     rt60S: { low: number; mid: number; high: number };
   };
   const requestedSnapshots: Snapshot[] = [];
@@ -72,8 +74,13 @@ test("scene explanation renders only evidence from the current deterministic sna
           summary: "This is a deterministic snapshot explanation.",
           factors: [
             { label: "Route", evidence: body.snapshot.routeType },
+            { label: "Effective distance", evidence: `${body.snapshot.effectiveDistanceM} m` },
             { label: "Direct gain", evidence: `${body.snapshot.dryGainDb} dB` },
             { label: "Low-pass", evidence: `${body.snapshot.lowpassHz} Hz` },
+            { label: "Portal count", evidence: String(body.snapshot.portalCount) },
+            { label: "RT60 low", evidence: `${body.snapshot.rt60S.low} s` },
+            { label: "RT60 mid", evidence: `${body.snapshot.rt60S.mid} s` },
+            { label: "RT60 high", evidence: `${body.snapshot.rt60S.high} s` },
           ],
           limitations: ["Portal routing is a geometric perceptual approximation."],
         },
@@ -92,12 +99,46 @@ test("scene explanation renders only evidence from the current deterministic sna
     throw new Error("The explanation route did not receive a deterministic snapshot.");
   }
   await expect(page.getByTestId("explanation-evidence")).toContainText(
+    requestedSnapshot.routeType,
+  );
+  await expect(page.getByTestId("explanation-evidence")).toContainText(
+    String(requestedSnapshot.effectiveDistanceM),
+  );
+  await expect(page.getByTestId("explanation-evidence")).toContainText(
     String(requestedSnapshot.dryGainDb),
   );
   await expect(page.getByTestId("explanation-evidence")).toContainText(
     String(requestedSnapshot.lowpassHz),
   );
+  await expect(page.getByTestId("explanation-evidence")).toContainText(
+    String(requestedSnapshot.portalCount),
+  );
+  await expect(page.getByTestId("explanation-evidence")).toContainText(String(requestedSnapshot.rt60S.low));
+  await expect(page.getByTestId("explanation-evidence")).toContainText(String(requestedSnapshot.rt60S.mid));
+  await expect(page.getByTestId("explanation-evidence")).toContainText(String(requestedSnapshot.rt60S.high));
   await expect(page.getByText("Portal routing is a geometric perceptual approximation.")).toBeVisible();
+});
+
+test("scene explanation keeps manual mode available after a rejected explanation", async ({ page }) => {
+  await page.route("**/api/scene/explain", (route) =>
+    route.fulfill({
+      status: 422,
+      json: {
+        ok: false,
+        error: {
+          code: "EXPLANATION_VALIDATION_FAILED",
+          message: "The explanation introduced unsupported content or measurements.",
+        },
+      },
+    }),
+  );
+  await page.goto("/");
+  const priorScene = await page.locator("#scene-name").textContent();
+  await page.getByRole("button", { name: "Explain selected acoustics" }).click();
+
+  await expect(page.getByRole("status")).toContainText("unsupported content");
+  await expect(page.getByRole("status")).toContainText("manual");
+  await expect(page.getByRole("heading", { name: priorScene ?? "" })).toBeVisible();
 });
 
 test("unavailable AI preserves an already-generated candidate and manual scene", async ({ page }) => {

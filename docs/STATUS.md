@@ -6,14 +6,14 @@ Current checklist state: Build Checklist items 5 (direct occlusion), 6 (explicit
 
 ## Gate D Task 3 verification - 2026-07-18
 
-- deterministic compiler evaluation: 10/10 canonical fixtures validated (9 first response, 1 after exactly one repair); 5/5 adversarial fixture candidates returned safe validation failures and never became a client candidate
+- compiler-service deterministic evaluation: 10/10 canonical fixtures validated (9 first response, 1 after exactly one repair); 5/5 adversarial fixture candidates returned safe validation failures before the compiler returned a validated candidate. Browser coverage independently exercises script/remote-URL failure preservation and unavailable-candidate preservation; it does not execute every adversarial fixture through browser client state.
 - acoustic explanation: strict GPT-5.6 Responses JSON Schema at low reasoning; only finite route, effective distance, dry gain, low-pass, portal count, and three-band RT60 projections are sent to the model
-- explanation grounding: invented numeric evidence is rejected; every displayed numeric token must equal an input snapshot value; the fixed limitation `Portal routing is a geometric perceptual approximation.` is always appended
+- explanation grounding: invented numeric evidence is rejected; every displayed numeric token must equal an input snapshot value; attached-unit/scientific/spelled-out number bypasses and hearing/realism/accuracy claims are rejected; the fixed limitation `Portal routing is a geometric perceptual approximation.` is always appended
 - no-key/manual fallback: compile and explain routes return typed `AI_UNAVAILABLE` errors without a key; browser coverage confirms an unavailable compile leaves the manual scene and an already-generated candidate intact
 - `pnpm lint` - PASS
 - `pnpm typecheck` - PASS
-- `pnpm test` - PASS, 30 files / 193 tests
-- `pnpm e2e` - PASS, 17 Chromium production-server tests
+- `pnpm test` - PASS, 30 files / 201 tests
+- `pnpm e2e` - PASS, 18 Chromium production-server tests
 - `pnpm build` - PASS
 
 Known deviations: Gate D Task 3 does not add JSON import/export, deployment, or a human acceptance request. Those remain outside this vertical slice. No known P0/P1 defects in the implemented compiler/explanation path.

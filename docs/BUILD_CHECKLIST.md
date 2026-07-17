@@ -105,7 +105,7 @@ Each item is complete only when its Acceptance and Verify sections pass.
   pnpm test -- ai-scene
   pnpm e2e --grep "scene compiler"
   ```
-  Verification: 2026-07-18 deterministic adapter evaluation passed all 10 bounded canonical fixtures (9 directly; 1 after exactly one repair) and rejected all 5 adversarial fixtures. Production Chromium compiler and unavailable-preservation coverage passed.
+  Verification: 2026-07-18 compiler-service deterministic adapter evaluation passed all 10 bounded canonical fixtures (9 directly; 1 after exactly one repair) and rejected all 5 adversarial fixtures. Production Chromium coverage separately verifies compiler application, script/remote-URL failure preservation, and unavailable-candidate preservation.
 
 - [ ] **10. Implement explanation, export, diagnostics, and product polish**
   Spec ref: `PRD.md > US-07, US-08`

@@ -73,4 +73,39 @@ describe("explainAcoustics", () => {
       },
     });
   });
+
+  it.each([
+    "The cutoff is 20Hz.",
+    "The cutoff is 2e3 Hz.",
+    "The cutoff is twenty hertz.",
+    "I heard the source behind the wall.",
+    "The result sounds realistic.",
+    "This is an accurate acoustic result.",
+    "This has architectural accuracy.",
+  ])("rejects a grounding bypass: %s", async (evidence) => {
+    const result = await explainAcoustics(validRequest, {
+      generateExplanation: async () => ({
+        ...groundedExplanation,
+        factors: [{ label: "Untrusted claim", evidence }],
+      }),
+    });
+
+    expect(result).toMatchObject({ ok: false, error: { code: "EXPLANATION_VALIDATION_FAILED" } });
+  });
+
+  it("retains exact projected values when they use separated display units", async () => {
+    const result = await explainAcoustics(validRequest, {
+      generateExplanation: async () => ({
+        ...groundedExplanation,
+        factors: [
+          {
+            label: "Projected evidence",
+            evidence: "The portal route uses 9.2 m, -13.4 dB, and 1800 Hz.",
+          },
+        ],
+      }),
+    });
+
+    expect(result).toMatchObject({ ok: true });
+  });
 });
