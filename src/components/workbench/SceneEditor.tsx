@@ -304,6 +304,8 @@ export function SceneEditor({ scene, selection, acousticFrame, dispatch }: Scene
         {activeSourceFrame?.routePolyline.length ? (
           <polyline
             data-testid="acoustic-route-overlay"
+            data-route-type={activeSourceFrame.routeType}
+            data-source-id={activeSourceFrame.sourceId}
             points={activeSourceFrame.routePolyline
               .map((point) => {
                 const svgPoint = worldToSvg(point, worldBounds, VIEWPORT);
@@ -320,6 +322,7 @@ export function SceneEditor({ scene, selection, acousticFrame, dispatch }: Scene
           return (
             <circle
               data-testid="first-portal-route-marker"
+              data-portal-id={firstPortal.id}
               cx={point.x}
               cy={point.y}
               r="9"

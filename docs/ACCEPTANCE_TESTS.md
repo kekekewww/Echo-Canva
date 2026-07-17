@@ -45,6 +45,8 @@ Pass when:
 
 Pass when the open portal draws its route and redirects perception toward the doorway, the closed portal removes that route and shows the blocked diagnostic, and all transitions remain smooth. This interactive acoustic approximation is not architectural acoustics or diffraction.
 
+Automated evidence: the repository production wrapper passed the focused portal case and all 11 Chromium E2E tests on 2026-07-17. The focused case asserts the selected frame's 6.61 m effective route, -3.0 dB direct gain, 18,500 Hz low-pass, cyan route/portal overlays, and red occluder highlight.
+
 ## Gate C — Reflections and reverb
 
 ### C1. Material comparison
