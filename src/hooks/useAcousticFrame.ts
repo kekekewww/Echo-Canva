@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { computeAcousticFrame, type AcousticFrame } from "@/acoustics/compute-frame";
+import { acousticUpdateIntervalMs } from "@/acoustics/update-rate";
 import type { SceneSpec } from "@/domain/scene/types";
 import type {
   AcousticWorkerRequest,
@@ -15,11 +16,18 @@ type FrameState = Readonly<{
   revision: number;
   current: AcousticFrame | null;
   fallbackNotice: string | null;
+  metrics: AcousticFrameMetrics | null;
+}>;
+
+export type AcousticFrameMetrics = Readonly<{
+  source: "worker" | "fallback";
+  computeMs: number;
 }>;
 
 export type AcousticFrameResult = Readonly<{
   frame: AcousticFrame | null;
   fallbackNotice: string | null;
+  metrics: AcousticFrameMetrics | null;
 }>;
 
 type AcousticWorkerLike = {
@@ -34,8 +42,9 @@ type AcousticFrameClientOptions = Readonly<{
   cancel: (timer: unknown) => void;
   cancelFrame: (frame: unknown) => void;
   createWorker: () => AcousticWorkerLike;
-  onFallback: (frame: AcousticFrame) => void;
-  onFrame: (frame: AcousticFrame) => void;
+  onFallback: (frame: AcousticFrame, metrics: AcousticFrameMetrics) => void;
+  onFrame: (frame: AcousticFrame, metrics: AcousticFrameMetrics) => void;
+  now?: () => number;
   schedule: (callback: () => void, delayMs: number) => unknown;
   scheduleFrame: (callback: () => void) => unknown;
 }>;
@@ -54,6 +63,8 @@ export class AcousticFrameClient {
   private pendingScene: SceneSpec | null = null;
   private postTimer: unknown | null = null;
   private frameTimer: unknown | null = null;
+  private fallbackTimer: unknown | null = null;
+  private lastFallbackAtMs = Number.NEGATIVE_INFINITY;
   private latestScene: SceneSpec | null = null;
   private usingFallback = false;
   private disposed = false;
@@ -67,7 +78,10 @@ export class AcousticFrameClient {
       const worker = this.options.createWorker();
       worker.onmessage = (event) => {
         if (event.data.type === "FRAME") {
-          this.options.onFrame(event.data.frame);
+          this.options.onFrame(event.data.frame, {
+            source: "worker",
+            computeMs: event.data.metrics.computeMs,
+          });
           return;
         }
         this.activateFallback();
@@ -84,7 +98,7 @@ export class AcousticFrameClient {
     if (this.disposed) return;
     this.latestScene = scene;
     if (this.usingFallback) {
-      this.deliverFallback();
+      this.scheduleFallback();
       return;
     }
     if (!this.worker) return;
@@ -110,8 +124,10 @@ export class AcousticFrameClient {
     this.disposed = true;
     if (this.postTimer !== null) this.options.cancel(this.postTimer);
     if (this.frameTimer !== null) this.options.cancelFrame(this.frameTimer);
+    if (this.fallbackTimer !== null) this.options.cancel(this.fallbackTimer);
     this.postTimer = null;
     this.frameTimer = null;
+    this.fallbackTimer = null;
     this.pendingScene = null;
     if (this.worker) {
       this.worker.postMessage({ type: "DISPOSE" });
@@ -125,8 +141,10 @@ export class AcousticFrameClient {
     this.usingFallback = true;
     if (this.postTimer !== null) this.options.cancel(this.postTimer);
     if (this.frameTimer !== null) this.options.cancelFrame(this.frameTimer);
+    if (this.fallbackTimer !== null) this.options.cancel(this.fallbackTimer);
     this.postTimer = null;
     this.frameTimer = null;
+    this.fallbackTimer = null;
     this.pendingScene = null;
     this.worker?.terminate();
     this.worker = null;
@@ -134,7 +152,30 @@ export class AcousticFrameClient {
   }
 
   private deliverFallback(): void {
-    if (this.latestScene) this.options.onFallback(computeAcousticFrame(this.latestScene));
+    if (!this.latestScene) return;
+    const now = this.options.now ?? Date.now;
+    const startedAtMs = now();
+    const frame = computeAcousticFrame(this.latestScene);
+    const completedAtMs = now();
+    this.lastFallbackAtMs = completedAtMs;
+    this.options.onFallback(frame, {
+      source: "fallback",
+      computeMs: completedAtMs - startedAtMs,
+    });
+  }
+
+  private scheduleFallback(): void {
+    const scene = this.latestScene;
+    if (!scene || this.fallbackTimer !== null) return;
+    const now = (this.options.now ?? Date.now)();
+    const delayMs = Math.max(
+      0,
+      this.lastFallbackAtMs + acousticUpdateIntervalMs(scene.settings.acousticUpdateHz) - now,
+    );
+    this.fallbackTimer = this.options.schedule(() => {
+      this.fallbackTimer = null;
+      if (!this.disposed && this.usingFallback) this.deliverFallback();
+    }, delayMs);
   }
 }
 
@@ -164,6 +205,7 @@ export function useAcousticFrame(scene: SceneSpec): AcousticFrameResult {
     revision: scene.revision,
     current: null,
     fallbackNotice: null,
+    metrics: null,
   });
 
   useEffect(() => {
@@ -171,12 +213,13 @@ export function useAcousticFrame(scene: SceneSpec): AcousticFrameResult {
       cancel: (timer) => clearTimeout(timer as ReturnType<typeof setTimeout>),
       cancelFrame: cancelBrowserFrame,
       createWorker: createBrowserWorker,
-      onFallback: (frame) => setState({
+      onFallback: (frame, metrics) => setState({
         revision: frame.revision,
         current: frame,
         fallbackNotice: FALLBACK_NOTICE,
+        metrics,
       }),
-      onFrame: (frame) => {
+      onFrame: (frame, metrics) => {
         if (frame.revision !== latestScene.current.revision) return;
         setState((current) => ({
           revision: frame.revision,
@@ -185,6 +228,7 @@ export function useAcousticFrame(scene: SceneSpec): AcousticFrameResult {
             current: current.current,
           }).current,
           fallbackNotice: null,
+          metrics,
         }));
       },
       schedule: (callback, delayMs) => setTimeout(callback, delayMs),
@@ -207,5 +251,6 @@ export function useAcousticFrame(scene: SceneSpec): AcousticFrameResult {
   return {
     frame: state.revision === scene.revision ? state.current : null,
     fallbackNotice: state.fallbackNotice,
+    metrics: state.revision === scene.revision ? state.metrics : null,
   };
 }

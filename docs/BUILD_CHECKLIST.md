@@ -56,7 +56,7 @@ Each item is complete only when its Acceptance and Verify sections pass.
   ```
   **Human Gate A:** editor and direct HRTF.
 
-- [ ] **5. Implement robust geometry Worker and direct occlusion**
+- [x] **5. Implement robust geometry Worker and direct occlusion**
   Spec ref: `ACOUSTICS.md > 1, 6, 7, 17`
   What to build: segment predicates, visibility, geometry indexing, Worker revision protocol, crossed-wall accumulation, dry gain and low-pass mapping, debug occluder lines.
   Acceptance: Direct line-of-sight produces no occlusion; concrete obstruction visibly and audibly lowers gain/high frequencies; stale Worker frames never overwrite current state.
@@ -65,10 +65,10 @@ Each item is complete only when its Acceptance and Verify sections pass.
   pnpm test -- geometry occlusion worker
   ```
 
-- [ ] **6. Implement explicit portal routing**
+- [x] **6. Implement explicit portal routing**
   Spec ref: `ACOUSTICS.md > 8`
   What to build: portal attachment rules, visibility graph, Dijkstra route, route cost, first-portal virtual panner position, effective distance and loss, route overlay.
-  Acceptance: Open portal provides a route when direct path is blocked; closing it removes the route; panner direction is toward the first portal; no route means blocked fallback.
+  Acceptance: Open portal provides a route when direct path is blocked; closing it removes the route; panner direction is toward the listener-facing final portal; no route means blocked fallback.
   Verify:
   ```bash
   pnpm test -- portal

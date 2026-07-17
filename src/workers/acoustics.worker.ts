@@ -1,5 +1,8 @@
 import { computeAcousticFrame, type AcousticFrame } from "@/acoustics/compute-frame";
+import { acousticUpdateIntervalMs } from "@/acoustics/update-rate";
 import type { SceneSpec } from "@/domain/scene/types";
+
+export { acousticUpdateIntervalMs } from "@/acoustics/update-rate";
 
 export type AcousticWorkerRequest =
   | { type: "UPDATE_SCENE"; scene: SceneSpec }
@@ -29,10 +32,6 @@ export type AcousticWorkerController = Readonly<{
   handle: (request: AcousticWorkerRequest) => void;
 }>;
 
-function updateIntervalMs(scene: SceneSpec): number {
-  return 1000 / Math.max(1, scene.settings.acousticUpdateHz);
-}
-
 export function createAcousticWorkerController(
   sink: WorkerResponseSink,
   options: WorkerControllerOptions = {},
@@ -51,7 +50,10 @@ export function createAcousticWorkerController(
     if (!scene || disposed) return;
     if (timer !== null) cancel(timer);
 
-    const delayMs = Math.max(0, lastFrameAtMs + updateIntervalMs(scene) - now());
+    const delayMs = Math.max(
+      0,
+      lastFrameAtMs + acousticUpdateIntervalMs(scene.settings.acousticUpdateHz) - now(),
+    );
     timer = schedule(() => {
       timer = null;
       const queuedScene = pendingScene;

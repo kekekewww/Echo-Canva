@@ -95,6 +95,7 @@ export function EchoWorkbench() {
           audioDiagnostics={audio.diagnostics}
           audioStatus={state.audioStatus}
           acousticFrame={acoustic.frame}
+          acousticMetrics={acoustic.metrics}
           mode={state.mode}
           wallCount={state.scene.walls.length}
           onAddWall={addWall}

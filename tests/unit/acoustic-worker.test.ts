@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { acceptWorkerFrame } from "@/hooks/useAcousticFrame";
-import { createAcousticWorkerController } from "@/workers/acoustics.worker";
+import { acousticUpdateIntervalMs, createAcousticWorkerController } from "@/workers/acoustics.worker";
 import { CONCRETE_PARTITION_PRESET } from "@/domain/presets/concrete-partition";
 import type { SceneSpec } from "@/domain/scene/types";
 
@@ -45,6 +45,11 @@ function sceneAt(revision: number, acousticUpdateHz: number): SceneSpec {
 }
 
 describe("acoustic Worker frame acceptance", () => {
+  it("clamps invalid acoustic update rates to the required 10 to 15 Hz boundary", () => {
+    expect(acousticUpdateIntervalMs(1)).toBe(100);
+    expect(acousticUpdateIntervalMs(20)).toBeCloseTo(1000 / 15);
+  });
+
   it("rejects an older worker frame after a newer scene revision", () => {
     const state = acceptWorkerFrame({ revision: 8 }, { revision: 9, current: null });
 
@@ -86,10 +91,10 @@ describe("acoustic Worker frame acceptance", () => {
     controller.handle({ type: "UPDATE_SCENE", scene: sceneAt(21, 100) });
     controller.handle({ type: "UPDATE_SCENE", scene: sceneAt(22, 1) });
 
-    expect(timers.pendingDueMs()).toEqual([1000]);
+    expect(timers.pendingDueMs()).toEqual([100]);
     timers.advance(9);
     expect(posted).toEqual([20]);
-    timers.advance(990);
+    timers.advance(90);
     expect(posted).toEqual([20, 22]);
   });
 

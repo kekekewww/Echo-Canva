@@ -250,31 +250,15 @@ function isPortalEdgeVisible(from: GraphNode, to: GraphNode, scene: SceneSpec): 
   return true;
 }
 
-function routeVirtualPosition(portalIds: readonly string[], portals: readonly OpenPortal[], listener: Vec2): Vec2 {
-  let closestPortal: OpenPortal | undefined;
+function routeVirtualPosition(portalIds: readonly string[], portals: readonly OpenPortal[]): Vec2 {
+  const listenerFacingPortalId = portalIds.at(-1);
+  const listenerFacingPortal = portals.find((portal) => portal.id === listenerFacingPortalId);
 
-  for (const portalId of portalIds) {
-    const portal = portals.find((candidate) => candidate.id === portalId);
-
-    if (portal === undefined) {
-      continue;
-    }
-
-    if (
-      closestPortal === undefined ||
-      distance(portal.center, listener) < distance(closestPortal.center, listener) ||
-      (distance(portal.center, listener) === distance(closestPortal.center, listener) &&
-        portal.id < closestPortal.id)
-    ) {
-      closestPortal = portal;
-    }
-  }
-
-  if (closestPortal === undefined) {
+  if (listenerFacingPortal === undefined) {
     throw new Error("A portal route must contain at least one portal");
   }
 
-  return closestPortal.center;
+  return listenerFacingPortal.center;
 }
 
 function buildVisibleGraph(nodes: readonly GraphNode[], scene: SceneSpec): readonly (readonly number[])[] {
@@ -350,7 +334,7 @@ export function findBestPortalRoute(
         polyline: state.polyline,
         effectiveDistanceM: state.effectiveDistanceM,
         cost: state.cost,
-        virtualPosition: routeVirtualPosition(state.portalIds, openPortals, listener),
+        virtualPosition: routeVirtualPosition(state.portalIds, openPortals),
         dryGainDb: -state.portalLossDb,
         lowpassHz: portalLowpassHz(state.portalIds.length),
       };

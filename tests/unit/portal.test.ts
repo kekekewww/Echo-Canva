@@ -135,18 +135,26 @@ describe("portal routing", () => {
     expect(findBestPortalRoute(source, { x: 0, y: 4 }, listenerOnBoundaryScene)).toBeNull();
   });
 
-  it("accumulates multi-portal loss and low-pass while selecting the listener-nearest portal", () => {
+  it("uses the listener-facing final portal rather than the Euclidean-nearest portal", () => {
+    const listenerFacingRouteScene = {
+      ...serialPortalScene,
+      listener: { ...serialPortalScene.listener, position: { x: 1, y: 1 } },
+      portals: [
+        serialPortalScene.portals[0]!,
+        { ...serialPortalScene.portals[1]!, center: { x: 5, y: 7 } },
+      ],
+    };
     const route = findBestPortalRoute(
-      serialPortalScene.sources[0]!.position,
-      serialPortalScene.listener.position,
-      serialPortalScene,
+      listenerFacingRouteScene.sources[0]!.position,
+      listenerFacingRouteScene.listener.position,
+      listenerFacingRouteScene,
     );
 
     expect(route).toMatchObject({
       portalIds: ["first_door", "second_door"],
       dryGainDb: -7,
       lowpassHz: 17_000,
-      virtualPosition: { x: 5, y: 4 },
+      virtualPosition: { x: 5, y: 7 },
     });
     expect(portalLowpassHz(20)).toBe(1_200);
   });

@@ -62,6 +62,14 @@ function portalSegment(scene: SceneSpec, portal: SceneSpec["portals"][number]): 
   ];
 }
 
+export function portalForRouteMarker(
+  portals: readonly SceneSpec["portals"][number][],
+  portalIds: readonly string[],
+): SceneSpec["portals"][number] | undefined {
+  const listenerFacingPortalId = portalIds.at(-1);
+  return portals.find(({ id }) => id === listenerFacingPortalId);
+}
+
 export function SceneEditor({ scene, selection, acousticFrame, dispatch }: SceneEditorProps) {
   const [dragTarget, setDragTarget] = useState<DragTarget | null>(null);
   const worldBounds = getWorldBounds(scene);
@@ -73,8 +81,8 @@ export function SceneEditor({ scene, selection, acousticFrame, dispatch }: Scene
   const activeSourceFrame = activeSource
     ? acousticFrame?.sources.find(({ sourceId }) => sourceId === activeSource.id)
     : undefined;
-  const firstPortal = activeSourceFrame?.portalIds[0]
-    ? scene.portals.find(({ id }) => id === activeSourceFrame.portalIds[0])
+  const listenerFacingPortal = activeSourceFrame
+    ? portalForRouteMarker(scene.portals, activeSourceFrame.portalIds)
     : undefined;
 
   function eventToWorld(event: ReactPointerEvent<SVGElement>): Vec2 {
@@ -317,12 +325,12 @@ export function SceneEditor({ scene, selection, acousticFrame, dispatch }: Scene
           />
         ) : null}
 
-        {firstPortal ? (() => {
-          const point = worldToSvg(firstPortal.center, worldBounds, VIEWPORT);
+        {listenerFacingPortal ? (() => {
+          const point = worldToSvg(listenerFacingPortal.center, worldBounds, VIEWPORT);
           return (
             <circle
               data-testid="first-portal-route-marker"
-              data-portal-id={firstPortal.id}
+              data-portal-id={listenerFacingPortal.id}
               cx={point.x}
               cy={point.y}
               r="9"

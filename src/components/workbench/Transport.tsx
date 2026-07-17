@@ -1,6 +1,7 @@
 import type { AcousticFrame } from "@/acoustics/compute-frame";
 import type { AudioEngineDiagnostics } from "@/audio/types";
 import type { AudioStatus, PreviewMode } from "@/domain/editor/state";
+import type { AcousticFrameMetrics } from "@/hooks/useAcousticFrame";
 import { PRESETS, type PresetId } from "@/domain/presets";
 
 type TransportProps = Readonly<{
@@ -8,6 +9,7 @@ type TransportProps = Readonly<{
   audioDiagnostics: AudioEngineDiagnostics;
   audioStatus: AudioStatus;
   acousticFrame: AcousticFrame | null;
+  acousticMetrics: AcousticFrameMetrics | null;
   mode: PreviewMode;
   wallCount: number;
   onAddWall: () => void;
@@ -16,11 +18,22 @@ type TransportProps = Readonly<{
   onPresetChange: (presetId: PresetId) => void;
 }>;
 
+export function formatAcousticFrameTiming(
+  frame: Readonly<{ revision: number }> | null,
+  metrics: AcousticFrameMetrics | null,
+): string {
+  if (frame === null) return "Computing acoustic preview…";
+  if (metrics === null) return `Frame revision ${frame.revision} · Compute timing unavailable`;
+  const source = metrics.source === "worker" ? "Worker" : "Fallback";
+  return `Frame revision ${frame.revision} · ${source} compute ${metrics.computeMs.toFixed(1)} ms`;
+}
+
 export function Transport({
   activePresetId,
   audioDiagnostics,
   audioStatus,
   acousticFrame,
+  acousticMetrics,
   mode,
   wallCount,
   onAddWall,
@@ -124,18 +137,15 @@ export function Transport({
         data-source-starts={audioDiagnostics.sourceStarts}
         data-apply-count={audioDiagnostics.applyCount}
         data-acoustic-frame-revision={acousticFrame?.revision ?? "pending"}
-        data-worker-frame-generated-at={acousticFrame?.generatedAtMs ?? "pending"}
+        data-acoustic-compute-ms={acousticMetrics?.computeMs ?? "pending"}
+        data-acoustic-compute-source={acousticMetrics?.source ?? "pending"}
       >
         <span>Gate B / acoustic diagnostics</span>
         <p>
           {audioDiagnostics.contextCreations} context · {audioDiagnostics.sourceStarts} source starts · {audioDiagnostics.applyCount} smooth updates
         </p>
         <p>
-          {acousticFrame === null
-            ? "Computing acoustic preview…"
-            : acousticFrame.generatedAtMs > 0
-              ? `Frame revision ${acousticFrame.revision} · Worker timestamp ${acousticFrame.generatedAtMs} ms`
-              : `Frame revision ${acousticFrame.revision} · Worker timing unavailable in fallback`}
+          {formatAcousticFrameTiming(acousticFrame, acousticMetrics)}
         </p>
       </div>
     </aside>

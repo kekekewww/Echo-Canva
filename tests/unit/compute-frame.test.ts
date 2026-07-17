@@ -79,6 +79,7 @@ describe("computeAcousticFrame", () => {
       virtualPosition: { x: 6, y: 4 },
     });
     expect(sourceFrame.effectiveDistanceM).toBeGreaterThan(sourceFrame.physicalDistanceM);
+    expect(sourceFrame.occluderWallIds).toEqual(["partition_center"]);
   });
 
   it("keeps a direct-visible source direct when its line passes through an open portal", () => {

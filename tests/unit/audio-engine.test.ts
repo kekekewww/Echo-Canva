@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { AudioEngine } from "@/audio/AudioEngine";
-import type { AcousticFrame } from "@/acoustics/compute-frame";
+import { computeAcousticFrame, type AcousticFrame } from "@/acoustics/compute-frame";
 import type {
   AudioBufferLike,
   AudioBufferSourceNodeLike,
@@ -249,6 +249,36 @@ function makeHarness() {
 }
 
 describe("AudioEngine", () => {
+  it("maps a multi-portal frame to the listener-facing final portal", async () => {
+    const harness = makeHarness();
+    const scene = cloneScene();
+    const partition = scene.walls.find((wall) => wall.id === "partition_center")!;
+    scene.walls = [
+      ...scene.walls.filter((wall) => wall.id !== "partition_center"),
+      { ...partition, id: "first_partition", a: { x: 7, y: 0 }, b: { x: 7, y: 8 } },
+      { ...partition, id: "second_partition", a: { x: 5, y: 0 }, b: { x: 5, y: 8 } },
+    ];
+    scene.portals = [
+      { ...scene.portals[0]!, id: "first_door", wallId: "first_partition", center: { x: 7, y: 4 }, lossDb: 3 },
+      { ...scene.portals[0]!, id: "second_door", wallId: "second_partition", center: { x: 5, y: 7 }, lossDb: 4 },
+    ];
+    scene.sources[0]!.position = { x: 9, y: 4 };
+    scene.listener.position = { x: 1, y: 1 };
+    const frame = computeAcousticFrame(scene);
+
+    expect(frame.sources[0]).toMatchObject({
+      routeType: "portal",
+      portalIds: ["first_door", "second_door"],
+      virtualPosition: { x: 5, y: 7 },
+    });
+
+    await harness.engine.start(scene);
+    harness.engine.applyAcousticFrame(frame);
+
+    expect(harness.context.panners[0]?.positionX.targets.at(-1)?.target).toBe(4);
+    expect(harness.context.panners[0]?.positionZ.targets.at(-1)?.target).toBe(-6);
+  });
+
   it("applies blocked-frame direct gain, filter, route distance, and virtual panner position without creating another graph", async () => {
     const harness = makeHarness();
     const scene = cloneScene();

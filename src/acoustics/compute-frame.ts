@@ -73,7 +73,7 @@ export function computeAcousticFrame(
         lowpassHz: portalRoute?.lowpassHz ?? occlusion.lowpassHz,
         reverbSendDb: 0,
         virtualPosition: portalRoute?.virtualPosition ?? source.position,
-        occluderWallIds: portalRoute === null ? occlusion.occluderWallIds : [],
+        occluderWallIds: occlusion.occluderWallIds,
         portalIds: portalRoute?.portalIds ?? [],
         routePolyline: portalRoute?.polyline ?? trace.polyline,
         earlyReflections: [],

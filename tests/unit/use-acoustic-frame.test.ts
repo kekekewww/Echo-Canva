@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { computeAcousticFrame } from "@/acoustics/compute-frame";
 import { AcousticFrameClient } from "@/hooks/useAcousticFrame";
 import type { AcousticWorkerRequest, AcousticWorkerResponse } from "@/workers/acoustics.worker";
 import { CONCRETE_PARTITION_PRESET } from "@/domain/presets/concrete-partition";
@@ -42,6 +43,34 @@ class FakeWorker {
   }
 }
 
+class FakeTimeline {
+  nowMs = 0;
+  private nextId = 1;
+  private readonly tasks = new Map<number, { callback: () => void; dueMs: number }>();
+
+  schedule = (callback: () => void, delayMs = 0): number => {
+    const id = this.nextId++;
+    this.tasks.set(id, { callback, dueMs: this.nowMs + delayMs });
+    return id;
+  };
+
+  cancel = (id: number): void => {
+    this.tasks.delete(id);
+  };
+
+  advance(ms: number): void {
+    this.nowMs += ms;
+    while (true) {
+      const task = [...this.tasks.entries()]
+        .filter(([, candidate]) => candidate.dueMs <= this.nowMs)
+        .sort(([, left], [, right]) => left.dueMs - right.dueMs)[0];
+      if (!task) return;
+      this.tasks.delete(task[0]);
+      task[1].callback();
+    }
+  }
+}
+
 function sceneAt(revision: number): SceneSpec {
   const scene = structuredClone(CONCRETE_PARTITION_PRESET);
   scene.revision = revision;
@@ -49,6 +78,75 @@ function sceneAt(revision: number): SceneSpec {
 }
 
 describe("AcousticFrameClient", () => {
+  it("forwards the Worker compute duration with the frame", () => {
+    const timers = new FakeTimers();
+    const worker = new FakeWorker();
+    const received: unknown[] = [];
+    const client = new AcousticFrameClient({
+      cancel: (timer) => timers.cancel(timer as number),
+      cancelFrame: (frame) => timers.cancel(frame as number),
+      createWorker: () => worker,
+      onFallback: () => undefined,
+      onFrame: (_, metrics) => received.push(metrics),
+      schedule: timers.schedule,
+      scheduleFrame: timers.schedule,
+    });
+    const scene = sceneAt(59);
+
+    client.start(scene);
+    worker.onmessage?.({
+      data: {
+        type: "FRAME",
+        revision: scene.revision,
+        frame: computeAcousticFrame(scene),
+        metrics: { computeMs: 3.25, completedAtMs: 40 },
+      },
+    } as MessageEvent<AcousticWorkerResponse>);
+
+    expect(received).toEqual([{ source: "worker", computeMs: 3.25 }]);
+  });
+
+  it("rate-limits and coalesces fallback computations across a drag timeline", () => {
+    const timeline = new FakeTimeline();
+    const fallbackRevisions: number[] = [];
+    const fallbackMetrics: unknown[] = [];
+    const client = new AcousticFrameClient({
+      cancel: (timer) => timeline.cancel(timer as number),
+      cancelFrame: (frame) => timeline.cancel(frame as number),
+      createWorker: () => {
+        throw new Error("Worker unavailable");
+      },
+      onFallback: (frame, metrics) => {
+        fallbackRevisions.push(frame.revision);
+        fallbackMetrics.push(metrics);
+      },
+      onFrame: () => undefined,
+      schedule: timeline.schedule,
+      scheduleFrame: timeline.schedule,
+      now: () => timeline.nowMs,
+    });
+    const initial = sceneAt(60);
+    initial.settings.acousticUpdateHz = 10;
+    const intermediate = sceneAt(61);
+    intermediate.settings.acousticUpdateHz = 10;
+    const latest = sceneAt(62);
+    latest.settings.acousticUpdateHz = 10;
+
+    client.start(initial);
+    client.updateScene(intermediate);
+    client.updateScene(latest);
+    expect(fallbackRevisions).toEqual([60]);
+
+    timeline.advance(99);
+    expect(fallbackRevisions).toEqual([60]);
+    timeline.advance(1);
+    expect(fallbackRevisions).toEqual([60, 62]);
+    expect(fallbackMetrics).toEqual([
+      { source: "fallback", computeMs: 0 },
+      { source: "fallback", computeMs: 0 },
+    ]);
+  });
+
   it("posts only the newest client-side scene revision from a burst", () => {
     const timers = new FakeTimers();
     const frameTimers = new FakeTimers();
