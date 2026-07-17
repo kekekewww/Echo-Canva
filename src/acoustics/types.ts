@@ -37,3 +37,19 @@ export type PortalRoute = Readonly<{
   dryGainDb: number;
   lowpassHz: number;
 }>;
+
+export type ReflectionTap = Readonly<{
+  wallId: string;
+  reflectionPoint: Vec2;
+  pathLengthM: number;
+  delayMs: number;
+  gainDb: number;
+  lowpassHz: number;
+}>;
+
+export type RoomAcousticFrame = Readonly<{
+  volumeM3: number;
+  totalSurfaceM2: number;
+  rt60S: Band3;
+  preDelayMs: number;
+}>;

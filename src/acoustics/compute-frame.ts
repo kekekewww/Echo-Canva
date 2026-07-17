@@ -1,7 +1,10 @@
 import { distance, traceDirectPath } from "@/acoustics/geometry";
+import { findFirstOrderReflections } from "@/acoustics/image-source";
 import { estimateDirectOcclusion } from "@/acoustics/occlusion";
 import { findBestPortalRoute } from "@/acoustics/portal";
-import type { Band3, SceneSpec, Vec2 } from "@/domain/scene/types";
+import { estimateRoomAcoustics } from "@/acoustics/room-acoustics";
+import type { ReflectionTap, RoomAcousticFrame } from "@/acoustics/types";
+import type { SceneSpec, Vec2 } from "@/domain/scene/types";
 
 export type AcousticFrameSource = Readonly<{
   sourceId: string;
@@ -19,42 +22,25 @@ export type AcousticFrameSource = Readonly<{
   earlyReflections: readonly AcousticEarlyReflection[];
 }>;
 
-export type AcousticEarlyReflection = Readonly<{
-  wallId: string;
-  reflectionPoint: Vec2;
-  pathLengthM: number;
-  delayMs: number;
-  gainDb: number;
-  lowpassHz: number;
-}>;
+export type AcousticEarlyReflection = ReflectionTap;
 
 export type AcousticFrame = Readonly<{
   revision: number;
   generatedAtMs: number;
-  room: Readonly<{
-    volumeM3: number;
-    totalSurfaceM2: number;
-    rt60S: Band3;
-    preDelayMs: number;
-  }>;
+  room: RoomAcousticFrame;
   sources: readonly AcousticFrameSource[];
 }>;
-
-const EMPTY_ROOM = {
-  volumeM3: 0,
-  totalSurfaceM2: 0,
-  rt60S: { low: 0, mid: 0, high: 0 },
-  preDelayMs: 0,
-} as const;
 
 export function computeAcousticFrame(
   scene: SceneSpec,
   generatedAtMs = 0,
 ): AcousticFrame {
+  const room = estimateRoomAcoustics(scene);
+
   return {
     revision: scene.revision,
     generatedAtMs,
-    room: EMPTY_ROOM,
+    room,
     sources: scene.sources.map((source) => {
       const trace = traceDirectPath(source.position, scene.listener.position, scene);
       const occlusion = estimateDirectOcclusion(trace);
@@ -76,7 +62,12 @@ export function computeAcousticFrame(
         occluderWallIds: occlusion.occluderWallIds,
         portalIds: portalRoute?.portalIds ?? [],
         routePolyline: portalRoute?.polyline ?? trace.polyline,
-        earlyReflections: [],
+        earlyReflections: findFirstOrderReflections(
+          source.position,
+          scene.listener.position,
+          scene,
+          scene.settings.maxEarlyReflections,
+        ),
       };
     }),
   };
