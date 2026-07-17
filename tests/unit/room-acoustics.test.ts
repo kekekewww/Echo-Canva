@@ -66,6 +66,17 @@ describe("estimateRoomAcoustics", () => {
     expect(open.rt60S.high).toBeLessThan(sealed.rt60S.high);
   });
 
+  it("derives exterior surface from the outer polygon instead of arbitrary boundary lengths", () => {
+    const estimate = estimateRoomAcoustics(roomScene({
+      walls: [
+        { id: "mismatched", a: { x: 100, y: 100 }, b: { x: 200, y: 100 }, thicknessM: 0.2, materialId: "acoustic_treatment", kind: "boundary" },
+      ],
+    }));
+
+    expect(estimate.totalSurfaceM2).toBe(268);
+    expect(estimate.rt60S.mid).toBeCloseTo(0.161 * 240 / (-268 * Math.log(1 - 0.04)));
+  });
+
   it("clamps the numerical RT60 and pre-delay ranges", () => {
     const compact = roomScene({
       room: {

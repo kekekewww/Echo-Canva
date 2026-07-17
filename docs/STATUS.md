@@ -1,8 +1,20 @@
 # Status
 
-Current phase: Gate C implementation planning.
+Current phase: Gate C Task 1 implemented; remaining Gate C audio integration is pending.
 
-Current checklist state: Build Checklist items 5 (direct occlusion) and 6 (explicit portal routing) are implemented and verified. Gate B passed human acceptance on 2026-07-17; Gate C will add first-order early reflections and late reverberation.
+Current checklist state: Build Checklist items 5 (direct occlusion) and 6 (explicit portal routing) are implemented and verified. Gate B passed human acceptance on 2026-07-17. Gate C Task 1 now supplies deterministic first-order reflection taps and three-band Eyring room estimates to `computeAcousticFrame`; persistent reflection-tap audio rendering and late reverberation remain pending.
+
+## Gate C Task 1 verification - 2026-07-17
+
+- `pnpm test -- image-source room-acoustics compute-frame` - PASS, 21 files / 138 tests
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 21 files / 138 tests
+- `git diff --check` - PASS
+
+Known defects: no known deterministic-calculation defects in Gate C Task 1. Its browser-audio consumers are intentionally not implemented in this slice.
+
+Next action: implement and test the fixed early-reflection tap bank and stable late-reverb network, then prepare the Gate C human acceptance candidate.
 
 ## Verification evidence - 2026-07-17
 
@@ -39,4 +51,4 @@ Expected result: the open portal provides a portal-aware route and the closed po
 
 Known deviations: browser automation verifies deterministic route selection, displayed frame values, overlays, control changes, and absence of page errors; it cannot verify individual headphone perception or hardware-specific clicks. The original test path was corrected under D-012 because it crossed the open doorway directly. No architectural-acoustics accuracy claim is made.
 
-Human result: `PASS` (2026-07-17). The next action is Gate C planning; no new Gate C audio behavior has been implemented yet.
+Human result: `PASS` (2026-07-17). Gate C deterministic calculations are now implemented; browser-audio integration remains pending.

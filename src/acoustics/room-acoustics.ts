@@ -13,6 +13,7 @@ const BANDS = ["low", "mid", "high"] as const;
 type Surface = Readonly<{
   areaM2: number;
   material: AcousticMaterial;
+  wallId?: string;
 }>;
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -43,15 +44,44 @@ function polygonArea(vertices: readonly Vec2[]): number {
   return Math.abs(twiceArea) * 0.5;
 }
 
-function polygonPerimeter(vertices: readonly Vec2[]): number {
-  return vertices.reduce(
-    (total, point, index) => total + distance(point, vertices[(index + 1) % vertices.length]!),
-    0,
-  );
+function pointsMatch(a: Vec2, b: Vec2): boolean {
+  return distance(a, b) <= ACOUSTIC_EPSILON;
 }
 
-function wallSurface(wall: SceneSpec["walls"][number], heightM: number): number {
-  return distance(wall.a, wall.b) * heightM * (wall.kind === "partition" ? 2 : 1);
+function boundaryWallForEdge(
+  a: Vec2,
+  b: Vec2,
+  scene: SceneSpec,
+): SceneSpec["walls"][number] | undefined {
+  return scene.walls
+    .filter((wall) => wall.kind === "boundary")
+    .filter((wall) =>
+      (pointsMatch(wall.a, a) && pointsMatch(wall.b, b)) ||
+      (pointsMatch(wall.a, b) && pointsMatch(wall.b, a)),
+    )
+    .sort((left, right) => left.id.localeCompare(right.id))[0];
+}
+
+function exteriorSurfaces(scene: SceneSpec, fallbackMaterial: AcousticMaterial): readonly Surface[] {
+  const { outerPolygon, heightM } = scene.room;
+  return outerPolygon.flatMap((point, index): Surface[] => {
+    const next = outerPolygon[(index + 1) % outerPolygon.length]!;
+    const areaM2 = distance(point, next) * heightM;
+    if (areaM2 <= ACOUSTIC_EPSILON) {
+      return [];
+    }
+
+    const wall = boundaryWallForEdge(point, next, scene);
+    return [{
+      areaM2,
+      material: wall === undefined ? fallbackMaterial : materialFor(wall.materialId),
+      wallId: wall?.id,
+    }];
+  });
+}
+
+function partitionSurface(wall: SceneSpec["walls"][number], heightM: number): number {
+  return distance(wall.a, wall.b) * heightM * 2;
 }
 
 function portalOpeningArea(
@@ -82,7 +112,6 @@ function eyringRt60(volumeM3: number, surfaceM2: number, meanAbsorption: number)
 /** Estimates room-scale Eyring decay values for the interactive approximation. */
 export function estimateRoomAcoustics(scene: SceneSpec): RoomAcousticFrame {
   const areaM2 = polygonArea(scene.room.outerPolygon);
-  const perimeterM = polygonPerimeter(scene.room.outerPolygon);
   const heightM = Math.max(0, scene.room.heightM);
   const volumeM3 = areaM2 * heightM;
   const floor = materialFor(scene.room.floorMaterialId);
@@ -90,42 +119,27 @@ export function estimateRoomAcoustics(scene: SceneSpec): RoomAcousticFrame {
   const surfaces: Surface[] = [
     { areaM2, material: floor },
     { areaM2, material: ceiling },
+    ...exteriorSurfaces({ ...scene, room: { ...scene.room, heightM } }, floor),
   ];
-  const boundaryLengthM = scene.walls
-    .filter((wall) => wall.kind === "boundary")
-    .reduce((total, wall) => total + distance(wall.a, wall.b), 0);
 
-  for (const wall of scene.walls) {
-    const surfaceAreaM2 = wallSurface(wall, heightM);
+  for (const wall of scene.walls.filter((candidate) => candidate.kind === "partition")) {
+    const surfaceAreaM2 = partitionSurface(wall, heightM);
     if (surfaceAreaM2 > ACOUSTIC_EPSILON) {
-      surfaces.push({ areaM2: surfaceAreaM2, material: materialFor(wall.materialId) });
+      surfaces.push({ areaM2: surfaceAreaM2, material: materialFor(wall.materialId), wallId: wall.id });
     }
-  }
-
-  const uncoveredBoundaryM = Math.max(0, perimeterM - boundaryLengthM);
-  if (uncoveredBoundaryM > ACOUSTIC_EPSILON) {
-    surfaces.push({ areaM2: uncoveredBoundaryM * heightM, material: floor });
   }
 
   const totalSurfaceM2 = surfaces.reduce((total, surface) => total + surface.areaM2, 0);
   const absorptionArea: Band3 = { low: 0, mid: 0, high: 0 };
 
   for (const surface of surfaces) {
+    const wall = surface.wallId === undefined
+      ? undefined
+      : scene.walls.find((candidate) => candidate.id === surface.wallId);
+    const openingAreaM2 = wall === undefined ? 0 : portalOpeningArea(wall, scene, surface.areaM2);
     for (const band of BANDS) {
-      absorptionArea[band] += surface.areaM2 * surface.material.absorption[band];
-    }
-  }
-
-  for (const wall of scene.walls) {
-    const wallAreaM2 = wallSurface(wall, heightM);
-    const openingAreaM2 = portalOpeningArea(wall, scene, wallAreaM2);
-    if (openingAreaM2 <= ACOUSTIC_EPSILON) {
-      continue;
-    }
-
-    const material = materialFor(wall.materialId);
-    for (const band of BANDS) {
-      absorptionArea[band] += openingAreaM2 * (1 - material.absorption[band]);
+      absorptionArea[band] +=
+        (surface.areaM2 - openingAreaM2) * surface.material.absorption[band] + openingAreaM2;
     }
   }
 

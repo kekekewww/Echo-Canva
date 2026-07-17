@@ -48,13 +48,23 @@ export function computeAcousticFrame(
         ? null
         : findBestPortalRoute(source.position, scene.listener.position, scene);
       const physicalDistanceM = distance(source.position, scene.listener.position);
+      const effectiveDistanceM = portalRoute?.effectiveDistanceM ?? physicalDistanceM;
+      const earlyReflections = findFirstOrderReflections(
+        source.position,
+        scene.listener.position,
+        scene,
+        scene.settings.maxEarlyReflections,
+      ).map((tap) => ({
+        ...tap,
+        delayMs: ((tap.pathLengthM - effectiveDistanceM) / 343) * 1000,
+      }));
 
       return {
         sourceId: source.id,
         routeType: trace.visible ? "direct" : portalRoute === null ? "blocked" : "portal",
         directVisible: trace.visible,
         physicalDistanceM,
-        effectiveDistanceM: portalRoute?.effectiveDistanceM ?? physicalDistanceM,
+        effectiveDistanceM,
         dryGainDb: portalRoute?.dryGainDb ?? occlusion.dryGainDb,
         lowpassHz: portalRoute?.lowpassHz ?? occlusion.lowpassHz,
         reverbSendDb: 0,
@@ -62,12 +72,7 @@ export function computeAcousticFrame(
         occluderWallIds: occlusion.occluderWallIds,
         portalIds: portalRoute?.portalIds ?? [],
         routePolyline: portalRoute?.polyline ?? trace.polyline,
-        earlyReflections: findFirstOrderReflections(
-          source.position,
-          scene.listener.position,
-          scene,
-          scene.settings.maxEarlyReflections,
-        ),
+        earlyReflections,
       };
     }),
   };

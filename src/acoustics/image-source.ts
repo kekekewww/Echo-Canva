@@ -57,11 +57,22 @@ function reflectAcrossWallLine(point: Vec2, wall: SceneSpec["walls"][number]): V
 function isVisibleLeg(
   start: Vec2,
   end: Vec2,
+  reflectionPoint: Vec2,
   reflectingWallId: string,
   scene: SceneSpec,
 ): boolean {
-  const otherWalls = scene.walls.filter((wall) => wall.id !== reflectingWallId);
-  return traceDirectPath(start, end, { ...scene, walls: otherWalls }).visible;
+  for (const wall of scene.walls) {
+    const hit = segmentIntersection(start, end, wall.a, wall.b);
+    if (hit === null || distance(hit.point, reflectionPoint) > ACOUSTIC_EPSILON) {
+      continue;
+    }
+
+    if (wall.id !== reflectingWallId) {
+      return false;
+    }
+  }
+
+  return traceDirectPath(start, end, scene).visible;
 }
 
 function lowpassForReflection(material: AcousticMaterial): number {
@@ -102,8 +113,8 @@ export function findFirstOrderReflections(
 
       const reflectionPoint = hit.point;
       if (
-        !isVisibleLeg(source, reflectionPoint, wall.id, scene) ||
-        !isVisibleLeg(reflectionPoint, listener, wall.id, scene)
+        !isVisibleLeg(source, reflectionPoint, reflectionPoint, wall.id, scene) ||
+        !isVisibleLeg(reflectionPoint, listener, reflectionPoint, wall.id, scene)
       ) {
         return [];
       }

@@ -113,4 +113,37 @@ describe("computeAcousticFrame", () => {
       occluderWallIds: ["partition_center"],
     });
   });
+
+  it("references portal-frame reflection delays to the selected effective route", () => {
+    const portalReflectionScene: SceneSpec = {
+      ...visibleScene,
+      walls: [
+        { id: "bottom", a: { x: 0, y: 0 }, b: { x: 10, y: 0 }, thicknessM: 0.2, materialId: "concrete_hard", kind: "boundary" },
+        { id: "east", a: { x: 10, y: 0 }, b: { x: 10, y: 10 }, thicknessM: 0.2, materialId: "concrete_hard", kind: "boundary" },
+        { id: "top", a: { x: 10, y: 10 }, b: { x: 0, y: 10 }, thicknessM: 0.2, materialId: "concrete_hard", kind: "boundary" },
+        { id: "west", a: { x: 0, y: 10 }, b: { x: 0, y: 0 }, thicknessM: 0.2, materialId: "concrete_hard", kind: "boundary" },
+        { id: "partition", a: { x: 5, y: 0 }, b: { x: 5, y: 8 }, thicknessM: 0.2, materialId: "concrete_hard", kind: "partition" },
+      ],
+      portals: [{
+        id: "door",
+        wallId: "partition",
+        center: { x: 5, y: 1 },
+        widthM: 1,
+        heightM: 2,
+        open: true,
+        lossDb: 3,
+      }],
+      sources: [{ ...visibleScene.sources[0]!, position: { x: 2, y: 3 } }],
+      listener: { position: { x: 8, y: 3 }, headingDeg: 0 },
+    };
+
+    const sourceFrame = computeAcousticFrame(portalReflectionScene).sources[0]!;
+    const topReflection = sourceFrame.earlyReflections.find((tap) => tap.wallId === "top");
+
+    expect(sourceFrame.routeType).toBe("portal");
+    expect(topReflection).toBeDefined();
+    expect(topReflection?.delayMs).toBeCloseTo(
+      ((topReflection!.pathLengthM - sourceFrame.effectiveDistanceM) / 343) * 1000,
+    );
+  });
 });
