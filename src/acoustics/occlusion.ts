@@ -40,9 +40,9 @@ function lossForCrossing(crossing: WallCrossing, direction: Vec2): Band3 {
     6 * Math.log2(effectiveThicknessM / material.referenceThicknessM);
 
   return {
-    low: material.transmissionLossDb.low + thicknessAdjustmentDb,
-    mid: material.transmissionLossDb.mid + thicknessAdjustmentDb,
-    high: material.transmissionLossDb.high + thicknessAdjustmentDb,
+    low: Math.max(0, material.transmissionLossDb.low + thicknessAdjustmentDb),
+    mid: Math.max(0, material.transmissionLossDb.mid + thicknessAdjustmentDb),
+    high: Math.max(0, material.transmissionLossDb.high + thicknessAdjustmentDb),
   };
 }
 
@@ -80,11 +80,12 @@ export function estimateDirectOcclusion(trace: DirectTrace): OcclusionEstimate {
     { low: 0, mid: 0, high: 0 },
   );
   const highObstruction = clamp(transmissionLossDb.high / 36, 0, 1);
+  const cappedMidLossDb = Math.min(transmissionLossDb.mid, MAX_DIRECT_LOSS_DB);
   const lowpassHz =
     MIN_CUTOFF_HZ * (MAX_CUTOFF_HZ / MIN_CUTOFF_HZ) ** (1 - highObstruction);
 
   return {
-    dryGainDb: -Math.min(transmissionLossDb.mid, MAX_DIRECT_LOSS_DB),
+    dryGainDb: cappedMidLossDb === 0 ? 0 : -cappedMidLossDb,
     lowpassHz,
     occluderWallIds: trace.crossings.map((crossing) => crossing.wallId),
     transmissionLossDb,

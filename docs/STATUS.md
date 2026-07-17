@@ -1,14 +1,17 @@
 # Status
 
-Current phase: Gate B implementation
+Current phase: Human Gate A
 
-Current checklist item: 5 in progress — deterministic geometry and direct occlusion
+Current checklist item: 4 complete — persistent direct-path Web Audio rendering
 
-Last verified commands (2026-07-16):
+Last verified unit quality checks (2026-07-17):
 
 - `pnpm lint` — PASS
 - `pnpm typecheck` — PASS
-- `pnpm test` — PASS, 11 files / 84 tests
+- `pnpm test` — PASS, 13 files / 96 tests
+
+Earlier integration checks (2026-07-16):
+
 - `pnpm build` — PASS, optimized static production routes generated
 - `pnpm e2e` — PASS, 10 Chromium tests against the production server
 
@@ -16,7 +19,7 @@ Detailed final-review evidence: `.superpowers/sdd/final-fix-report.md`.
 
 Human gate status:
 
-- Gate A: PASS (2026-07-17); checklist item 4 is complete
+- Gate A: positive observations recorded; explicit PASS or FAIL pending
 - Gate B: pending
 - Gate C: pending
 - Gate D: pending
@@ -38,8 +41,8 @@ Known deviations: automated Chromium verifies editor mutations, 100-wall product
 
 Verdict requested: **PASS or FAIL**, followed by observations.
 
-User observation: only direct 2D position/distance was expected before Gate B.
+User observation: direct 2D position/distance behavior was positive; an explicit Gate A PASS or FAIL token is still pending.
 
-Known defects: Gate B perceptual validation is pending.
+Known defects: human Gate A verdict is pending.
 
-Next action: complete the remaining Gate B portal-routing work, then request the Gate B verdict.
+Next action: request the explicit Gate A PASS or FAIL verdict before advancing phase or checklist work.

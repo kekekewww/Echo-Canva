@@ -67,6 +67,12 @@ export function segmentIntersection(a: Vec2, b: Vec2, c: Vec2, d: Vec2): Segment
   };
 }
 
+function isInteriorTraceHit(hit: SegmentHit): boolean {
+  // A source/listener can sit exactly on its supporting room boundary. Those
+  // endpoint contacts are finite geometry hits, but not intervening occluders.
+  return hit.t > ACOUSTIC_EPSILON && hit.t < 1 - ACOUSTIC_EPSILON;
+}
+
 export function intersectSegmentWithWalls(
   source: Vec2,
   listener: Vec2,
@@ -76,17 +82,19 @@ export function intersectSegmentWithWalls(
     .flatMap((wall) => {
       const hit = segmentIntersection(source, listener, wall.a, wall.b);
 
-      if (
-        hit === null ||
-        hit.t <= ACOUSTIC_EPSILON ||
-        hit.t >= 1 - ACOUSTIC_EPSILON
-      ) {
+      if (hit === null || !isInteriorTraceHit(hit)) {
         return [];
       }
 
       return [{ ...hit, wallId: wall.id, wall }];
     })
-    .sort((a, b) => a.t - b.t);
+    .sort((a, b) => {
+      if (a.t !== b.t) {
+        return a.t - b.t;
+      }
+
+      return a.wallId < b.wallId ? -1 : a.wallId > b.wallId ? 1 : 0;
+    });
 }
 
 function liesStrictlyInsideOpenPortal(
@@ -116,8 +124,7 @@ function liesStrictlyInsideOpenPortal(
     const halfWidth = portal.widthM / 2;
 
     return (
-      distanceAlongWall > -halfWidth + ACOUSTIC_EPSILON &&
-      distanceAlongWall < halfWidth - ACOUSTIC_EPSILON
+      distanceAlongWall > -halfWidth && distanceAlongWall < halfWidth
     );
   });
 }
