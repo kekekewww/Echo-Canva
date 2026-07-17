@@ -39,7 +39,7 @@ Pass when:
 
 1. Open the canonical **Concrete Partition** preset, press **Start Audio**, and select **Simulated**.
 2. Select the listener and move it down to approximately `(3, 2)` with the arrow keys, keeping it on the opposite side of the center partition and below the doorway.
-3. With the designated portal open, confirm **Portal route**, `partition_center`, Effective distance, Direct gain, Low-pass, and the cyan route/first-portal marker are visible; listen for direction toward the doorway.
+3. With the designated portal open, confirm **Portal route**, `partition_center`, Effective distance, Direct gain, Low-pass, and the cyan route/listener-facing portal marker are visible; listen for direction toward the doorway.
 4. Select the designated portal and close it. Confirm **Blocked fallback**, `partition_center` as an occluder, the red wall highlight, and lower direct gain/low-pass values.
 5. Reopen and close the portal once more while listening. Confirm the route and direction change smoothly, no click or burst occurs, and the inspector states: `Portal-aware sound propagation is an interactive acoustic approximation; it is not diffraction.`
 
