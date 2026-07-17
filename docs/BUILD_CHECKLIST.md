@@ -94,7 +94,7 @@ Each item is complete only when its Acceptance and Verify sections pass.
   pnpm test -- room-acoustics reverb
   pnpm e2e --grep "reverb"
   ```
-  **Human Gate C:** reflections and reverb.
+  **Human Gate C:** PASS (2026-07-18) - reflections and reverb.
 
 - [ ] **9. Implement GPT-5.6 scene compiler**
   Spec ref: `API_CONTRACTS.md > POST /api/scene/compile`

@@ -1,6 +1,6 @@
 # Status
 
-Current phase: Gate C candidate verified and independently reviewed; human acceptance remains.
+Current phase: Gate C passed human acceptance; Gate D remains pending.
 
 Current checklist state: Build Checklist items 5 (direct occlusion), 6 (explicit portal routing), 7 (first-order early reflections), and 8 (room estimation and late reverberation) are implemented and verified. Gate B passed human acceptance on 2026-07-17. Gate C supplies deterministic first-order reflection taps and three-band Eyring room estimates to `computeAcousticFrame`, renders those taps through a persistent six-tap bank, uses a stable Schroeder late-reverb network, and displays only the matching Worker frame's diagnostics and paths.
 
@@ -14,7 +14,7 @@ Current checklist state: Build Checklist items 5 (direct occlusion), 6 (explicit
 
 Known defects: no known deterministic-calculation defects in Gate C Task 1. Its browser-audio consumers are intentionally not implemented in this slice.
 
-Next action: run the five-step human Gate C headphone acceptance script and record the resulting `PASS` or `FAIL`.
+Next action: Gate C is complete; begin Gate D only when separately authorized.
 
 ## Gate C Task 2 verification - 2026-07-17
 
@@ -57,7 +57,7 @@ Known deviations: the current curated sources are continuous loops, so the live 
 - `pnpm build` - PASS
 - `git diff --check` - PASS
 
-No known P0/P1 Gate C defects. The remaining acceptance is intentionally perceptual: a headphone listener must confirm the hard-versus-treated contrast and stable editing behavior.
+No known P0/P1 Gate C defects. The required perceptual headphone acceptance confirmed the hard-versus-treated contrast and stable editing behavior on 2026-07-18.
 
 ## Verification evidence - 2026-07-17
 
@@ -76,7 +76,7 @@ Earlier isolated-port evidence: before port 3000 was available, a fresh producti
 
 - Gate A: PASS (2026-07-17)
 - Gate B: PASS (2026-07-17)
-- Gate C: pending
+- Gate C: PASS (2026-07-18)
 - Gate D: pending
 - Gate E: pending
 
@@ -94,4 +94,4 @@ Expected result: Hard Room exposes a longer / brighter perceptually tuned room e
 
 Known deviations: browser automation verifies deterministic RT60 relationships, displayed frame values, reflection overlays, control changes, page errors, and an isolated rendered Schroeder impulse response. It cannot verify individual headphone perception or hardware-specific clicks. The current editor also does not expose outer-room scale editing. No architectural-acoustics accuracy claim is made.
 
-Human result: pending `PASS` or `FAIL`.
+Human result: `PASS` (2026-07-18).
