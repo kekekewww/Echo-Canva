@@ -1,8 +1,8 @@
 # Status
 
-Current phase: Human Gate A
+Current phase: Gate B implementation
 
-Current checklist item: 4 complete — persistent direct-path Web Audio rendering
+Current checklist item: 5 in progress — Worker protocol and direct occlusion
 
 Last verified unit quality checks (2026-07-17):
 
@@ -19,7 +19,7 @@ Detailed final-review evidence: `.superpowers/sdd/final-fix-report.md`.
 
 Human gate status:
 
-- Gate A: positive observations recorded; explicit PASS or FAIL pending
+- Gate A: PASS (2026-07-17)
 - Gate B: pending
 - Gate C: pending
 - Gate D: pending
@@ -41,8 +41,8 @@ Known deviations: automated Chromium verifies editor mutations, 100-wall product
 
 Verdict requested: **PASS or FAIL**, followed by observations.
 
-User observation: direct 2D position/distance behavior was positive; an explicit Gate A PASS or FAIL token is still pending.
+User observation: direct 2D position/distance behavior was positive; wall edits, Portal edits, source/listener movement, and preset switching behaved correctly. The human supplied an explicit `PASS` on 2026-07-17.
 
-Known defects: human Gate A verdict is pending.
+Known defects: none recorded for Gate A. External device changes and browser-initiated `AudioContext` interruptions remain deferred under D-009.
 
-Next action: request the explicit Gate A PASS or FAIL verdict before advancing phase or checklist work.
+Next action: complete the Gate B Worker, occlusion, and portal-routing acceptance path.
