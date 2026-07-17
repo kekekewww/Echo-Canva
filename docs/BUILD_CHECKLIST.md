@@ -96,7 +96,7 @@ Each item is complete only when its Acceptance and Verify sections pass.
   ```
   **Human Gate C:** PASS (2026-07-18) - reflections and reverb.
 
-- [ ] **9. Implement GPT-5.6 scene compiler**
+- [x] **9. Implement GPT-5.6 scene compiler**
   Spec ref: `API_CONTRACTS.md > POST /api/scene/compile`
   What to build: server route, strict Structured Outputs, concise prompt, allowed registries, schema/domain validation, one repair pass, rate limit, fallback, prompt fixtures/evals.
   Acceptance: At least 9/10 canonical prompts validate on first call in the recorded evaluation run; all 10 either validate after one repair or safely fall back; no invented material/clip ID reaches client state.
@@ -105,6 +105,7 @@ Each item is complete only when its Acceptance and Verify sections pass.
   pnpm test -- ai-scene
   pnpm e2e --grep "scene compiler"
   ```
+  Verification: 2026-07-18 deterministic adapter evaluation passed all 10 bounded canonical fixtures (9 directly; 1 after exactly one repair) and rejected all 5 adversarial fixtures. Production Chromium compiler and unavailable-preservation coverage passed.
 
 - [ ] **10. Implement explanation, export, diagnostics, and product polish**
   Spec ref: `PRD.md > US-07, US-08`
@@ -115,6 +116,7 @@ Each item is complete only when its Acceptance and Verify sections pass.
   pnpm test
   pnpm e2e
   ```
+  Partial verification: the grounded explanation endpoint and evidence/limitation UI passed on 2026-07-18. This checklist item remains open because JSON import/export and the remaining product-polish scope are not yet implemented.
   **Human Gate D:** GPT compiler and explanation.
 
 - [ ] **11. Stabilize performance, security, compatibility, and deployment**

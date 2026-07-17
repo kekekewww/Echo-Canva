@@ -51,3 +51,79 @@ test("scene compiler preserves the prior scene on a typed adversarial failure", 
     page.locator('[src="https://example.test/untrusted.mp3"], [href="https://example.test/untrusted.mp3"]'),
   ).toHaveCount(0);
 });
+
+test("scene explanation renders only evidence from the current deterministic snapshot", async ({ page }) => {
+  type Snapshot = {
+    routeType: string;
+    dryGainDb: number;
+    lowpassHz: number;
+    rt60S: { low: number; mid: number; high: number };
+  };
+  const requestedSnapshots: Snapshot[] = [];
+  await page.route("**/api/scene/explain", async (route) => {
+    const request = route.request();
+    const body = JSON.parse(request.postData() ?? "{}") as { snapshot: Snapshot };
+    requestedSnapshots.push(body.snapshot);
+    await route.fulfill({
+      json: {
+        ok: true,
+        model: "gpt-5.6",
+        explanation: {
+          summary: "This is a deterministic snapshot explanation.",
+          factors: [
+            { label: "Route", evidence: body.snapshot.routeType },
+            { label: "Direct gain", evidence: `${body.snapshot.dryGainDb} dB` },
+            { label: "Low-pass", evidence: `${body.snapshot.lowpassHz} Hz` },
+          ],
+          limitations: ["Portal routing is a geometric perceptual approximation."],
+        },
+      },
+    });
+  });
+
+  await page.goto("/");
+  const explain = page.getByRole("button", { name: "Explain selected acoustics" });
+  await expect(explain).toBeEnabled();
+  await explain.click();
+
+  await expect(page.getByRole("heading", { name: "Acoustic explanation" })).toBeVisible();
+  const [requestedSnapshot] = requestedSnapshots;
+  if (!requestedSnapshot) {
+    throw new Error("The explanation route did not receive a deterministic snapshot.");
+  }
+  await expect(page.getByTestId("explanation-evidence")).toContainText(
+    String(requestedSnapshot.dryGainDb),
+  );
+  await expect(page.getByTestId("explanation-evidence")).toContainText(
+    String(requestedSnapshot.lowpassHz),
+  );
+  await expect(page.getByText("Portal routing is a geometric perceptual approximation.")).toBeVisible();
+});
+
+test("unavailable AI preserves an already-generated candidate and manual scene", async ({ page }) => {
+  const scene = structuredClone(HARD_ROOM_PRESET);
+  scene.name = "Preserved candidate";
+  let compileCalls = 0;
+  await page.route("**/api/scene/compile", (route) => {
+    compileCalls += 1;
+    return route.fulfill({
+      status: compileCalls === 1 ? 200 : 503,
+      json:
+        compileCalls === 1
+          ? { ok: true, scene, model: "gpt-5.6", repairAttempted: false, warnings: [] }
+          : { ok: false, error: { code: "AI_UNAVAILABLE", message: "AI unavailable" } },
+    });
+  });
+
+  await page.goto("/");
+  const priorScene = await page.locator("#scene-name").textContent();
+  await page.getByLabel("Describe a scene").fill("First candidate");
+  await page.getByRole("button", { name: "Generate scene" }).click();
+  await expect(page.getByText("Candidate: Preserved candidate")).toBeVisible();
+
+  await page.getByLabel("Describe a scene").fill("Second unavailable request");
+  await page.getByRole("button", { name: "Generate scene" }).click();
+  await expect(page.getByRole("status")).toContainText("manual");
+  await expect(page.getByText("Candidate: Preserved candidate")).toBeVisible();
+  await expect(page.getByRole("heading", { name: priorScene ?? "" })).toBeVisible();
+});

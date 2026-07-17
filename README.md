@@ -1,6 +1,6 @@
 # Echo Canvas
 
-Echo Canvas is a browser-based spatial-audio prototyping and previsualization tool for OpenAI Build Week 2026. The current Gate C candidate provides a deterministic 2D scene editor, local mono demo sources, Raw/Simulated A/B preview, browser HRTF rendering, Worker-driven direct-path occlusion, portal-aware sound propagation, first-order early reflections, and a perceptually tuned Schroeder late-reverb preview.
+Echo Canvas is a browser-based spatial-audio prototyping and previsualization tool for OpenAI Build Week 2026. The Gate D candidate provides a deterministic 2D scene editor, local mono demo sources, Raw/Simulated A/B preview, browser HRTF rendering, Worker-driven direct-path occlusion, portal-aware sound propagation, first-order early reflections, a perceptually tuned Schroeder late-reverb preview, GPT-5.6 scene compilation, and grounded acoustic explanations.
 
 The product is an **interactive acoustic approximation**. It is not an architectural-acoustics measurement tool and does not claim physically accurate diffraction.
 
@@ -18,7 +18,7 @@ pnpm install
 pnpm dev
 ```
 
-Open `http://127.0.0.1:3000`. No account, OpenAI key, or network audio asset is required for the preset-only Gate C candidate. Audio begins only after **Start Audio** is pressed.
+Open `http://127.0.0.1:3000`. No account, OpenAI key, or network audio asset is required for presets and manual editing. Set `OPENAI_API_KEY` server-side only to enable GPT-5.6 compilation and explanation; without it, both return actionable unavailable states and the editor remains operational. Audio begins only after **Start Audio** is pressed.
 
 ## Verify
 
@@ -58,8 +58,8 @@ React / Next.js workbench
         |
         v
 validated, versioned SceneSpec
-        |                         future control plane
-        |                         GPT-5.6 scene compiler / explanation
+        |                         GPT-5.6 control plane
+        |                         server-only compile / explanation
         v
 deterministic acoustic pipeline   (server-side, strict structured output)
         |
@@ -79,7 +79,7 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/ACOUSTICS.md`](docs/A
 
 Codex is the principal implementation and release workflow: it follows [`AGENTS.md`](AGENTS.md), adds regression tests before fixes, runs the quality gates, and records deviations in [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md).
 
-GPT-5.6 is intentionally a control-plane component for later gates. It will compile bounded natural-language intent into a strict `SceneSpec` and explain a deterministic `AcousticSnapshot`. It will not calculate acoustics, set Web Audio parameters, execute generated code, invent registry IDs, or load arbitrary URLs. The preset editor remains usable when the OpenAI API is unavailable.
+GPT-5.6 is a server-only control-plane component. It compiles bounded natural-language intent into a strict `SceneSpec` and explains a finite deterministic acoustic projection through strict Structured Outputs. It never calculates acoustics, sets Web Audio parameters, executes generated code, invents registry IDs, or loads arbitrary URLs. Explanation output is rejected if it introduces numeric evidence absent from the deterministic snapshot; the UI always states that portal routing is a geometric perceptual approximation. The preset editor remains usable when the OpenAI API is unavailable.
 
 ## Assets, license, and limitations
 
@@ -88,4 +88,4 @@ GPT-5.6 is intentionally a control-plane component for later gates. It will comp
 - Primary browser targets are current desktop Chrome and Edge.
 - External device changes and browser-initiated `AudioContext` interruption observation remain a documented follow-up; explicit Start, Stop, resume, and error lifecycle are covered.
 - First-order reflections and late reverberation are perceptually tuned approximations, not architectural-acoustics measurement or certification. The live UI uses continuous-loop assets rather than a separate one-shot impulse audition; automated Chromium validation nevertheless renders the production Schroeder network through `OfflineAudioContext` to check finite/non-clipping output on each stereo channel, an equal-band RT60 target from summed stereo energy, and a relative Raw/Simulated transition-continuity limit. The editor does not expose outer-room scale editing; room-scale math is covered by deterministic unit tests.
-- GPT-5.6 endpoints, import/export UI, and deployment are later checklist items and are not represented as complete in this Gate C candidate.
+- JSON import/export UI and deployment remain later checklist items; GPT-5.6 compilation and snapshot-grounded explanations are implemented in the current Gate D candidate.

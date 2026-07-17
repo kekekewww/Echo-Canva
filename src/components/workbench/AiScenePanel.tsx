@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import type { AcousticExplanation } from "@/ai/contracts";
 import type { SceneSpec } from "@/domain/scene/types";
 
 export type SceneCompilerStatus = "idle" | "loading" | "success" | "error";
@@ -15,23 +16,38 @@ export type SceneCompilerState = Readonly<{
   warnings: readonly string[];
 }>;
 
+export type AcousticExplanationState = Readonly<{
+  status: "idle" | "loading" | "success" | "error";
+  explanation: AcousticExplanation | null;
+  error: string | null;
+  revision: number | null;
+}>;
+
 type AiScenePanelProps = Readonly<{
   currentScene: SceneSpec;
   compiler: SceneCompilerState;
+  explanation: AcousticExplanationState;
+  canExplain: boolean;
   onGenerate(prompt: string): Promise<void>;
   onApplyScene(scene: SceneSpec): void;
-  onExplain(): void;
+  onExplain(): Promise<void>;
 }>;
 
 export function AiScenePanel({
   currentScene,
   compiler,
+  explanation,
+  canExplain,
   onGenerate,
   onApplyScene,
   onExplain,
 }: AiScenePanelProps) {
   const [prompt, setPrompt] = useState("");
-  const candidate = compiler.status === "success" ? compiler.candidate : null;
+  const candidate = compiler.candidate;
+  const visibleExplanation =
+    explanation.status === "success" && explanation.revision === currentScene.revision
+      ? explanation.explanation
+      : null;
 
   return (
     <section
@@ -91,6 +107,50 @@ export function AiScenePanel({
           {compiler.error} Your current scene is unchanged; continue in manual mode or load a preset.
         </p>
       ) : null}
+
+      <section className="acoustic-explanation" aria-labelledby="acoustic-explanation-title">
+        <div className="panel-title-block">
+          <p className="panel-kicker">Deterministic snapshot</p>
+          <h3 id="acoustic-explanation-title">Acoustic explanation</h3>
+        </div>
+        <p className="control-note">
+          Explains projected engine values only; it does not listen to audio or claim physical accuracy.
+        </p>
+        <button
+          className="primary-action"
+          disabled={!canExplain || explanation.status === "loading"}
+          onClick={() => void onExplain()}
+          type="button"
+        >
+          {explanation.status === "loading" ? "Explaining…" : "Explain selected acoustics"}
+        </button>
+        {!canExplain ? (
+          <p className="compiler-meta">Wait for the matching deterministic acoustic frame before explaining.</p>
+        ) : null}
+        {visibleExplanation ? (
+          <div className="explanation-result" aria-live="polite">
+            <p>{visibleExplanation.summary}</p>
+            <dl data-testid="explanation-evidence">
+              {visibleExplanation.factors.map((factor) => (
+                <div key={`${factor.label}-${factor.evidence}`}>
+                  <dt>{factor.label}</dt>
+                  <dd>{factor.evidence}</dd>
+                </div>
+              ))}
+            </dl>
+            <ul>
+              {visibleExplanation.limitations.map((limitation) => (
+                <li key={limitation}>{limitation}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {explanation.status === "error" && explanation.error ? (
+          <p className="compiler-error" role="status">
+            {explanation.error} Your current scene is unchanged; continue in manual mode or load a preset.
+          </p>
+        ) : null}
+      </section>
     </section>
   );
 }

@@ -1,8 +1,24 @@
 # Status
 
-Current phase: Gate C passed human acceptance; Gate D remains pending.
+Current phase: Gate D Task 3 implementation verified; Human Gate D remains pending.
 
-Current checklist state: Build Checklist items 5 (direct occlusion), 6 (explicit portal routing), 7 (first-order early reflections), and 8 (room estimation and late reverberation) are implemented and verified. Gate B passed human acceptance on 2026-07-17. Gate C supplies deterministic first-order reflection taps and three-band Eyring room estimates to `computeAcousticFrame`, renders those taps through a persistent six-tap bank, uses a stable Schroeder late-reverb network, and displays only the matching Worker frame's diagnostics and paths.
+Current checklist state: Build Checklist items 5 (direct occlusion), 6 (explicit portal routing), 7 (first-order early reflections), 8 (room estimation and late reverberation), and 9 (GPT-5.6 scene compiler) are implemented and verified. Gate D now adds a server-only grounded explanation endpoint and matching-frame evidence UI; item 10 remains open for JSON import/export and its remaining polish scope.
+
+## Gate D Task 3 verification - 2026-07-18
+
+- deterministic compiler evaluation: 10/10 canonical fixtures validated (9 first response, 1 after exactly one repair); 5/5 adversarial fixture candidates returned safe validation failures and never became a client candidate
+- acoustic explanation: strict GPT-5.6 Responses JSON Schema at low reasoning; only finite route, effective distance, dry gain, low-pass, portal count, and three-band RT60 projections are sent to the model
+- explanation grounding: invented numeric evidence is rejected; every displayed numeric token must equal an input snapshot value; the fixed limitation `Portal routing is a geometric perceptual approximation.` is always appended
+- no-key/manual fallback: compile and explain routes return typed `AI_UNAVAILABLE` errors without a key; browser coverage confirms an unavailable compile leaves the manual scene and an already-generated candidate intact
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 30 files / 193 tests
+- `pnpm e2e` - PASS, 17 Chromium production-server tests
+- `pnpm build` - PASS
+
+Known deviations: Gate D Task 3 does not add JSON import/export, deployment, or a human acceptance request. Those remain outside this vertical slice. No known P0/P1 defects in the implemented compiler/explanation path.
+
+Next action: parent Gate D handoff/review, then the defined human Gate D process.
 
 ## Gate C Task 1 verification - 2026-07-17
 

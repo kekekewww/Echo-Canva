@@ -5,6 +5,7 @@ import { useEffect, useReducer, useState } from "react";
 import { Inspector } from "@/components/workbench/Inspector";
 import {
   AiScenePanel,
+  type AcousticExplanationState,
   type SceneCompilerState,
 } from "@/components/workbench/AiScenePanel";
 import { ReadoutStrip } from "@/components/workbench/ReadoutStrip";
@@ -17,7 +18,7 @@ import { APP_NAME } from "@/domain/app-meta";
 import { useAudioEngine } from "@/hooks/useAudioEngine";
 import { useAcousticFrame } from "@/hooks/useAcousticFrame";
 import { installGateCAudioRenderValidation } from "@/audio/gate-c-render-validation";
-import { requestSceneCompilation } from "@/ai/client";
+import { requestAcousticExplanation, requestSceneCompilation } from "@/ai/client";
 
 const INITIAL_COMPILER_STATE: SceneCompilerState = {
   status: "idle",
@@ -28,12 +29,20 @@ const INITIAL_COMPILER_STATE: SceneCompilerState = {
   warnings: [],
 };
 
+const INITIAL_EXPLANATION_STATE: AcousticExplanationState = {
+  status: "idle",
+  explanation: null,
+  error: null,
+  revision: null,
+};
+
 export function EchoWorkbench() {
   const [state, dispatch] = useReducer(editorReducer, undefined, () =>
     createEditorState(PRESETS[DEFAULT_PRESET_ID]),
   );
   const [activePresetId, setActivePresetId] = useState<PresetId>(DEFAULT_PRESET_ID);
   const [compiler, setCompiler] = useState<SceneCompilerState>(INITIAL_COMPILER_STATE);
+  const [explanation, setExplanation] = useState<AcousticExplanationState>(INITIAL_EXPLANATION_STATE);
   const acoustic = useAcousticFrame(state.scene);
   const audio = useAudioEngine(
     state.scene,
@@ -89,14 +98,10 @@ export function EchoWorkbench() {
   }
 
   async function generateScene(prompt: string): Promise<void> {
-    setCompiler({ ...INITIAL_COMPILER_STATE, status: "loading" });
+    setCompiler((current) => ({ ...current, status: "loading", error: null }));
     const result = await requestSceneCompilation(prompt, state.scene);
     if (!result.ok) {
-      setCompiler({
-        ...INITIAL_COMPILER_STATE,
-        status: "error",
-        error: result.error.message,
-      });
+      setCompiler((current) => ({ ...current, status: "error", error: result.error.message }));
       return;
     }
 
@@ -107,6 +112,52 @@ export function EchoWorkbench() {
       model: result.model,
       repairAttempted: result.repairAttempted,
       warnings: result.warnings,
+    });
+  }
+
+  const selectedSourceId =
+    state.selectedObject?.type === "source" ? state.selectedObject.id : undefined;
+  const selectedSource = selectedSourceId
+    ? state.scene.sources.find(({ id }) => id === selectedSourceId)
+    : state.scene.sources[0];
+  const selectedFrame =
+    acoustic.frame?.revision === state.scene.revision && selectedSource
+      ? acoustic.frame.sources.find(({ sourceId }) => sourceId === selectedSource.id)
+      : undefined;
+  const canExplain = Boolean(selectedSource && selectedFrame && acoustic.frame);
+
+  async function explainSelectedAcoustics(): Promise<void> {
+    if (!selectedSource || !selectedFrame || acoustic.frame?.revision !== state.scene.revision) {
+      return;
+    }
+
+    setExplanation({ ...INITIAL_EXPLANATION_STATE, status: "loading", revision: state.scene.revision });
+    const result = await requestAcousticExplanation({
+      sceneName: state.scene.name,
+      sourceName: selectedSource.name,
+      snapshot: {
+        routeType: selectedFrame.routeType,
+        effectiveDistanceM: selectedFrame.effectiveDistanceM,
+        dryGainDb: selectedFrame.dryGainDb,
+        lowpassHz: selectedFrame.lowpassHz,
+        portalCount: selectedFrame.portalIds.length,
+        rt60S: acoustic.frame.room.rt60S,
+      },
+    });
+    if (!result.ok) {
+      setExplanation({
+        ...INITIAL_EXPLANATION_STATE,
+        status: "error",
+        error: result.error.message,
+        revision: state.scene.revision,
+      });
+      return;
+    }
+    setExplanation({
+      status: "success",
+      explanation: result.explanation,
+      error: null,
+      revision: state.scene.revision,
     });
   }
 
@@ -181,8 +232,13 @@ export function EchoWorkbench() {
         <AiScenePanel
           compiler={compiler}
           currentScene={state.scene}
-          onApplyScene={(scene) => dispatch({ type: "REPLACE_SCENE", scene })}
-          onExplain={() => undefined}
+          explanation={explanation}
+          canExplain={canExplain}
+          onApplyScene={(scene) => {
+            setExplanation(INITIAL_EXPLANATION_STATE);
+            dispatch({ type: "REPLACE_SCENE", scene });
+          }}
+          onExplain={explainSelectedAcoustics}
           onGenerate={generateScene}
         />
       </section>

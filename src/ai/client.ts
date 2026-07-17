@@ -1,8 +1,13 @@
 import {
+  ACOUSTIC_EXPLAINER_MODEL,
   SCENE_COMPILER_MODEL,
+  type AcousticExplanation,
+  type AcousticExplanationFailureCode,
+  type AcousticExplanationResponse,
   type CompileSceneFailure,
   type CompileSceneResponse,
   type CompileSceneSuccess,
+  type ExplainAcousticsRequest,
 } from "@/ai/contracts";
 import { DEFAULT_PRESET_ID, PRESETS, type PresetId } from "@/domain/presets";
 import type { SceneSpec } from "@/domain/scene/types";
@@ -78,6 +83,56 @@ function parseCompileResponse(value: unknown): CompileSceneResponse | null {
   return value.ok ? parseSuccess(value) : parseFailure(value);
 }
 
+function isExplanationFailureCode(value: unknown): value is AcousticExplanationFailureCode {
+  return (
+    value === "AI_REQUEST_FAILED" ||
+    value === "AI_REFUSED" ||
+    value === "AI_TIMEOUT" ||
+    value === "AI_UNAVAILABLE" ||
+    value === "EXPLANATION_VALIDATION_FAILED" ||
+    value === "INVALID_REQUEST" ||
+    value === "RATE_LIMITED"
+  );
+}
+
+function parseExplanation(value: unknown): AcousticExplanation | null {
+  if (!isRecord(value) || typeof value.summary !== "string" || !Array.isArray(value.factors) || !Array.isArray(value.limitations)) {
+    return null;
+  }
+  if (
+    !value.factors.every(
+      (factor) => isRecord(factor) && typeof factor.label === "string" && typeof factor.evidence === "string",
+    ) ||
+    !value.limitations.every((limitation) => typeof limitation === "string")
+  ) {
+    return null;
+  }
+  return {
+    summary: value.summary,
+    factors: value.factors.map((factor) => ({
+      label: (factor as Record<string, string>).label,
+      evidence: (factor as Record<string, string>).evidence,
+    })),
+    limitations: value.limitations,
+  };
+}
+
+function parseExplanationResponse(value: unknown): AcousticExplanationResponse | null {
+  if (!isRecord(value) || typeof value.ok !== "boolean") {
+    return null;
+  }
+  if (value.ok) {
+    const explanation = parseExplanation(value.explanation);
+    return explanation && value.model === ACOUSTIC_EXPLAINER_MODEL
+      ? { ok: true, explanation, model: ACOUSTIC_EXPLAINER_MODEL }
+      : null;
+  }
+  if (!isRecord(value.error) || !isExplanationFailureCode(value.error.code) || typeof value.error.message !== "string") {
+    return null;
+  }
+  return { ok: false, error: { code: value.error.code, message: value.error.message } };
+}
+
 /**
  * Calls the compiler endpoint and always resolves to the public compile contract.
  * Browser failures and malformed responses are converted into a safe typed fallback.
@@ -103,5 +158,48 @@ export async function requestSceneCompilation(
     return parsed ?? typedFailure();
   } catch {
     return typedFailure();
+  }
+}
+
+/** Calls the explanation endpoint without exposing server credentials to the browser. */
+export async function requestAcousticExplanation(
+  request: ExplainAcousticsRequest,
+  fetcher: Fetcher = fetch,
+): Promise<AcousticExplanationResponse> {
+  let response: Response;
+  try {
+    response = await fetcher("/api/scene/explain", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(request),
+    });
+  } catch {
+    return {
+      ok: false,
+      error: {
+        code: "AI_REQUEST_FAILED",
+        message: "The acoustic explanation is unavailable. Keep editing manually.",
+      },
+    };
+  }
+
+  try {
+    return (
+      parseExplanationResponse(await response.json()) ?? {
+        ok: false,
+        error: {
+          code: "EXPLANATION_VALIDATION_FAILED",
+          message: "The acoustic explanation returned an invalid response. Keep editing manually.",
+        },
+      }
+    );
+  } catch {
+    return {
+      ok: false,
+      error: {
+        code: "EXPLANATION_VALIDATION_FAILED",
+        message: "The acoustic explanation returned an invalid response. Keep editing manually.",
+      },
+    };
   }
 }

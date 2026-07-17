@@ -83,3 +83,9 @@ Reason: A Worker result for an earlier drag or preset must never be mistaken for
 Decision: Keep the live product's curated continuous loops, but expose a test-only browser hook that renders the actual `SchroederReverb` implementation and shared Raw/Simulated crossfade through `OfflineAudioContext` during production Playwright tests.
 
 Reason: Node-mock topology tests cannot establish output finiteness, peak safety, decay behavior, or sample continuity. The hook is not part of the interactive audio path; it provides reproducible rendered-buffer evidence without adding a user-facing impulse control outside the frozen scope.
+
+## D-014 — Snapshot-bounded acoustic explanation
+
+Decision: Send GPT-5.6 only a finite, compact acoustic projection and reject any structured explanation whose displayed numeric tokens do not equal one of the projected values. Always append the fixed portal-routing limitation.
+
+Reason: The model is a prose-only control-plane component. Snapshot-bounded input and output validation make deterministic engine values authoritative while preventing fabricated measurements, hearing claims, and unsupported physical-accuracy claims.
