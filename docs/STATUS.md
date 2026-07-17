@@ -1,6 +1,6 @@
 # Status
 
-Current phase: Gate C Tasks 1-3 implemented and verified; independent whole-Gate-C review and human acceptance remain.
+Current phase: Gate C candidate verified and independently reviewed; human acceptance remains.
 
 Current checklist state: Build Checklist items 5 (direct occlusion), 6 (explicit portal routing), 7 (first-order early reflections), and 8 (room estimation and late reverberation) are implemented and verified. Gate B passed human acceptance on 2026-07-17. Gate C supplies deterministic first-order reflection taps and three-band Eyring room estimates to `computeAcousticFrame`, renders those taps through a persistent six-tap bank, uses a stable Schroeder late-reverb network, and displays only the matching Worker frame's diagnostics and paths.
 
@@ -14,7 +14,7 @@ Current checklist state: Build Checklist items 5 (direct occlusion), 6 (explicit
 
 Known defects: no known deterministic-calculation defects in Gate C Task 1. Its browser-audio consumers are intentionally not implemented in this slice.
 
-Next action: preserve the verified implementation for whole-Gate-C review, then prepare the Gate C human acceptance candidate.
+Next action: run the five-step human Gate C headphone acceptance script and record the resulting `PASS` or `FAIL`.
 
 ## Gate C Task 2 verification - 2026-07-17
 
@@ -46,6 +46,18 @@ This is rendered-buffer evidence for the production Schroeder implementation and
 The production E2E loads Hard Room and Treated Room, verifies a matching-frame three-band Eyring RT60 readout, four visible first-order reflection paths, lower treated mid-band decay, and the required approximation language. The readout intentionally remains pending until an `AcousticFrame.revision` equals the current scene revision.
 
 Known deviations: the current curated sources are continuous loops, so the live UI does not expose a separately triggerable impulse-tail control. The browser suite now renders the production Schroeder graph with `OfflineAudioContext` for an isolated automated tail check. The editable room boundary is also not a room-scale control; the manual Gate C scale observation is limited to displayed deterministic estimates, while room-volume/pre-delay scale behavior is covered by unit tests. Neither limitation claims architectural-acoustics accuracy.
+
+## Final Gate C verification - 2026-07-17
+
+- whole-Gate-C independent review - PASS after rendered-stereo measurement repairs
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 23 files / 149 tests
+- `pnpm e2e` - PASS, 13 Chromium production-server tests
+- `pnpm build` - PASS
+- `git diff --check` - PASS
+
+No known P0/P1 Gate C defects. The remaining acceptance is intentionally perceptual: a headphone listener must confirm the hard-versus-treated contrast and stable editing behavior.
 
 ## Verification evidence - 2026-07-17
 
