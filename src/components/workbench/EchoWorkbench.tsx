@@ -1,6 +1,6 @@
 "use client";
 
-import { useReducer, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 
 import { Inspector } from "@/components/workbench/Inspector";
 import { ReadoutStrip } from "@/components/workbench/ReadoutStrip";
@@ -12,6 +12,7 @@ import { DEFAULT_PRESET_ID, PRESETS, type PresetId } from "@/domain/presets";
 import { APP_NAME } from "@/domain/app-meta";
 import { useAudioEngine } from "@/hooks/useAudioEngine";
 import { useAcousticFrame } from "@/hooks/useAcousticFrame";
+import { installGateCAudioRenderValidation } from "@/audio/gate-c-render-validation";
 
 export function EchoWorkbench() {
   const [state, dispatch] = useReducer(editorReducer, undefined, () =>
@@ -25,6 +26,8 @@ export function EchoWorkbench() {
     acoustic.frame,
     acoustic.fallbackNotice,
   );
+
+  useEffect(() => installGateCAudioRenderValidation(), []);
 
   async function toggleAudio(): Promise<void> {
     if (state.audioStatus === "idle") {

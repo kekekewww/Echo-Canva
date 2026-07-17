@@ -77,3 +77,9 @@ Reason: The original Task 4 script expected a portal route for the default Radio
 Decision: Display Eyring RT60, room surface/volume, pre-delay, first-order reflection count, and reflection paths only when the `AcousticFrame.revision` matches the current `SceneSpec.revision`. Label the values as an interactive acoustic approximation, not measurement data.
 
 Reason: A Worker result for an earlier drag or preset must never be mistaken for the sound currently rendered. The Gate C candidate intentionally keeps curated continuous-loop sources and does not introduce an outer-room resize control or a one-shot impulse audition outside the frozen scope; those manual observations are documented as limitations while deterministic room-scale behavior remains unit-tested.
+
+## D-010 — Browser-rendered Gate C audio validation
+
+Decision: Keep the live product's curated continuous loops, but expose a test-only browser hook that renders the actual `SchroederReverb` implementation and shared Raw/Simulated crossfade through `OfflineAudioContext` during production Playwright tests.
+
+Reason: Node-mock topology tests cannot establish output finiteness, peak safety, decay behavior, or sample continuity. The hook is not part of the interactive audio path; it provides reproducible rendered-buffer evidence without adding a user-facing impulse control outside the frozen scope.

@@ -26,6 +26,14 @@ Next action: preserve the verified implementation for whole-Gate-C review, then 
 
 Known defects: no known Gate C audio-rendering defects. The fixed node graph is allocated once, updates through parameter automation, uses a true two-stage Schroeder all-pass topology, and gates reverb input in Raw mode.
 
+## Gate C browser audio-render validation - 2026-07-17
+
+- Production Chromium OfflineAudioContext test - PASS
+- `SchroederReverb` rendered an actual 0.8 s equal-band impulse response: finite, 0.00350 peak, 0.82 s estimated RT60 (within the ±20% acceptance band)
+- The native equal-power Raw/Simulated crossfade rendered a non-zero finite signal with 0.14143 peak and 0.000040 maximum adjacent-sample step throughout the 80 ms transition
+
+This is rendered-buffer evidence for the production Schroeder implementation and shared crossfade scheduler. It does not substitute for individual headphone perception or hardware-specific click testing.
+
 ## Gate C Task 3 verification - 2026-07-17
 
 - production reverb diagnostics E2E - PASS, 1 Chromium test through a fresh `next start` server
@@ -37,7 +45,7 @@ Known defects: no known Gate C audio-rendering defects. The fixed node graph is 
 
 The production E2E loads Hard Room and Treated Room, verifies a matching-frame three-band Eyring RT60 readout, four visible first-order reflection paths, lower treated mid-band decay, and the required approximation language. The readout intentionally remains pending until an `AcousticFrame.revision` equals the current scene revision.
 
-Known deviations: the current curated sources are continuous loops, so there is no separate one-shot impulse control for isolating a decay tail. The editable room boundary is also not a room-scale control; the manual Gate C scale observation is limited to displayed deterministic estimates, while room-volume/pre-delay scale behavior is covered by unit tests. Neither limitation claims architectural-acoustics accuracy.
+Known deviations: the current curated sources are continuous loops, so the live UI does not expose a separately triggerable impulse-tail control. The browser suite now renders the production Schroeder graph with `OfflineAudioContext` for an isolated automated tail check. The editable room boundary is also not a room-scale control; the manual Gate C scale observation is limited to displayed deterministic estimates, while room-volume/pre-delay scale behavior is covered by unit tests. Neither limitation claims architectural-acoustics accuracy.
 
 ## Verification evidence - 2026-07-17
 
@@ -72,6 +80,6 @@ Build with `pnpm build`, then start with `pnpm start --hostname 127.0.0.1 --port
 
 Expected result: Hard Room exposes a longer / brighter perceptually tuned room estimate than Treated Room, the plan exposes first-order early-reflection paths, and editing remains stable. This is an interactive acoustic approximation for spatial-audio prototyping and previsualization, not an architectural-acoustics measurement.
 
-Known deviations: browser automation verifies deterministic RT60 relationships, displayed frame values, reflection overlays, control changes, and absence of page errors; it cannot verify individual headphone perception, hardware-specific clicks, or a standalone impulse tail. The current editor also does not expose outer-room scale editing. No architectural-acoustics accuracy claim is made.
+Known deviations: browser automation verifies deterministic RT60 relationships, displayed frame values, reflection overlays, control changes, page errors, and an isolated rendered Schroeder impulse response. It cannot verify individual headphone perception or hardware-specific clicks. The current editor also does not expose outer-room scale editing. No architectural-acoustics accuracy claim is made.
 
 Human result: pending `PASS` or `FAIL`.

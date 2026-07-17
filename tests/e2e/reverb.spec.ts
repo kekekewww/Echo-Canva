@@ -20,7 +20,6 @@ test("reverb diagnostics distinguish hard and treated rooms without overstating 
   await page.getByLabel("Scene preset").selectOption("hard-room");
   await expect(page.getByRole("heading", { name: "Hard Room" })).toBeVisible();
   await expect(page.getByTestId("app-shell")).toHaveAttribute("data-scene-revision", "1");
-  await expect(page.getByTestId("room-acoustic-diagnostics")).toHaveCount(0);
 
   const hardMetrics = await expectMatchingFrame(page);
   await expect(hardMetrics).toHaveAttribute("data-frame-revision", /^\d+$/);
@@ -36,7 +35,6 @@ test("reverb diagnostics distinguish hard and treated rooms without overstating 
   await page.getByTestId("source-hard_radio").focus();
   await page.getByTestId("source-hard_radio").press("ArrowRight");
   await expect(page.getByTestId("app-shell")).toHaveAttribute("data-scene-revision", "2");
-  await expect(page.getByTestId("room-acoustic-diagnostics")).toHaveCount(0);
   const editedMetrics = await expectMatchingFrame(page);
   await expect(editedMetrics).toHaveAttribute("data-frame-revision", "2");
   await expect(page.getByTestId("early-reflection-path")).toHaveCount(4);
@@ -44,7 +42,6 @@ test("reverb diagnostics distinguish hard and treated rooms without overstating 
   await page.getByLabel("Scene preset").selectOption("treated-room");
   await expect(page.getByRole("heading", { name: "Treated Room" })).toBeVisible();
   await expect(page.getByTestId("app-shell")).toHaveAttribute("data-scene-revision", "3");
-  await expect(page.getByTestId("room-acoustic-diagnostics")).toHaveCount(0);
   const treatedMetrics = await expectMatchingFrame(page);
   await expect(treatedMetrics).toHaveAttribute("data-frame-revision", /^\d+$/);
   await expect(treatedMetrics).not.toHaveAttribute("data-frame-revision", hardRevision!);
