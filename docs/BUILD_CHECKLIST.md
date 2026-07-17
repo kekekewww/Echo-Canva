@@ -13,7 +13,7 @@ Each item is complete only when its Acceptance and Verify sections pass.
 
 ---
 
-- [ ] **1. Bootstrap repository, governance, and test harness**
+- [x] **1. Bootstrap repository, governance, and test harness**
   Spec ref: `ARCHITECTURE.md > Suggested repository tree`
   What to build: Initialize Next.js/TypeScript/pnpm, strict compiler settings, linting, Vitest, Playwright, CI-compatible scripts, root documentation, status and decision logs. Confirm Codex loads `AGENTS.md`.
   Acceptance: App boots; `pnpm lint`, `pnpm typecheck`, `pnpm test`, and `pnpm build` pass; one smoke e2e test opens the home page.
@@ -27,7 +27,7 @@ Each item is complete only when its Acceptance and Verify sections pass.
   pnpm e2e
   ```
 
-- [ ] **2. Implement contracts, registries, validation, and fixtures**
+- [x] **2. Implement contracts, registries, validation, and fixtures**
   Spec ref: `API_CONTRACTS.md`
   What to build: TypeScript types, JSON Schema, runtime validator, domain invariants, material/audio registries, three stable preset scenes, import/export, migration shell.
   Acceptance: Valid fixtures pass; invalid IDs, counts, NaN, zero-length walls, self-intersecting outer polygons, and detached portals fail with precise errors.
@@ -36,7 +36,7 @@ Each item is complete only when its Acceptance and Verify sections pass.
   pnpm test -- scene
   ```
 
-- [ ] **3. Build the 2D editor and preset workflow**
+- [x] **3. Build the 2D editor and preset workflow**
   Spec ref: `PRD.md > US-01, US-02`
   What to build: SVG editor, coordinate transform, selection, drag listener/source, add/move/delete walls, material inspector, portal open/closed control, Start Audio affordance, Raw/Simulated switch, debug panel shell.
   Acceptance: Preset loads deterministically; editing 100 walls remains responsive; invalid actions do not corrupt state.
@@ -45,7 +45,7 @@ Each item is complete only when its Acceptance and Verify sections pass.
   pnpm e2e --grep "editor"
   ```
 
-- [ ] **4. Implement persistent direct-path Web Audio rendering**
+- [x] **4. Implement persistent direct-path Web Audio rendering**
   Spec ref: `ARCHITECTURE.md > Audio engine`
   What to build: AudioContext lifecycle, local mono asset loader, source graph pool, HRTF PannerNode, manual distance gain, master limiter, A/B crossfade, parameter smoothing.
   Acceptance: User can hear left/right movement in headphones; repeated Start/Stop does not duplicate sources; no clipping or node leak is visible in diagnostics.

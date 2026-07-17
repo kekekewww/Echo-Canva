@@ -1,8 +1,8 @@
 # Status
 
-Current phase: Human Gate A
+Current phase: Gate B implementation
 
-Current checklist item: 4 complete — persistent direct-path Web Audio rendering
+Current checklist item: 5 in progress — deterministic geometry and direct occlusion
 
 Last verified commands (2026-07-16):
 
@@ -16,7 +16,7 @@ Detailed final-review evidence: `.superpowers/sdd/final-fix-report.md`.
 
 Human gate status:
 
-- Gate A: awaiting PASS or FAIL
+- Gate A: PASS (2026-07-17); checklist item 4 is complete
 - Gate B: pending
 - Gate C: pending
 - Gate D: pending
@@ -38,6 +38,8 @@ Known deviations: automated Chromium verifies editor mutations, 100-wall product
 
 Verdict requested: **PASS or FAIL**, followed by observations.
 
-Known defects: human perceptual validation is pending.
+User observation: only direct 2D position/distance was expected before Gate B.
 
-Next action: request the Gate A verdict. A FAIL authorizes defect repair only; a PASS advances to checklist item 5.
+Known defects: Gate B perceptual validation is pending.
+
+Next action: complete the remaining Gate B portal-routing work, then request the Gate B verdict.
