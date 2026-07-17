@@ -295,12 +295,14 @@ export class AudioEngine {
   }
 
   private applySourceParameters(scene: SceneSpec, context: AudioContextLike): void {
+    const hasMatchingFrame = this.latestAcousticFrame?.revision === scene.revision;
     for (const source of scene.sources) {
       this.sourceGraphs.get(source.id)?.apply(
         source,
         scene.listener,
         context.currentTime,
         scene.settings.hrtfEnabled,
+        !hasMatchingFrame,
       );
     }
   }

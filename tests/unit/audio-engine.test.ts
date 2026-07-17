@@ -299,6 +299,77 @@ describe("AudioEngine", () => {
     expect(harness.engine.getDiagnostics().sourceStarts).toBe(2);
   });
 
+  it("keeps matching frame simulated controls authoritative through topology sync", async () => {
+    const harness = makeHarness();
+    const scene = cloneScene();
+    const frame: AcousticFrame = {
+      revision: scene.revision,
+      generatedAtMs: 100,
+      room: { volumeM3: 0, totalSurfaceM2: 0, rt60S: { low: 0, mid: 0, high: 0 }, preDelayMs: 0 },
+      sources: scene.sources.map((source) => ({
+        sourceId: source.id,
+        routeType: "blocked",
+        directVisible: false,
+        physicalDistanceM: 1,
+        effectiveDistanceM: 9,
+        dryGainDb: -18,
+        lowpassHz: 900,
+        reverbSendDb: 0,
+        virtualPosition: { x: 1, y: 9 },
+        occluderWallIds: [],
+        portalIds: [],
+        routePolyline: [source.position, scene.listener.position],
+        earlyReflections: [],
+      })),
+    };
+
+    await harness.engine.start(scene);
+    harness.engine.applyAcousticFrame(frame);
+    const frameControlledPannerTargetCount = harness.context.panners[0]?.positionX.targets.length;
+    await harness.engine.applyScene(scene);
+
+    expect(harness.context.panners[0]?.positionX.targets).toHaveLength(
+      (frameControlledPannerTargetCount ?? 0) + 1,
+    );
+    expect(harness.context.panners[0]?.positionX.targets.at(-1)?.target).toBe(
+      frame.sources[0]?.virtualPosition.x - scene.listener.position.x,
+    );
+    expect(harness.context.filters[0]?.frequency.targets.at(-1)?.target).toBe(
+      frame.sources[0]?.lowpassHz,
+    );
+  });
+
+  it("leaves the Raw branch untouched when a matching acoustic frame is applied", async () => {
+    const harness = makeHarness();
+    const scene = cloneScene();
+    const frame: AcousticFrame = {
+      revision: scene.revision,
+      generatedAtMs: 100,
+      room: { volumeM3: 0, totalSurfaceM2: 0, rt60S: { low: 0, mid: 0, high: 0 }, preDelayMs: 0 },
+      sources: scene.sources.map((source) => ({
+        sourceId: source.id,
+        routeType: "blocked",
+        directVisible: false,
+        physicalDistanceM: 1,
+        effectiveDistanceM: 9,
+        dryGainDb: -18,
+        lowpassHz: 900,
+        reverbSendDb: 0,
+        virtualPosition: { x: 1, y: 9 },
+        occluderWallIds: [],
+        portalIds: [],
+        routePolyline: [source.position, scene.listener.position],
+        earlyReflections: [],
+      })),
+    };
+
+    await harness.engine.start(scene);
+    const rawGainTargets = harness.context.gains[2]?.gain.targets.length;
+    harness.engine.applyAcousticFrame(frame);
+
+    expect(harness.context.gains[2]?.gain.targets).toHaveLength(rawGainTargets ?? 0);
+  });
+
   it("is lazy until explicit start and creates one persistent HRTF graph per source", async () => {
     const harness = makeHarness();
     const scene = cloneScene();

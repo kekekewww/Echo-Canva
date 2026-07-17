@@ -134,17 +134,20 @@ export class SourceGraph {
     listener: SceneListener,
     now: number,
     hrtfEnabled: boolean,
+    applySimulatedFallback: boolean,
   ): void {
+    smoothParameter(this.sourceGain.gain, dbToLinear(source.gainDb), now);
+    this.panner.panningModel = hrtfEnabled ? "HRTF" : "equalpower";
+    if (!applySimulatedFallback) return;
+
     const distanceM = Math.hypot(
       source.position.x - listener.position.x,
       source.position.y - listener.position.y,
     );
-    smoothParameter(this.sourceGain.gain, dbToLinear(source.gainDb), now);
     smoothParameter(this.distanceGain.gain, distanceAttenuation(distanceM), now);
     smoothParameter(this.panner.positionX, source.position.x - listener.position.x, now);
     smoothParameter(this.panner.positionY, 0, now);
     smoothParameter(this.panner.positionZ, -(source.position.y - listener.position.y), now);
-    this.panner.panningModel = hrtfEnabled ? "HRTF" : "equalpower";
   }
 
   applyMode(mode: PreviewMode, now: number): void {
