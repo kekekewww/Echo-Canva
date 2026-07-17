@@ -87,6 +87,29 @@ describe("POST /api/scene/compile", () => {
     expect(generateScene).not.toHaveBeenCalled();
   });
 
+  it("rejects a null base scene before calling the model", async () => {
+    const generateScene = vi.fn();
+    const response = await handleCompileRequest(
+      new Request("http://test/api/scene/compile", {
+        method: "POST",
+        body: JSON.stringify({ baseScene: null, prompt: "room" }),
+      }),
+      {
+        available: true,
+        generateScene,
+        limiter: createSlidingWindowLimiter(3, 60_000),
+        clientKey: () => "test-client",
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      error: { code: "INVALID_BASE_SCENE" },
+    });
+    expect(generateScene).not.toHaveBeenCalled();
+  });
+
   it("returns a typed timeout response when the adapter times out", async () => {
     const timeout = new Error("request timed out");
     timeout.name = "AbortError";
@@ -107,6 +130,30 @@ describe("POST /api/scene/compile", () => {
     await expect(response.json()).resolves.toMatchObject({
       ok: false,
       error: { code: "AI_TIMEOUT" },
+      fallbackSceneId: "concrete-partition",
+    });
+  });
+
+  it("returns a typed refusal response when the model refuses", async () => {
+    const refusal = new Error("refused");
+    refusal.name = "ModelRefusalError";
+    const response = await handleCompileRequest(
+      new Request("http://test/api/scene/compile", {
+        method: "POST",
+        body: JSON.stringify({ prompt: "room" }),
+      }),
+      {
+        available: true,
+        generateScene: vi.fn().mockRejectedValue(refusal),
+        limiter: createSlidingWindowLimiter(3, 60_000),
+        clientKey: () => "test-client",
+      },
+    );
+
+    expect(response.status).toBe(422);
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      error: { code: "AI_REFUSED" },
       fallbackSceneId: "concrete-partition",
     });
   });

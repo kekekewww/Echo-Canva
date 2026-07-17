@@ -40,6 +40,21 @@ export function buildCompilePrompt(prompt: string, baseScene?: unknown): Compile
   };
 }
 
+async function generateCandidate(
+  deps: CompileDependencies,
+  schemaPrompt: CompileSchemaPrompt,
+  repairErrors?: Parameters<CompileDependencies["generateScene"]>[1],
+): Promise<unknown> {
+  try {
+    return await deps.generateScene(schemaPrompt, repairErrors);
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
 export async function compileScene(
   { prompt, baseScene }: CompileSceneRequest,
   deps: CompileDependencies,
@@ -49,13 +64,13 @@ export async function compileScene(
   }
 
   const schemaPrompt = buildCompilePrompt(prompt, baseScene);
-  const first = await deps.generateScene(schemaPrompt);
+  const first = await generateCandidate(deps, schemaPrompt);
   const firstResult = validateScene(first);
   if (firstResult.ok) {
     return success(firstResult.scene, false);
   }
 
-  const repaired = await deps.generateScene(schemaPrompt, firstResult.errors);
+  const repaired = await generateCandidate(deps, schemaPrompt, firstResult.errors);
   const repairedResult = validateScene(repaired);
   return repairedResult.ok
     ? success(repairedResult.scene, true)

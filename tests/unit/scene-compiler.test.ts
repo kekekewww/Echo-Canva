@@ -28,4 +28,26 @@ describe("compileScene", () => {
     });
     expect(generateScene).toHaveBeenCalledTimes(2);
   });
+
+  it("treats malformed model output as an invalid candidate and repairs once", async () => {
+    const malformedOutput = new SyntaxError("Unexpected end of JSON input");
+    const generateScene = vi.fn().mockRejectedValueOnce(malformedOutput).mockRejectedValueOnce(malformedOutput);
+
+    await expect(compileScene({ prompt: "small treated room" }, { generateScene })).resolves.toMatchObject({
+      ok: false,
+      error: { code: "SCENE_VALIDATION_FAILED" },
+    });
+    expect(generateScene).toHaveBeenCalledTimes(2);
+  });
+
+  it("returns a validation fallback after two invalid candidates", async () => {
+    const generateScene = vi.fn().mockResolvedValue({ schemaVersion: "1.0" });
+
+    await expect(compileScene({ prompt: "small treated room" }, { generateScene })).resolves.toMatchObject({
+      ok: false,
+      error: { code: "SCENE_VALIDATION_FAILED" },
+      fallbackSceneId: "concrete-partition",
+    });
+    expect(generateScene).toHaveBeenCalledTimes(2);
+  });
 });

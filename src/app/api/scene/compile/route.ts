@@ -154,6 +154,10 @@ function isTimeout(error: unknown): boolean {
   return error instanceof Error && (error.name === "AbortError" || error.name === "APIConnectionTimeoutError");
 }
 
+function isModelRefusal(error: unknown): boolean {
+  return error instanceof Error && error.name === "ModelRefusalError";
+}
+
 export async function handleCompileRequest(
   request: Request,
   dependencies: CompileRouteDependencies = defaultDependencies,
@@ -171,7 +175,7 @@ export async function handleCompileRequest(
     return jsonFailure("INVALID_REQUEST", "Prompt must be a string.", 400);
   }
 
-  const baseScene = body.baseScene === null ? undefined : body.baseScene;
+  const baseScene = body.baseScene;
   if (baseScene !== undefined && !validateScene(baseScene).ok) {
     return jsonFailure("INVALID_BASE_SCENE", "Base scene must be a valid SceneSpec.", 400);
   }
@@ -201,7 +205,7 @@ export async function handleCompileRequest(
     if (isTimeout(error)) {
       return jsonFailure("AI_TIMEOUT", "The scene generator timed out. Try again.", 504);
     }
-    if (error instanceof ModelRefusalError) {
+    if (isModelRefusal(error)) {
       return jsonFailure("AI_REFUSED", "The scene generator could not complete that request.", 422);
     }
     return jsonFailure("AI_REQUEST_FAILED", "The scene generator is temporarily unavailable.", 502);
