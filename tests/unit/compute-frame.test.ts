@@ -80,4 +80,36 @@ describe("computeAcousticFrame", () => {
     });
     expect(sourceFrame.effectiveDistanceM).toBeGreaterThan(sourceFrame.physicalDistanceM);
   });
+
+  it("keeps a direct-visible source direct when its line passes through an open portal", () => {
+    const directOpenPortalScene = {
+      ...CONCRETE_PARTITION_PRESET,
+      sources: [{ ...CONCRETE_PARTITION_PRESET.sources[0]!, position: { x: 9, y: 4 } }],
+      listener: { ...CONCRETE_PARTITION_PRESET.listener, position: { x: 3, y: 4 } },
+    };
+
+    expect(computeAcousticFrame(directOpenPortalScene).sources[0]).toMatchObject({
+      routeType: "direct",
+      directVisible: true,
+      portalIds: [],
+      virtualPosition: { x: 9, y: 4 },
+    });
+  });
+
+  it("keeps the blocked fallback when no open portal route exists", () => {
+    const closedPortalScene = {
+      ...CONCRETE_PARTITION_PRESET,
+      portals: CONCRETE_PARTITION_PRESET.portals.map((portal) => ({ ...portal, open: false })),
+      sources: [{ ...CONCRETE_PARTITION_PRESET.sources[0]!, position: { x: 9, y: 1.5 } }],
+      listener: { ...CONCRETE_PARTITION_PRESET.listener, position: { x: 3, y: 1.5 } },
+    };
+
+    expect(computeAcousticFrame(closedPortalScene).sources[0]).toMatchObject({
+      routeType: "blocked",
+      directVisible: false,
+      portalIds: [],
+      virtualPosition: { x: 9, y: 1.5 },
+      occluderWallIds: ["partition_center"],
+    });
+  });
 });
