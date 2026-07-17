@@ -168,3 +168,62 @@ test("unavailable AI preserves an already-generated candidate and manual scene",
   await expect(page.getByText("Candidate: Preserved candidate")).toBeVisible();
   await expect(page.getByRole("heading", { name: priorScene ?? "" })).toBeVisible();
 });
+
+const compilerFailureCases: ReadonlyArray<readonly [string, number, string, string]> = [
+  ["no key", 503, "AI_UNAVAILABLE", "AI scene generation is unavailable. Load a preset instead."],
+  ["timeout", 504, "AI_TIMEOUT", "The scene generator timed out. Try again."],
+  ["refusal", 422, "AI_REFUSED", "The scene generator could not complete that request."],
+  ["rate limit", 429, "RATE_LIMITED", "Too many scene compile requests. Try again shortly."],
+];
+
+compilerFailureCases.forEach(([name, status, code, message]) => {
+test(`scene compiler displays the actionable ${name} failure and keeps manual fallback`, async ({ page }) => {
+  await page.route("**/api/scene/compile", (route) =>
+    route.fulfill({
+      status,
+      json: {
+        ok: false,
+        error: { code, message },
+        fallbackSceneId: "concrete-partition",
+        ...(code === "RATE_LIMITED" ? { retryAfterMs: 5000 } : {}),
+      },
+    }),
+  );
+  await page.goto("/");
+  const priorScene = await page.locator("#scene-name").textContent();
+  await page.getByLabel("Describe a scene").fill("A room");
+  await page.getByRole("button", { name: "Generate scene" }).click();
+
+  await expect(page.getByRole("status")).toContainText(message);
+  await expect(page.getByRole("status")).toContainText("manual mode");
+  await expect(page.getByRole("heading", { name: priorScene ?? "" })).toBeVisible();
+});
+});
+
+test("scene explanation ignores an older source response after the selected source changes", async ({ page }) => {
+  let releaseResponse: (() => void) | undefined;
+  await page.route("**/api/scene/explain", async (route) => {
+    await new Promise<void>((resolve) => {
+      releaseResponse = resolve;
+    });
+    await route.fulfill({
+      json: {
+        ok: true,
+        model: "gpt-5.6",
+        explanation: {
+          summary: "Radio-only explanation must not be shown for rain.",
+          factors: [{ label: "Radio", evidence: "direct" }],
+          limitations: [],
+        },
+      },
+    });
+  });
+  await page.goto("/");
+  await page.getByRole("button", { name: "Explain selected acoustics" }).click();
+  await expect.poll(() => Boolean(releaseResponse)).toBe(true);
+  await page.getByTestId("source-rain").click();
+  releaseResponse?.();
+  await page.waitForTimeout(100);
+
+  await expect(page.getByText("Radio-only explanation must not be shown for rain.")).toHaveCount(0);
+});

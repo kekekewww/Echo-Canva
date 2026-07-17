@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useReducer, useRef, useState } from "react";
 
 import { Inspector } from "@/components/workbench/Inspector";
 import {
@@ -11,7 +11,7 @@ import {
 import { ReadoutStrip } from "@/components/workbench/ReadoutStrip";
 import { SceneEditor } from "@/components/workbench/SceneEditor";
 import { Transport } from "@/components/workbench/Transport";
-import { editorReducer } from "@/domain/editor/reducer";
+import { editorReducer, type EditorAction } from "@/domain/editor/reducer";
 import { createEditorState } from "@/domain/editor/state";
 import { DEFAULT_PRESET_ID, PRESETS, type PresetId } from "@/domain/presets";
 import { APP_NAME } from "@/domain/app-meta";
@@ -34,6 +34,8 @@ const INITIAL_EXPLANATION_STATE: AcousticExplanationState = {
   explanation: null,
   error: null,
   revision: null,
+  sourceId: null,
+  requestNonce: null,
 };
 
 export function EchoWorkbench() {
@@ -43,6 +45,7 @@ export function EchoWorkbench() {
   const [activePresetId, setActivePresetId] = useState<PresetId>(DEFAULT_PRESET_ID);
   const [compiler, setCompiler] = useState<SceneCompilerState>(INITIAL_COMPILER_STATE);
   const [explanation, setExplanation] = useState<AcousticExplanationState>(INITIAL_EXPLANATION_STATE);
+  const explanationRequestNonce = useRef(0);
   const acoustic = useAcousticFrame(state.scene);
   const audio = useAudioEngine(
     state.scene,
@@ -69,7 +72,19 @@ export function EchoWorkbench() {
 
   function loadPreset(presetId: PresetId): void {
     setActivePresetId(presetId);
-    dispatch({ type: "LOAD_PRESET", presetId });
+    dispatchEditorAction({ type: "LOAD_PRESET", presetId });
+  }
+
+  function invalidateAcousticExplanation(): void {
+    explanationRequestNonce.current += 1;
+    setExplanation(INITIAL_EXPLANATION_STATE);
+  }
+
+  function dispatchEditorAction(action: EditorAction): void {
+    if (action.type !== "SET_AUDIO_STATUS" && action.type !== "SET_MODE") {
+      invalidateAcousticExplanation();
+    }
+    dispatch(action);
   }
 
   function addWall(): void {
@@ -84,7 +99,7 @@ export function EchoWorkbench() {
     const a = { x, y: minY + (maxY - minY) * 0.35 };
     const b = { x, y: minY + (maxY - minY) * 0.65 };
 
-    dispatch({
+    dispatchEditorAction({
       type: "ADD_WALL",
       wall: {
         id,
@@ -131,7 +146,17 @@ export function EchoWorkbench() {
       return;
     }
 
-    setExplanation({ ...INITIAL_EXPLANATION_STATE, status: "loading", revision: state.scene.revision });
+    const sourceId = selectedSource.id;
+    const revision = state.scene.revision;
+    const requestNonce = explanationRequestNonce.current + 1;
+    explanationRequestNonce.current = requestNonce;
+    setExplanation({
+      ...INITIAL_EXPLANATION_STATE,
+      status: "loading",
+      revision,
+      sourceId,
+      requestNonce,
+    });
     const result = await requestAcousticExplanation({
       sceneName: state.scene.name,
       sourceName: selectedSource.name,
@@ -144,21 +169,22 @@ export function EchoWorkbench() {
         rt60S: acoustic.frame.room.rt60S,
       },
     });
-    if (!result.ok) {
-      setExplanation({
-        ...INITIAL_EXPLANATION_STATE,
-        status: "error",
-        error: result.error.message,
-        revision: state.scene.revision,
-      });
+    if (requestNonce !== explanationRequestNonce.current) {
       return;
     }
-    setExplanation({
-      status: "success",
-      explanation: result.explanation,
-      error: null,
-      revision: state.scene.revision,
-    });
+    if (!result.ok) {
+      setExplanation((current) =>
+        current.requestNonce === requestNonce && current.revision === revision && current.sourceId === sourceId
+          ? { ...current, status: "error", error: result.error.message }
+          : current,
+      );
+      return;
+    }
+    setExplanation((current) =>
+      current.requestNonce === requestNonce && current.revision === revision && current.sourceId === sourceId
+        ? { ...current, status: "success", explanation: result.explanation, error: null }
+        : current,
+    );
   }
 
   return (
@@ -207,7 +233,7 @@ export function EchoWorkbench() {
             scene={state.scene}
             selection={state.selectedObject}
             acousticFrame={acoustic.frame}
-            dispatch={dispatch}
+            dispatch={dispatchEditorAction}
           />
           <ReadoutStrip
             scene={state.scene}
@@ -222,21 +248,23 @@ export function EchoWorkbench() {
           scene={state.scene}
           selection={state.selectedObject}
           editNotice={state.editNotice}
-          onDeleteWall={(wallId) => dispatch({ type: "DELETE_WALL", wallId })}
+          onDeleteWall={(wallId) => dispatchEditorAction({ type: "DELETE_WALL", wallId })}
           onMaterialChange={(wallId, materialId) =>
-            dispatch({ type: "SET_WALL_MATERIAL", wallId, materialId })
+            dispatchEditorAction({ type: "SET_WALL_MATERIAL", wallId, materialId })
           }
-          onTogglePortal={(portalId) => dispatch({ type: "TOGGLE_PORTAL", portalId })}
+          onTogglePortal={(portalId) => dispatchEditorAction({ type: "TOGGLE_PORTAL", portalId })}
         />
 
         <AiScenePanel
           compiler={compiler}
           currentScene={state.scene}
           explanation={explanation}
+          selectedSourceId={selectedSource?.id ?? null}
           canExplain={canExplain}
           onApplyScene={(scene) => {
+            explanationRequestNonce.current += 1;
             setExplanation(INITIAL_EXPLANATION_STATE);
-            dispatch({ type: "REPLACE_SCENE", scene });
+            dispatchEditorAction({ type: "REPLACE_SCENE", scene });
           }}
           onExplain={explainSelectedAcoustics}
           onGenerate={generateScene}

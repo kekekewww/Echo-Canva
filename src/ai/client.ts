@@ -1,10 +1,12 @@
 import {
   ACOUSTIC_EXPLAINER_MODEL,
+  COMPILE_SCENE_FAILURE_CODES,
   SCENE_COMPILER_MODEL,
   type AcousticExplanation,
   type AcousticExplanationFailureCode,
   type AcousticExplanationResponse,
   type CompileSceneFailure,
+  type CompileSceneFailureCode,
   type CompileSceneResponse,
   type CompileSceneSuccess,
   type ExplainAcousticsRequest,
@@ -62,15 +64,23 @@ function parseFailure(value: Record<string, unknown>): CompileSceneFailure | nul
 
   const { code, message } = value.error;
   if (
-    (code !== "PROMPT_TOO_LONG" && code !== "SCENE_VALIDATION_FAILED") ||
-    typeof message !== "string"
+    typeof message !== "string" ||
+    typeof code !== "string" ||
+    !(COMPILE_SCENE_FAILURE_CODES as readonly string[]).includes(code)
   ) {
     return null;
   }
 
+  if (code === "RATE_LIMITED") {
+    if (typeof value.retryAfterMs !== "number" || !Number.isFinite(value.retryAfterMs) || value.retryAfterMs < 0) {
+      return null;
+    }
+    return { ok: false, error: { code, message }, fallbackSceneId: value.fallbackSceneId, retryAfterMs: value.retryAfterMs };
+  }
+
   return {
     ok: false,
-    error: { code, message },
+    error: { code: code as Exclude<CompileSceneFailureCode, "RATE_LIMITED">, message },
     fallbackSceneId: value.fallbackSceneId,
   };
 }

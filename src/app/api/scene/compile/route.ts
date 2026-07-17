@@ -5,6 +5,7 @@ import OpenAI from "openai";
 import {
   SCENE_COMPILER_MODEL,
   sceneSpecJsonSchema,
+  type CompileSceneFailureCode,
   type CompileDependencies,
   type CompileSchemaPrompt,
 } from "@/ai/contracts";
@@ -32,17 +33,11 @@ export type CompileRouteDependencies = CompileDependencies & {
   clientKey(request: Request): string;
 };
 
-type FailureCode =
-  | "AI_UNAVAILABLE"
-  | "AI_TIMEOUT"
-  | "AI_REFUSED"
-  | "AI_REQUEST_FAILED"
-  | "INVALID_BASE_SCENE"
-  | "INVALID_JSON"
-  | "INVALID_REQUEST"
-  | "RATE_LIMITED";
-
-function jsonFailure(code: FailureCode, message: string, status: number): Response {
+function jsonFailure(
+  code: Exclude<CompileSceneFailureCode, "PROMPT_TOO_LONG" | "RATE_LIMITED" | "SCENE_VALIDATION_FAILED">,
+  message: string,
+  status: number,
+): Response {
   return Response.json(
     { ok: false, error: { code, message }, fallbackSceneId: DEFAULT_PRESET_ID },
     { status },
@@ -57,14 +52,6 @@ function requestTimeoutMs(): number {
 function reasoningEffort(): "low" | "medium" | "high" {
   const configured = process.env.OPENAI_REASONING_EFFORT;
   return configured === "low" || configured === "high" ? configured : "medium";
-}
-
-function repairInstructions(repairErrors: Parameters<CompileDependencies["generateScene"]>[1]): string {
-  if (!repairErrors?.length) {
-    return "";
-  }
-
-  return `\nRepair the previous candidate using these validation errors: ${JSON.stringify(repairErrors)}`;
 }
 
 function hasRefusal(response: { output: Array<{ type: string }> }): boolean {
@@ -85,13 +72,14 @@ function createOpenAIAdapter(apiKey: string): CompileDependencies["generateScene
       input: [
         {
           role: "developer",
-          content: `${schemaPrompt.instructions}${repairInstructions(repairErrors)}`,
+          content: schemaPrompt.instructions,
         },
         {
           role: "user",
           content: JSON.stringify({
             prompt: schemaPrompt.prompt,
             ...(schemaPrompt.baseScene === undefined ? {} : { baseScene: schemaPrompt.baseScene }),
+            ...(repairErrors?.length ? { validationErrors: repairErrors } : {}),
           }),
         },
       ],

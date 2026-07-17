@@ -21,12 +21,15 @@ export type AcousticExplanationState = Readonly<{
   explanation: AcousticExplanation | null;
   error: string | null;
   revision: number | null;
+  sourceId: string | null;
+  requestNonce: number | null;
 }>;
 
 type AiScenePanelProps = Readonly<{
   currentScene: SceneSpec;
   compiler: SceneCompilerState;
   explanation: AcousticExplanationState;
+  selectedSourceId: string | null;
   canExplain: boolean;
   onGenerate(prompt: string): Promise<void>;
   onApplyScene(scene: SceneSpec): void;
@@ -37,6 +40,7 @@ export function AiScenePanel({
   currentScene,
   compiler,
   explanation,
+  selectedSourceId,
   canExplain,
   onGenerate,
   onApplyScene,
@@ -45,9 +49,15 @@ export function AiScenePanel({
   const [prompt, setPrompt] = useState("");
   const candidate = compiler.candidate;
   const visibleExplanation =
-    explanation.status === "success" && explanation.revision === currentScene.revision
+    explanation.status === "success" &&
+    explanation.revision === currentScene.revision &&
+    explanation.sourceId === selectedSourceId
       ? explanation.explanation
       : null;
+  const explanationMatchesSelection =
+    explanation.revision === currentScene.revision && explanation.sourceId === selectedSourceId;
+  const explanationLoading = explanation.status === "loading" && explanationMatchesSelection;
+  const visibleError = explanation.status === "error" && explanationMatchesSelection ? explanation.error : null;
 
   return (
     <section
@@ -118,11 +128,11 @@ export function AiScenePanel({
         </p>
         <button
           className="primary-action"
-          disabled={!canExplain || explanation.status === "loading"}
+          disabled={!canExplain || explanationLoading}
           onClick={() => void onExplain()}
           type="button"
         >
-          {explanation.status === "loading" ? "Explaining…" : "Explain selected acoustics"}
+          {explanationLoading ? "Explaining…" : "Explain selected acoustics"}
         </button>
         {!canExplain ? (
           <p className="compiler-meta">Wait for the matching deterministic acoustic frame before explaining.</p>
@@ -145,9 +155,9 @@ export function AiScenePanel({
             </ul>
           </div>
         ) : null}
-        {explanation.status === "error" && explanation.error ? (
+        {visibleError ? (
           <p className="compiler-error" role="status">
-            {explanation.error} Your current scene is unchanged; continue in manual mode or load a preset.
+            {visibleError} Your current scene is unchanged; continue in manual mode or load a preset.
           </p>
         ) : null}
       </section>

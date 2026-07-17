@@ -33,16 +33,38 @@ export type CompileSceneSuccess = {
   model: typeof SCENE_COMPILER_MODEL;
 };
 
-export type CompileSceneFailureCode = "PROMPT_TOO_LONG" | "SCENE_VALIDATION_FAILED";
+export const COMPILE_SCENE_FAILURE_CODES = [
+  "AI_REQUEST_FAILED",
+  "AI_REFUSED",
+  "AI_TIMEOUT",
+  "AI_UNAVAILABLE",
+  "INVALID_BASE_SCENE",
+  "INVALID_JSON",
+  "INVALID_REQUEST",
+  "PROMPT_TOO_LONG",
+  "RATE_LIMITED",
+  "SCENE_VALIDATION_FAILED",
+] as const;
 
-export type CompileSceneFailure = {
+export type CompileSceneFailureCode = (typeof COMPILE_SCENE_FAILURE_CODES)[number];
+
+type CompileSceneFailureBase = {
   ok: false;
   error: {
-    code: CompileSceneFailureCode;
+    code: Exclude<CompileSceneFailureCode, "RATE_LIMITED">;
     message: string;
   };
   fallbackSceneId: PresetId;
 };
+
+export type CompileSceneFailure =
+  | CompileSceneFailureBase
+  | {
+      ok: false;
+      error: { code: "RATE_LIMITED"; message: string };
+      fallbackSceneId: PresetId;
+      retryAfterMs: number;
+    };
 
 export type CompileSceneResponse = CompileSceneSuccess | CompileSceneFailure;
 
@@ -63,6 +85,13 @@ export type ExplainAcousticsRequest = Readonly<{
   snapshot: AcousticSnapshotProjection;
 }>;
 
+export type ExplainSchemaPrompt = Readonly<{
+  /** Static control-plane policy; this must never contain request data. */
+  instructions: string;
+  /** Untrusted labels and snapshot data, sent only in a user message. */
+  request: ExplainAcousticsRequest;
+}>;
+
 export type AcousticExplanation = Readonly<{
   summary: string;
   factors: readonly Readonly<{ label: string; evidence: string }>[];
@@ -70,7 +99,7 @@ export type AcousticExplanation = Readonly<{
 }>;
 
 export type ExplainDependencies = Readonly<{
-  generateExplanation(prompt: string): Promise<unknown>;
+  generateExplanation(schemaPrompt: ExplainSchemaPrompt): Promise<unknown>;
 }>;
 
 export type AcousticExplanationFailureCode =

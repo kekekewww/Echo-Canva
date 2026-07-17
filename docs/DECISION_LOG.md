@@ -89,3 +89,9 @@ Reason: Node-mock topology tests cannot establish output finiteness, peak safety
 Decision: Send GPT-5.6 only a finite, compact acoustic projection and reject any structured explanation whose displayed numeric tokens do not equal one of the projected values. Always append the fixed portal-routing limitation.
 
 Reason: The model is a prose-only control-plane component. Snapshot-bounded input and output validation make deterministic engine values authoritative while preventing fabricated measurements, hearing claims, and unsupported physical-accuracy claims.
+
+## D-015 — Route-complete failures and source-bound explanations
+
+Decision: Publish every compile route failure code through one client-parsed `CompileSceneResponse` union, and bind explanation state to source ID, scene revision, and a monotonically increasing request nonce. Keep developer instructions static; send scene/source labels, snapshot values, and repair errors only as untrusted user data.
+
+Reason: An outage, timeout, refusal, or rate limit must retain the server's actionable fallback rather than becoming a generic client failure. Source/revision/nonce binding prevents a late explanation from appearing for a different selection. Separating model policy from untrusted content closes prompt-role injection paths; server-side text validation rejects links, markup, executable protocols, and instruction-like content before React displays it.

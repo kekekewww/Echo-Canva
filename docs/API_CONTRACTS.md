@@ -165,9 +165,11 @@ Response failure:
     "code": "SCENE_VALIDATION_FAILED",
     "message": "The generated scene could not be validated."
   },
-  "fallbackSceneId": "demo-courtyard"
+  "fallbackSceneId": "concrete-partition"
 }
 ```
+
+Every failure uses the public `CompileSceneResponse` failure union and includes the exact actionable server message plus `fallbackSceneId`. Its codes are `AI_REQUEST_FAILED`, `AI_REFUSED`, `AI_TIMEOUT`, `AI_UNAVAILABLE`, `INVALID_BASE_SCENE`, `INVALID_JSON`, `INVALID_REQUEST`, `PROMPT_TOO_LONG`, `RATE_LIMITED`, and `SCENE_VALIDATION_FAILED`. `RATE_LIMITED` additionally includes a finite `retryAfterMs` value.
 
 Server validation sequence:
 
@@ -203,7 +205,7 @@ Request:
 }
 ```
 
-Response:
+Response success:
 
 ```json
 {
@@ -223,6 +225,8 @@ Response:
   ]
 }
 ```
+
+Explanation failures are `{ "ok": false, "error": { "code": "...", "message": "..." } }`. A response is associated with the selected source ID, the current scene revision, and a request nonce in the browser; mismatched or superseded responses are cleared/ignored.
 
 ## Model-call policy
 
@@ -245,6 +249,8 @@ Explanation:
 - structured response;
 - temperature/control settings only if supported by the selected API configuration;
 - never infer values absent from the snapshot.
+- use static developer policy only; untrusted scene/source labels and the deterministic snapshot are sent as user data, never as developer instructions;
+- reject model URLs, markup, executable protocols, and instruction-like free-form text before accepting scene/source names or explanation fields.
 
 ## Security
 
@@ -254,5 +260,5 @@ Explanation:
 - do not log raw API keys;
 - avoid logging user audio;
 - no arbitrary remote audio URLs;
-- escape all displayed model prose;
+- render model prose as text and reject unsafe model text server-side;
 - never evaluate model output as code.

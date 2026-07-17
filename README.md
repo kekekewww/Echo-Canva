@@ -79,7 +79,7 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/ACOUSTICS.md`](docs/A
 
 Codex is the principal implementation and release workflow: it follows [`AGENTS.md`](AGENTS.md), adds regression tests before fixes, runs the quality gates, and records deviations in [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md).
 
-GPT-5.6 is a server-only control-plane component. It compiles bounded natural-language intent into a strict `SceneSpec` and explains a finite deterministic acoustic projection through strict Structured Outputs. It never calculates acoustics, sets Web Audio parameters, executes generated code, invents registry IDs, or loads arbitrary URLs. Explanation output is rejected if it introduces numeric evidence absent from the deterministic snapshot; the UI always states that portal routing is a geometric perceptual approximation. The preset editor remains usable when the OpenAI API is unavailable.
+GPT-5.6 is a server-only control-plane component. It compiles bounded natural-language intent into a strict `SceneSpec` and explains a finite deterministic acoustic projection through strict Structured Outputs. It never calculates acoustics, sets Web Audio parameters, executes generated code, invents registry IDs, or loads arbitrary URLs. Static developer policy is kept separate from untrusted scene names, source names, and snapshot data; model-produced URLs, markup, executable protocols, and instruction-like labels are rejected before acceptance. Explanation output is rejected if it introduces numeric evidence absent from the deterministic snapshot; the UI always states that portal routing is a geometric perceptual approximation. The preset editor remains usable when the OpenAI API is unavailable.
 
 ## Assets, license, and limitations
 

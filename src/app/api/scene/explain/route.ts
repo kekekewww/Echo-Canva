@@ -6,6 +6,7 @@ import {
   ACOUSTIC_EXPLAINER_MODEL,
   type ExplainAcousticsRequest,
   type ExplainDependencies,
+  type ExplainSchemaPrompt,
 } from "@/ai/contracts";
 import { acousticExplanationJsonSchema, explainAcoustics } from "@/ai/acoustic-explainer";
 import { createSlidingWindowLimiter, type SlidingWindowLimiter } from "@/ai/rate-limit";
@@ -54,12 +55,15 @@ function hasRefusal(response: { output: Array<{ type: string }> }): boolean {
 function createOpenAIAdapter(apiKey: string): ExplainDependencies["generateExplanation"] {
   const client = new OpenAI({ apiKey, timeout: requestTimeoutMs() });
 
-  return async (prompt: string): Promise<unknown> => {
+  return async (schemaPrompt: ExplainSchemaPrompt): Promise<unknown> => {
     const response = await client.responses.create({
       model: ACOUSTIC_EXPLAINER_MODEL,
       reasoning: { effort: "low" },
       tools: [],
-      input: [{ role: "developer", content: prompt }],
+      input: [
+        { role: "developer", content: schemaPrompt.instructions },
+        { role: "user", content: JSON.stringify(schemaPrompt.request) },
+      ],
       text: {
         format: {
           type: "json_schema",

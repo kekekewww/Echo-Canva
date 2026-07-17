@@ -2,6 +2,20 @@
 
 Current phase: Gate D Task 3 implementation verified; Human Gate D remains pending.
 
+## Gate D final Important-finding repair - 2026-07-18
+
+- public compiler failures: the browser now parses every compile-route failure code, preserves each actionable server message and `fallbackSceneId`, and retains the rate-limit retry interval
+- control-plane boundary: developer policy is static; untrusted snapshot, scene/source labels, and repair errors are user-role data. Server validation rejects model URLs, markup, executable protocols, and instruction-like labels/content before acceptance
+- stale explanation prevention: explanations are bound to source ID, scene revision, and request nonce; editor changes clear the pending state and mismatched/superseded responses are ignored
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 30 files / 221 tests
+- `pnpm e2e` - PASS, 23 Chromium production-server tests
+- `pnpm build` - PASS
+- `git diff --check` - PASS
+
+Known deviations: no deployment or acoustic/audio-architecture change was made in this repair. The Next build lock left by an interrupted verification runner was removed only after confirming no active Next build process; the fresh `pnpm e2e` and standalone `pnpm build` above passed.
+
 Current checklist state: Build Checklist items 5 (direct occlusion), 6 (explicit portal routing), 7 (first-order early reflections), 8 (room estimation and late reverberation), and 9 (GPT-5.6 scene compiler) are implemented and verified. Gate D now adds a server-only grounded explanation endpoint and matching-frame evidence UI; item 10 remains open for JSON import/export and its remaining polish scope.
 
 ## Gate D Task 3 verification - 2026-07-18

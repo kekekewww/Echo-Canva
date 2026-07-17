@@ -2,6 +2,8 @@ import { AUDIO_ASSETS } from "@/domain/audio-assets/registry";
 import { MATERIALS } from "@/domain/materials/registry";
 import { DEFAULT_PRESET_ID } from "@/domain/presets";
 import { validateScene } from "@/domain/scene/validate";
+import { isSafeModelLabel } from "@/ai/content-policy";
+import type { SceneValidationResult } from "@/domain/scene/types";
 
 import {
   MAX_SCENE_PROMPT_CHARS,
@@ -15,7 +17,7 @@ import {
 } from "@/ai/contracts";
 
 function failure(
-  code: CompileSceneFailure["error"]["code"],
+  code: Exclude<CompileSceneFailure["error"]["code"], "RATE_LIMITED">,
   message: string,
 ): CompileSceneFailure {
   return { ok: false, error: { code, message }, fallbackSceneId: DEFAULT_PRESET_ID };
@@ -23,6 +25,30 @@ function failure(
 
 function success(scene: CompileSceneSuccess["scene"], repairAttempted: boolean): CompileSceneSuccess {
   return { ok: true, scene, repairAttempted, warnings: [], model: SCENE_COMPILER_MODEL };
+}
+
+function validateGeneratedScene(candidate: unknown): SceneValidationResult {
+  const validation = validateScene(candidate);
+  if (!validation.ok) {
+    return validation;
+  }
+
+  const unsafeLabels = [
+    !isSafeModelLabel(validation.scene.name)
+      ? { path: "name", code: "unsafe_model_text", message: "Scene name must be a safe display label." }
+      : null,
+    ...validation.scene.sources.map((source, index) =>
+      !isSafeModelLabel(source.name)
+        ? {
+            path: `sources.${index}.name`,
+            code: "unsafe_model_text",
+            message: "Source name must be a safe display label.",
+          }
+        : null,
+    ),
+  ].filter((issue): issue is NonNullable<typeof issue> => issue !== null);
+
+  return unsafeLabels.length > 0 ? { ok: false, errors: unsafeLabels } : validation;
 }
 
 export function buildCompilePrompt(prompt: string, baseScene?: unknown): CompileSchemaPrompt {
@@ -65,13 +91,13 @@ export async function compileScene(
 
   const schemaPrompt = buildCompilePrompt(prompt, baseScene);
   const first = await generateCandidate(deps, schemaPrompt);
-  const firstResult = validateScene(first);
+  const firstResult = validateGeneratedScene(first);
   if (firstResult.ok) {
     return success(firstResult.scene, false);
   }
 
   const repaired = await generateCandidate(deps, schemaPrompt, firstResult.errors);
-  const repairedResult = validateScene(repaired);
+  const repairedResult = validateGeneratedScene(repaired);
   return repairedResult.ok
     ? success(repairedResult.scene, true)
     : failure("SCENE_VALIDATION_FAILED", "The generated scene could not be validated.");
