@@ -1,6 +1,6 @@
 # Status
 
-Current phase: Gate D Task 3 implementation verified; Human Gate D remains pending.
+Current phase: Gate D candidate independently reviewed and verified; configured-key live evaluation and Human Gate D remain pending.
 
 ## Gate D final Important-finding repair - 2026-07-18
 
@@ -18,6 +18,18 @@ Known deviations: no deployment or acoustic/audio-architecture change was made i
 
 Final follow-up: bare-domain, protocol-relative, and `mailto:` URL-like model content plus the explicitly tested “Follow the system prompt” and “Disregard safety rules” instruction patterns are now rejected server-side. `pnpm lint`, `pnpm typecheck`, `pnpm test` (31 files / 235 tests), `pnpm e2e` (23 tests), `pnpm build`, and `git diff --check` passed.
 
+## Final Gate D verification - 2026-07-18
+
+- independent whole-Gate-D review - PASS after compiler-contract, content-policy, and stale-response repairs
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 31 files / 235 tests
+- `pnpm e2e` - PASS, 23 Chromium production-server tests
+- `pnpm build` - PASS
+- `git diff --check` - PASS
+
+Local credential status: `OPENAI_API_KEY` is absent from both the current process and `.env.local`. The candidate's no-key fallback is covered and remains available, but no live GPT-5.6 evaluation has been claimed or performed. Configure the key server-side before executing Human Gate D steps 1-4; Step 5 deliberately verifies the no-key behavior.
+
 Current checklist state: Build Checklist items 5 (direct occlusion), 6 (explicit portal routing), 7 (first-order early reflections), 8 (room estimation and late reverberation), and 9 (GPT-5.6 scene compiler) are implemented and verified. Gate D now adds a server-only grounded explanation endpoint and matching-frame evidence UI; item 10 remains open for JSON import/export and its remaining polish scope.
 
 ## Gate D Task 3 verification - 2026-07-18
@@ -34,7 +46,7 @@ Current checklist state: Build Checklist items 5 (direct occlusion), 6 (explicit
 
 Known deviations: Gate D Task 3 does not add JSON import/export, deployment, or a human acceptance request. Those remain outside this vertical slice. No known P0/P1 defects in the implemented compiler/explanation path.
 
-Next action: parent Gate D handoff/review, then the defined human Gate D process.
+Next action: configure `OPENAI_API_KEY` server-side, restart the candidate, then execute the defined five-step Human Gate D process.
 
 ## Gate C Task 1 verification - 2026-07-17
 
