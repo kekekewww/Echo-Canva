@@ -1,4 +1,9 @@
 import type { SceneSpec, SceneValidationIssue } from "@/domain/scene/types";
+import {
+  SceneDocumentSerializationError,
+  parseSceneDocument,
+  toClassicScene,
+} from "@/domain/scene-document/serialize";
 import { validateScene } from "@/domain/scene/validate";
 
 export class SceneSerializationError extends Error {
@@ -9,21 +14,6 @@ export class SceneSerializationError extends Error {
     this.name = "SceneSerializationError";
     this.issues = issues;
   }
-}
-
-function migrateScene(input: unknown): unknown {
-  if (typeof input !== "object" || input === null || !("schemaVersion" in input)) {
-    return input;
-  }
-
-  const schemaVersion = input.schemaVersion;
-  if (schemaVersion === "1.0") {
-    return input;
-  }
-
-  throw new SceneSerializationError(
-    `Unsupported scene schema version: ${String(schemaVersion)}`,
-  );
 }
 
 function requireValidScene(input: unknown): SceneSpec {
@@ -47,5 +37,21 @@ export function parseScene(json: string): SceneSpec {
     throw new SceneSerializationError("Scene JSON must be valid JSON");
   }
 
-  return requireValidScene(migrateScene(input));
+  if (typeof input === "object" && input !== null && "schemaVersion" in input) {
+    if (input.schemaVersion !== "1.0") {
+      throw new SceneSerializationError(
+        `Unsupported scene schema version: ${String(input.schemaVersion)}`,
+      );
+    }
+    return requireValidScene(input);
+  }
+
+  try {
+    return toClassicScene(parseSceneDocument(json));
+  } catch (error) {
+    if (error instanceof SceneDocumentSerializationError) {
+      throw new SceneSerializationError(error.message, error.issues);
+    }
+    throw error;
+  }
 }

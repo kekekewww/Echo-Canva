@@ -113,3 +113,9 @@ Reason: The transfer controls need no server, account, or new storage. Reusing `
 Decision: Proceed with the user-authorized Hybrid 3D extension as a phased programme, but freeze the existing `classic-2d5d` behavior behind the annotated `v0.1.0-mvp-baseline` tag and a deterministic ten-scenario regression artifact before introducing scene-v2 data, engine routing, or 3D geometry.
 
 Reason: Analytic 3D formulas validate individual solvers, not their integration with the existing worker, Web Audio graph, v1 scene contract, or interaction performance. The immutable Classic baseline makes the extension additive, supplies a reliable rollback target, and prevents a feature-flagged Hybrid failure from degrading the validated MVP.
+
+## D-019 ??Versioned scene envelope and gated engine router
+
+Decision: Keep `SceneSpec v1` as the Classic data contract and introduce Hybrid data only in a strict `SceneDocumentV2` envelope containing an immutable-compatible `baseScene`, optional extensions, and a deterministic Classic projection hash. Route Hybrid selection through an owning engine router whose default and fallback is Classic.
+
+Reason: The envelope enables 3D metadata without changing existing editor, AI, import/export, worker, or Web Audio consumers. Exact Classic projection and explicit disabled/uninstalled fallbacks make the future engine switch reversible rather than a risky global migration.

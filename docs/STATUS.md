@@ -1,6 +1,21 @@
 # Status
 
-Current phase: Hybrid 3D P0 baseline locked; Gate R0 verification complete. Next action: P1 compatibility envelope, feature flags, and engine routing while Classic remains the default runtime.
+Current phase: Hybrid 3D P1 compatibility layer locked; Gate R1 verification complete. Next action: P2 3D direct-propagation solver in the isolated Hybrid Lab engine.
+
+## Hybrid 3D P1 — scene-v2 compatibility and gated routing - 2026-07-18
+
+- added strict `SceneDocumentV2` parsing/serialization around an unchanged v1 `baseScene`; v2 extensions can carry spatial-3D, propagation, future material-band, and atmosphere metadata
+- added a deterministic Classic projection hash, v2 semantic validation, and v2-to-v1 atomic projection for the existing editor/import path
+- preserved v1 JSON export and its legacy validation/error semantics
+- added default-off Hybrid feature flags, prerequisite validation, a resource-owning `EngineRouter`, and a 100-switch disposal test
+- added explicit `/classic` and solver-gated `/lab` routes; `/` continues to be the Classic default
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 35 files / 249 tests
+- `pnpm e2e` - PASS, 25 Chromium production-server tests
+- `pnpm build` - PASS (executed by `pnpm e2e`)
+
+Known deviation: P1 intentionally does not send SceneDocumentV2 to the existing Worker or Web Audio graph. The Hybrid engine exists only as an isolated routing seam until P2 supplies an analytic 3D direct solver.
 
 ## Hybrid 3D P0 — immutable Classic baseline - 2026-07-18
 
