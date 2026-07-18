@@ -95,3 +95,9 @@ Reason: The model is a prose-only control-plane component. Snapshot-bounded inpu
 Decision: Publish every compile route failure code through one client-parsed `CompileSceneResponse` union, and bind explanation state to source ID, scene revision, and a monotonically increasing request nonce. Keep developer instructions static; send scene/source labels, snapshot values, and repair errors only as untrusted user data.
 
 Reason: An outage, timeout, refusal, or rate limit must retain the server's actionable fallback rather than becoming a generic client failure. Source/revision/nonce binding prevents a late explanation from appearing for a different selection. Separating model policy from untrusted content closes prompt-role injection paths; server-side text validation rejects links, markup, executable protocols, and instruction-like content before React displays it.
+
+## D-016 — Opt-in OpenRouter Luna test provider
+
+Decision: Keep the canonical OpenAI Responses API configuration as the default, while allowing a server-only, explicitly selected OpenRouter provider that uses the fixed `openai/gpt-5.6-luna` model ID.
+
+Reason: The owner has an OpenRouter API key but no OpenAI Platform key. OpenRouter documents a Responses-compatible beta endpoint, so the adapter enables live Gate D testing without exposing a key to the browser. The adapter remains opt-in because it is a beta compatibility layer; the no-key fallback and all deterministic acoustic paths remain unchanged.

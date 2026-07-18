@@ -233,7 +233,9 @@ Explanation failures are `{ "ok": false, "error": { "code": "...", "message": ".
 
 Scene compilation:
 
-- model: `gpt-5.6`;
+- canonical model: `gpt-5.6` through the OpenAI Responses API;
+- optional local test provider: fixed `openai/gpt-5.6-luna` through OpenRouter's Responses-compatible endpoint, selected only by server-side `AI_PROVIDER=openrouter` and `OPENROUTER_API_KEY`;
+- never accept a browser-supplied provider, endpoint, model ID, or API key;
 - Responses API;
 - reasoning effort: medium;
 - strict Structured Outputs;
@@ -245,7 +247,7 @@ Scene compilation:
 
 Explanation:
 
-- model: `gpt-5.6`;
+- canonical model: `gpt-5.6`; optional OpenRouter local-test model: fixed `openai/gpt-5.6-luna`;
 - low reasoning effort is usually sufficient;
 - structured response;
 - temperature/control settings only if supported by the selected API configuration;
@@ -255,7 +257,7 @@ Explanation:
 
 ## Security
 
-- OpenAI key server-side only;
+- OpenAI/OpenRouter keys server-side only;
 - reject oversized or malformed bodies;
 - basic per-IP/session rate limit;
 - do not log raw API keys;

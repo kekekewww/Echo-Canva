@@ -65,6 +65,26 @@ describe("requestSceneCompilation", () => {
     });
   });
 
+  it("accepts the fixed OpenRouter Luna model metadata", async () => {
+    const response = await requestSceneCompilation(
+      "A room",
+      CONCRETE_PARTITION_PRESET,
+      async () =>
+        new Response(
+          JSON.stringify({
+            ok: true,
+            scene: CONCRETE_PARTITION_PRESET,
+            model: "openai/gpt-5.6-luna",
+            repairAttempted: false,
+            warnings: [],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+    );
+
+    expect(response).toMatchObject({ ok: true, model: "openai/gpt-5.6-luna" });
+  });
+
   it("converts malformed server data into a typed failure", async () => {
     const response = await requestSceneCompilation(
       "A room",

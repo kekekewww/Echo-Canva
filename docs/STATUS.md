@@ -2,6 +2,13 @@
 
 Current phase: Gate D candidate independently reviewed and verified; configured-key live evaluation and Human Gate D remain pending.
 
+## OpenRouter Luna local-test configuration - 2026-07-18
+
+- added an explicitly opt-in server-only OpenRouter adapter using fixed `openai/gpt-5.6-luna` for both compiler and explanation routes
+- the canonical OpenAI `gpt-5.6` route remains the default when `AI_PROVIDER` is absent or `openai`
+- `.env.local` is ignored by Git and contains only an empty local key placeholder; no key was read, logged, committed, or sent to the browser
+- next action: owner saves `OPENROUTER_API_KEY` in `.env.local`, restarts the local server, then runs Human Gate D Steps 1–4; retain Step 5 as the deliberate no-key fallback check
+
 ## Gate D final Important-finding repair - 2026-07-18
 
 - public compiler failures: the browser now parses every compile-route failure code, preserves each actionable server message and `fallbackSceneId`, and retains the rate-limit retry interval

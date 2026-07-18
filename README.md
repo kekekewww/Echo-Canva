@@ -18,7 +18,20 @@ pnpm install
 pnpm dev
 ```
 
-Open `http://127.0.0.1:3000`. No account, OpenAI key, or network audio asset is required for presets and manual editing. Set `OPENAI_API_KEY` server-side only to enable GPT-5.6 compilation and explanation; without it, both return actionable unavailable states and the editor remains operational. Audio begins only after **Start Audio** is pressed.
+Open `http://127.0.0.1:3000`. No account, API key, or network audio asset is required for presets and manual editing. Audio begins only after **Start Audio** is pressed.
+
+### Optional AI configuration
+
+The key is server-side only. Never paste it into the browser, chat, source files, or Git. The application remains fully usable in preset/manual mode without a key.
+
+For the owner's OpenRouter Luna test configuration, create/edit `.env.local`:
+
+```env
+AI_PROVIDER=openrouter
+OPENROUTER_API_KEY=sk-or-v1-...
+```
+
+This explicitly selects `openai/gpt-5.6-luna` for both scene compilation and acoustic explanation. Restart the local server after saving the file. To use the canonical OpenAI configuration instead, omit `AI_PROVIDER` (or set it to `openai`) and set `OPENAI_API_KEY`. OpenRouter is an opt-in compatibility-test path; the existing no-key fallback remains available if any provider request fails.
 
 ## Verify
 
@@ -79,7 +92,7 @@ See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/ACOUSTICS.md`](docs/A
 
 Codex is the principal implementation and release workflow: it follows [`AGENTS.md`](AGENTS.md), adds regression tests before fixes, runs the quality gates, and records deviations in [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md).
 
-GPT-5.6 is a server-only control-plane component. It compiles bounded natural-language intent into a strict `SceneSpec` and explains a finite deterministic acoustic projection through strict Structured Outputs. It never calculates acoustics, sets Web Audio parameters, executes generated code, invents registry IDs, or loads arbitrary URLs. Static developer policy is kept separate from untrusted scene names, source names, and snapshot data; model-produced URLs, markup, executable protocols, and instruction-like labels are rejected before acceptance. Explanation output is rejected if it introduces numeric evidence absent from the deterministic snapshot; the UI always states that portal routing is a geometric perceptual approximation. The preset editor remains usable when the OpenAI API is unavailable.
+GPT-5.6 is a server-only control-plane component. It compiles bounded natural-language intent into a strict `SceneSpec` and explains a finite deterministic acoustic projection through strict Structured Outputs. It never calculates acoustics, sets Web Audio parameters, executes generated code, invents registry IDs, or loads arbitrary URLs. Static developer policy is kept separate from untrusted scene names, source names, and snapshot data; model-produced URLs, markup, executable protocols, and instruction-like labels are rejected before acceptance. Explanation output is rejected if it introduces numeric evidence absent from the deterministic snapshot; the UI always states that portal routing is a geometric perceptual approximation. The preset editor remains usable when no configured provider is available.
 
 ## Assets, license, and limitations
 

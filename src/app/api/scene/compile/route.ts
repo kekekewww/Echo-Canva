@@ -9,6 +9,7 @@ import {
   type CompileDependencies,
   type CompileSchemaPrompt,
 } from "@/ai/contracts";
+import { getAiProviderConfig, type AiProviderConfig } from "@/ai/provider";
 import { createSlidingWindowLimiter, type SlidingWindowLimiter } from "@/ai/rate-limit";
 import { compileScene } from "@/ai/scene-compiler";
 import { DEFAULT_PRESET_ID } from "@/domain/presets";
@@ -58,15 +59,15 @@ function hasRefusal(response: { output: Array<{ type: string }> }): boolean {
   return response.output.some((item) => item.type === "refusal");
 }
 
-function createOpenAIAdapter(apiKey: string): CompileDependencies["generateScene"] {
-  const client = new OpenAI({ apiKey, timeout: requestTimeoutMs() });
+function createOpenAIAdapter(config: AiProviderConfig): CompileDependencies["generateScene"] {
+  const client = new OpenAI({ apiKey: config.apiKey, baseURL: config.baseURL, timeout: requestTimeoutMs() });
 
   return async (
     schemaPrompt: CompileSchemaPrompt,
     repairErrors?: Parameters<CompileDependencies["generateScene"]>[1],
   ): Promise<unknown> => {
     const response = await client.responses.create({
-      model: SCENE_COMPILER_MODEL,
+      model: config.compilerModel,
       reasoning: { effort: reasoningEffort() },
       tools: [],
       input: [
@@ -108,11 +109,12 @@ function derivedClientKey(request: Request): string {
 }
 
 function createDefaultDependencies(): CompileRouteDependencies {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const config = getAiProviderConfig();
   return {
-    available: Boolean(apiKey),
-    generateScene: apiKey
-      ? createOpenAIAdapter(apiKey)
+    available: Boolean(config),
+    model: config?.compilerModel ?? SCENE_COMPILER_MODEL,
+    generateScene: config
+      ? createOpenAIAdapter(config)
       : async () => {
           throw new Error("OpenAI is unavailable.");
         },

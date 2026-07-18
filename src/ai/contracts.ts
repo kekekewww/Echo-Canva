@@ -3,6 +3,12 @@ import type { PresetId } from "@/domain/presets";
 import type { SceneValidationIssue, SceneSpec } from "@/domain/scene/types";
 
 export const SCENE_COMPILER_MODEL = "gpt-5.6";
+export const OPENROUTER_LUNA_MODEL = "openai/gpt-5.6-luna";
+export const AI_MODEL_IDS = [SCENE_COMPILER_MODEL, OPENROUTER_LUNA_MODEL] as const;
+export type AiModel = (typeof AI_MODEL_IDS)[number];
+export function isAiModel(value: unknown): value is AiModel {
+  return typeof value === "string" && (AI_MODEL_IDS as readonly string[]).includes(value);
+}
 export const MAX_SCENE_PROMPT_CHARS = 2_000;
 export const ACOUSTIC_EXPLAINER_MODEL = "gpt-5.6";
 export const FIXED_PORTAL_LIMITATION = "Portal routing is a geometric perceptual approximation.";
@@ -19,6 +25,7 @@ export type CompileSchemaPrompt = {
 };
 
 export type CompileDependencies = {
+  model?: AiModel;
   generateScene(
     schemaPrompt: CompileSchemaPrompt,
     repairErrors?: readonly SceneValidationIssue[],
@@ -30,7 +37,7 @@ export type CompileSceneSuccess = {
   scene: SceneSpec;
   repairAttempted: boolean;
   warnings: string[];
-  model: typeof SCENE_COMPILER_MODEL;
+  model: AiModel;
 };
 
 export const COMPILE_SCENE_FAILURE_CODES = [
@@ -99,6 +106,7 @@ export type AcousticExplanation = Readonly<{
 }>;
 
 export type ExplainDependencies = Readonly<{
+  model?: AiModel;
   generateExplanation(schemaPrompt: ExplainSchemaPrompt): Promise<unknown>;
 }>;
 
@@ -112,7 +120,7 @@ export type AcousticExplanationFailureCode =
   | "RATE_LIMITED";
 
 export type AcousticExplanationResponse =
-  | Readonly<{ ok: true; explanation: AcousticExplanation; model: typeof ACOUSTIC_EXPLAINER_MODEL }>
+  | Readonly<{ ok: true; explanation: AcousticExplanation; model: AiModel }>
   | Readonly<{
       ok: false;
       error: {

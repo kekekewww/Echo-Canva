@@ -8,6 +8,7 @@ import {
   type ExplainDependencies,
   type ExplainSchemaPrompt,
 } from "@/ai/contracts";
+import { getAiProviderConfig, type AiProviderConfig } from "@/ai/provider";
 import { acousticExplanationJsonSchema, explainAcoustics } from "@/ai/acoustic-explainer";
 import { createSlidingWindowLimiter, type SlidingWindowLimiter } from "@/ai/rate-limit";
 
@@ -52,12 +53,12 @@ function hasRefusal(response: { output: Array<{ type: string }> }): boolean {
   return response.output.some((item) => item.type === "refusal");
 }
 
-function createOpenAIAdapter(apiKey: string): ExplainDependencies["generateExplanation"] {
-  const client = new OpenAI({ apiKey, timeout: requestTimeoutMs() });
+function createOpenAIAdapter(config: AiProviderConfig): ExplainDependencies["generateExplanation"] {
+  const client = new OpenAI({ apiKey: config.apiKey, baseURL: config.baseURL, timeout: requestTimeoutMs() });
 
   return async (schemaPrompt: ExplainSchemaPrompt): Promise<unknown> => {
     const response = await client.responses.create({
-      model: ACOUSTIC_EXPLAINER_MODEL,
+      model: config.explainerModel,
       reasoning: { effort: "low" },
       tools: [],
       input: [
@@ -89,11 +90,12 @@ function derivedClientKey(request: Request): string {
 }
 
 function createDefaultDependencies(): ExplainRouteDependencies {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const config = getAiProviderConfig();
   return {
-    available: Boolean(apiKey),
-    generateExplanation: apiKey
-      ? createOpenAIAdapter(apiKey)
+    available: Boolean(config),
+    model: config?.explainerModel ?? ACOUSTIC_EXPLAINER_MODEL,
+    generateExplanation: config
+      ? createOpenAIAdapter(config)
       : async () => {
           throw new Error("OpenAI is unavailable.");
         },

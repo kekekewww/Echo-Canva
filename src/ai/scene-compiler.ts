@@ -23,8 +23,12 @@ function failure(
   return { ok: false, error: { code, message }, fallbackSceneId: DEFAULT_PRESET_ID };
 }
 
-function success(scene: CompileSceneSuccess["scene"], repairAttempted: boolean): CompileSceneSuccess {
-  return { ok: true, scene, repairAttempted, warnings: [], model: SCENE_COMPILER_MODEL };
+function success(
+  scene: CompileSceneSuccess["scene"],
+  repairAttempted: boolean,
+  model: CompileSceneSuccess["model"],
+): CompileSceneSuccess {
+  return { ok: true, scene, repairAttempted, warnings: [], model };
 }
 
 function validateGeneratedScene(candidate: unknown): SceneValidationResult {
@@ -93,12 +97,12 @@ export async function compileScene(
   const first = await generateCandidate(deps, schemaPrompt);
   const firstResult = validateGeneratedScene(first);
   if (firstResult.ok) {
-    return success(firstResult.scene, false);
+    return success(firstResult.scene, false, deps.model ?? SCENE_COMPILER_MODEL);
   }
 
   const repaired = await generateCandidate(deps, schemaPrompt, firstResult.errors);
   const repairedResult = validateGeneratedScene(repaired);
   return repairedResult.ok
-    ? success(repairedResult.scene, true)
+    ? success(repairedResult.scene, true, deps.model ?? SCENE_COMPILER_MODEL)
     : failure("SCENE_VALIDATION_FAILED", "The generated scene could not be validated.");
 }

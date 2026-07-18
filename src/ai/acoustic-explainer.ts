@@ -153,6 +153,6 @@ export async function explainAcoustics(
       ...parsed.data,
       limitations: [...new Set([...parsed.data.limitations, FIXED_PORTAL_LIMITATION])],
     },
-    model: ACOUSTIC_EXPLAINER_MODEL,
+    model: dependencies.model ?? ACOUSTIC_EXPLAINER_MODEL,
   };
 }

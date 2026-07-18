@@ -1,7 +1,6 @@
 import {
-  ACOUSTIC_EXPLAINER_MODEL,
   COMPILE_SCENE_FAILURE_CODES,
-  SCENE_COMPILER_MODEL,
+  isAiModel,
   type AcousticExplanation,
   type AcousticExplanationFailureCode,
   type AcousticExplanationResponse,
@@ -40,7 +39,7 @@ function parseSuccess(value: Record<string, unknown>): CompileSceneSuccess | nul
   const validation = validateScene(value.scene);
   if (
     !validation.ok ||
-    value.model !== SCENE_COMPILER_MODEL ||
+    !isAiModel(value.model) ||
     typeof value.repairAttempted !== "boolean" ||
     !Array.isArray(value.warnings) ||
     !value.warnings.every((warning) => typeof warning === "string")
@@ -51,7 +50,7 @@ function parseSuccess(value: Record<string, unknown>): CompileSceneSuccess | nul
   return {
     ok: true,
     scene: validation.scene,
-    model: SCENE_COMPILER_MODEL,
+    model: value.model,
     repairAttempted: value.repairAttempted,
     warnings: value.warnings,
   };
@@ -133,8 +132,8 @@ function parseExplanationResponse(value: unknown): AcousticExplanationResponse |
   }
   if (value.ok) {
     const explanation = parseExplanation(value.explanation);
-    return explanation && value.model === ACOUSTIC_EXPLAINER_MODEL
-      ? { ok: true, explanation, model: ACOUSTIC_EXPLAINER_MODEL }
+    return explanation && isAiModel(value.model)
+      ? { ok: true, explanation, model: value.model }
       : null;
   }
   if (!isRecord(value.error) || !isExplanationFailureCode(value.error.code) || typeof value.error.message !== "string") {
