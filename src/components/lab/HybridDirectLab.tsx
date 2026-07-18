@@ -30,8 +30,8 @@ function format(value: number, digits = 2): string {
   return value.toFixed(digits);
 }
 
-function planPositionLabel(name: string, position: PlanPosition): string {
-  return `${name} plan position: X ${format(position.x)} m, Z ${format(position.z)} m`;
+function planAxisLabel(name: string, axis: "X" | "Z", value: number): string {
+  return `${name} ${axis}: ${format(value)} m`;
 }
 
 export function HybridDirectLab() {
@@ -120,18 +120,55 @@ export function HybridDirectLab() {
   }, [applyHybridReflectionState, hybridReflectionState]);
 
   return (
-    <section className="canvas-panel" data-testid="hybrid-direct-lab" aria-labelledby="hybrid-direct-title">
-      <p className="panel-kicker">Hybrid 3D / P3 first-order reflection beta</p>
-      <h2 id="hybrid-direct-title">3D Direct Propagation + Early Reflections</h2>
-      <p className="control-note">
-        This lab extrudes the validated 2D scene into floor, ceiling, and finite-thickness wall
-        patches. It reports geometric direct visibility, distance, delay, azimuth, and elevation.
-      </p>
-      <p className="control-note">
-        Coordinate contract: X is left/right on the plan, Y is elevation, and Z is front/back on
-        the plan. Use the plan controls below to test horizontal HRTF panning; the elevation controls
-        test vertical positioning.
-      </p>
+    <section className="canvas-panel hybrid-lab-panel" data-testid="hybrid-direct-lab" aria-labelledby="hybrid-direct-title">
+      <header className="hybrid-instrument-header">
+        <div>
+          <p className="panel-kicker">Hybrid 3D / listening instrument</p>
+          <h2 id="hybrid-direct-title">Place a listener. Then hear the geometry.</h2>
+          <p className="control-note">
+            The Lab turns this fixed scene into finite floor, ceiling, and wall patches. X/Z sets
+            horizontal placement; Y sets elevation above the floor.
+          </p>
+        </div>
+        <div className="hybrid-signal-strip" aria-label="Hybrid Lab capabilities">
+          <span>3D pose</span>
+          <span>HRTF</span>
+          <span>1st reflections</span>
+          <span>P6 preview</span>
+        </div>
+      </header>
+
+      <div className="hybrid-command-deck audio-control" data-reflections-enabled={reflectionsEnabled}>
+        <div>
+          <p className="panel-kicker">Audition</p>
+          <p className="hybrid-command-copy">Use headphones. The reflection toggle affects only the audible first-order tap bank.</p>
+        </div>
+        <div className="hybrid-command-actions">
+          <button
+            className="audio-button"
+            onClick={() => void (diagnostics.status === "idle" ? startAudio() : stopAudio())}
+            type="button"
+          >
+            {diagnostics.status === "idle" ? "Start 3D Audio" : "Stop 3D Audio"}
+          </button>
+          <button
+            aria-label={reflectionsEnabled ? "Disable 3D first-order reflections" : "Enable 3D first-order reflections"}
+            aria-pressed={reflectionsEnabled}
+            className="secondary-action"
+            onClick={() => setReflectionsEnabled((enabled) => !enabled)}
+            type="button"
+          >
+            {reflectionsEnabled ? "Reflections: on" : "Reflections: off"}
+          </button>
+        </div>
+      </div>
+
+      <div className="hybrid-workbench-grid">
+        <div className="hybrid-spatial-zone">
+          <div className="hybrid-zone-heading">
+            <p className="panel-kicker">01 / spatial pose</p>
+            <p>Drag on the two drafting surfaces. The cyan/amber markers are the actual inputs to the Hybrid HRTF pose.</p>
+          </div>
 
       <HybridPlanPositionEditor
         listenerHeightM={listenerHeightM}
@@ -151,17 +188,21 @@ export function HybridDirectLab() {
         radioPosition={radioPlanPosition}
         rainHeightM={rainHeightM}
         rainPosition={rainPlanPosition}
-      />
+          />
+        </div>
 
-      <div className="control-section">
-        <h3>Fine plan position controls</h3>
+        <aside className="hybrid-control-rack" aria-label="Hybrid pose and medium controls">
+
+      <section className="control-section hybrid-control-card">
+        <p className="panel-kicker">02 / exact position</p>
+        <h3>Fine X/Z controls</h3>
         <p className="control-note">
           Listener and source positions use metres inside this 12 m × 8 m room. A source to the
           listener&apos;s left or right should move to the corresponding ear; moving it in Z changes
           front/back distance and angle.
         </p>
         <label className="field-label" htmlFor="listener-plan-x">
-          {planPositionLabel("Listener", listenerPlanPosition)}
+          {planAxisLabel("Listener", "X", listenerPlanPosition.x)}
         </label>
         <input
           id="listener-plan-x"
@@ -176,6 +217,9 @@ export function HybridDirectLab() {
           type="range"
           value={listenerPlanPosition.x}
         />
+        <label className="field-label" htmlFor="listener-plan-z">
+          {planAxisLabel("Listener", "Z", listenerPlanPosition.z)}
+        </label>
         <input
           id="listener-plan-z"
           aria-label="Listener plan Z"
@@ -190,7 +234,7 @@ export function HybridDirectLab() {
           value={listenerPlanPosition.z}
         />
         <label className="field-label" htmlFor="radio-plan-x">
-          {planPositionLabel("Radio", radioPlanPosition)}
+          {planAxisLabel("Radio", "X", radioPlanPosition.x)}
         </label>
         <input
           id="radio-plan-x"
@@ -205,6 +249,9 @@ export function HybridDirectLab() {
           type="range"
           value={radioPlanPosition.x}
         />
+        <label className="field-label" htmlFor="radio-plan-z">
+          {planAxisLabel("Radio", "Z", radioPlanPosition.z)}
+        </label>
         <input
           id="radio-plan-z"
           aria-label="Radio plan Z"
@@ -219,7 +266,7 @@ export function HybridDirectLab() {
           value={radioPlanPosition.z}
         />
         <label className="field-label" htmlFor="rain-plan-x">
-          {planPositionLabel("Rain", rainPlanPosition)}
+          {planAxisLabel("Rain", "X", rainPlanPosition.x)}
         </label>
         <input
           id="rain-plan-x"
@@ -234,6 +281,9 @@ export function HybridDirectLab() {
           type="range"
           value={rainPlanPosition.x}
         />
+        <label className="field-label" htmlFor="rain-plan-z">
+          {planAxisLabel("Rain", "Z", rainPlanPosition.z)}
+        </label>
         <input
           id="rain-plan-z"
           aria-label="Rain plan Z"
@@ -258,10 +308,11 @@ export function HybridDirectLab() {
         >
           Reset plan positions
         </button>
-      </div>
+      </section>
 
-      <div className="control-section">
-        <h3>Elevation controls</h3>
+      <section className="control-section hybrid-control-card">
+        <p className="panel-kicker">03 / vertical pose</p>
+        <h3>Fine Y controls</h3>
         <label className="field-label" htmlFor="listener-height">Listener elevation: {format(listenerHeightM)} m</label>
         <input
           id="listener-height"
@@ -303,10 +354,11 @@ export function HybridDirectLab() {
         >
           {portalOpen ? "Close partition portal" : "Open partition portal"}
         </button>
-      </div>
+      </section>
 
-      <div className="control-section" data-testid="atmosphere-preview">
-        <h3>Atmospheric medium preview</h3>
+      <section className="control-section hybrid-control-card" data-testid="atmosphere-preview">
+        <p className="panel-kicker">04 / medium model</p>
+        <h3>Atmospheric preview</h3>
         <p className="control-note">
           Adjust the bounded air model used for the P6 propagation preview. These controls update the
           displayed medium calculations only; they do not yet alter this Lab&apos;s HRTF, direct delay,
@@ -385,13 +437,22 @@ export function HybridDirectLab() {
         >
           Reset atmospheric medium
         </button>
+      </section>
+        </aside>
       </div>
 
-      <div className="control-section" aria-label="Hybrid direct-path diagnostics">
+      <section className="hybrid-diagnostics-panel" aria-label="Hybrid direct-path diagnostics">
+        <header>
+          <div>
+            <p className="panel-kicker">05 / projected path state</p>
+            <h3>What the current geometry resolves</h3>
+          </div>
+        </header>
         <p className="control-note" data-testid="hybrid-worker-status">
           Hybrid solver: {direct.source}{direct.computeMs === null ? "" : ` · ${format(direct.computeMs, 1)} ms`}
           {direct.notice ? ` · ${direct.notice}` : ""}
         </p>
+        <div className="hybrid-path-grid">
         {paths.map((path) => (
           <article
             data-testid={`direct-${path.sourceId}`}
@@ -410,30 +471,9 @@ export function HybridDirectLab() {
             </p>
           </article>
         ))}
-      </div>
+        </div>
+      </section>
 
-      <div className="audio-control" data-reflections-enabled={reflectionsEnabled}>
-        <button
-          className="audio-button"
-          onClick={() => void (diagnostics.status === "idle" ? startAudio() : stopAudio())}
-          type="button"
-        >
-          {diagnostics.status === "idle" ? "Start 3D Audio" : "Stop 3D Audio"}
-        </button>
-        <button
-          aria-pressed={reflectionsEnabled}
-          className="secondary-action"
-          onClick={() => setReflectionsEnabled((enabled) => !enabled)}
-          type="button"
-        >
-          {reflectionsEnabled ? "Disable 3D first-order reflections" : "Enable 3D first-order reflections"}
-        </button>
-        <p className="control-note">
-          In Simulated mode, this beta writes the solved relative X/Y/Z direct position to the
-          persistent browser HRTF panners. P3-B adds Worker-validated first-order 3D reflection taps;
-          the late field remains Classic until P7.
-        </p>
-      </div>
     </section>
   );
 }

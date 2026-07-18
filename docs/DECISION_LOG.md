@@ -214,3 +214,14 @@ Reason: The Hybrid coordinate contract was not testable through a slider alone, 
 P6 medium model was invisible to a tester. A visual Y control makes all three pose axes directly
 manipulable. The medium panel gives the air model an inspectable, bounded interface without
 misrepresenting an unvalidated audio integration as an audible effect.
+
+## D-032 ??Organize the Hybrid Lab around an audition workflow
+
+Decision: Restructure the Lab UI into one audition deck, paired X/Z and Y drafting surfaces, a
+separate precision-control rack, and a final path-state panel. Keep every existing data contract,
+audio node, feature boundary, and Classic page unchanged.
+
+Reason: The previous serial stack made a user discover one control at a time and obscured the
+relationship between position, elevation, media preview, and resulting path diagnostics. The new
+workbench gives spatial-audio prototyping a clear operating sequence while remaining an isolated,
+reversible presentation change rather than an acoustic-engine rewrite.

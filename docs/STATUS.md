@@ -1,5 +1,25 @@
 # Status
 
+## Hybrid Lab workbench UI - 2026-07-18
+
+- reorganized the isolated Lab around the tester's sequence: audition, spatial pose, exact pose
+  values, atmospheric preview, then solved-path diagnostics
+- placed the X/Z drafting surface beside the Y elevation surface on wide displays; preserved
+  pointer/keyboard operation, all existing range controls, and their synchronized Hybrid pose state
+- made each X and Z numeric control visibly distinct and moved audio/reflection controls to a
+  single fixed-purpose audition deck; no acoustic formula or persistent audio-node lifecycle changed
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 44 files / 282 tests
+- `pnpm e2e` - PASS, 25 Chromium production-server tests
+
+Known limitation: this improves the Lab's interaction hierarchy only. It does not add a full 3D
+scene editor, change Classic, enable medium-to-audio routing, or make Hybrid portal/occlusion
+diagnostics audible.
+
+Current phase: UI candidate is ready for the next human usability gate. Next action: obtain a
+PASS/FAIL verdict before beginning the separately scoped Hybrid portal/occlusion audio integration.
+
 ## Hybrid Lab elevation map and atmospheric preview - 2026-07-18
 
 - added a pointer-draggable, keyboard-accessible Y elevation map for Listener, Radio, and Rain;
