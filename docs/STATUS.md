@@ -1,6 +1,19 @@
 # Status
 
-Current phase: Gate D passed with live OpenRouter GPT-5.6 Luna verification; proceed to the remaining release/submission work and Gate E.
+Current phase: Hybrid 3D P0 baseline locked; Gate R0 verification complete. Next action: P1 compatibility envelope, feature flags, and engine routing while Classic remains the default runtime.
+
+## Hybrid 3D P0 — immutable Classic baseline - 2026-07-18
+
+- created annotated tag `v0.1.0-mvp-baseline` at pre-Hybrid commit `dd6890b97a97003845c11c35c97af4c07f24d939`
+- added `benchmarks/results/mvp-baseline.json`: exact deterministic `AcousticFrame` projections for 10 Classic scenarios covering direct, portal-aware, blocked, hard-room, treated-room, and 100-wall paths
+- added `benchmarks/results/mvp-baseline-audio.json`: existing production OfflineAudioContext evidence for finite Schroeder output and Raw/Simulated crossfade continuity
+- added a deterministic regression test that requires the current Classic solver to exactly match the versioned baseline artifact
+- documented the Gate R0 criteria and rollback rules in `docs/3d-extension/P0_BASELINE.md`
+- preserved the user-supplied `echo-canvas-3d-extension-pack/` as untracked source material; it is not part of the product commit
+- `pnpm verify` - PASS: lint, typecheck, 33 unit files / 241 tests, production build, and Chromium Playwright suite
+- `git diff --check` - PASS
+
+Known deviation: P0 deliberately introduces no scene-v2 schema, 3D engine, UI switch, or runtime behavior. Those begin only in P1 after the baseline is committed.
 
 ## Human Gate D — live OpenRouter Luna verification - 2026-07-18
 

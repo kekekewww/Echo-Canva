@@ -107,3 +107,9 @@ Reason: The owner has an OpenRouter API key but no OpenAI Platform key. OpenRout
 Decision: Export the current validated `SceneSpec` as a browser download and import only through the existing serialization parser and editor reducer.
 
 Reason: The transfer controls need no server, account, or new storage. Reusing `parseScene` preserves schema-version migration and domain validation, while `REPLACE_SCENE` keeps imports atomic and gives the worker/audio graph a fresh revision.
+
+## D-018 ??Additive Hybrid 3D programme with immutable Classic baseline
+
+Decision: Proceed with the user-authorized Hybrid 3D extension as a phased programme, but freeze the existing `classic-2d5d` behavior behind the annotated `v0.1.0-mvp-baseline` tag and a deterministic ten-scenario regression artifact before introducing scene-v2 data, engine routing, or 3D geometry.
+
+Reason: Analytic 3D formulas validate individual solvers, not their integration with the existing worker, Web Audio graph, v1 scene contract, or interaction performance. The immutable Classic baseline makes the extension additive, supplies a reliable rollback target, and prevents a feature-flagged Hybrid failure from degrading the validated MVP.
