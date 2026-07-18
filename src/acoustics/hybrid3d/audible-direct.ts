@@ -7,7 +7,10 @@ import type { HybridGeometry } from "@/acoustics/hybrid3d/compile";
 import type { DirectPath3D, HybridDirectFrame } from "@/acoustics/hybrid3d/direct";
 import { MATERIALS } from "@/domain/materials/registry";
 
-const MAX_DIRECT_LOSS_DB = 24;
+// Keep hard-wall attenuation safely bounded while preserving an audible difference between
+// the built-in concrete and wood presets. A -24 dB cap flattened both materials to the same
+// direct gain, even though their validated transmission losses differ.
+const MAX_DIRECT_LOSS_DB = 36;
 const MIN_CUTOFF_HZ = 700;
 const MAX_CUTOFF_HZ = 20_000;
 

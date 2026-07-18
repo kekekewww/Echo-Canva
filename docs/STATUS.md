@@ -1,5 +1,28 @@
 # Status
 
+## Hybrid material contrast repair - 2026-07-18
+
+- traced the editable partition material from control state through the V2 document, finite-patch
+  blocker, and persistent Browser HRTF parameters; the data path was intact, but the former
+  `-24 dB` blocked-direct safety cap collapsed Concrete and Wood to the same rendered gain
+- raised only that bounded cap to `-36 dB`, preserving the distinct built-in material losses:
+  closed-Portal Concrete now renders at approximately `-34 dB / 700 Hz`, while the same Wood
+  barrier renders at approximately `-26 dB` with a less severe low-pass setting
+- exposed rendered gain and low-pass as diagnostic data attributes and added unit plus Chromium
+  regression coverage that changes the editable wall material on a blocked route
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 47 files / 294 tests
+- `pnpm e2e` - PASS, 25 Chromium production-server tests
+
+Known limitation: wall material intentionally does not alter an unobstructed direct path or an
+open Portal route. Hybrid reflections remain first-order image-source paths, not a higher-order
+or late-field precision model.
+
+Current phase: material-audibility repair is ready for the same Hybrid editable-wall gate. Next
+action: obtain a PASS/FAIL retest before beginning a separate UI optimization pass or any
+higher-order reflection research.
+
 ## Hybrid editable partition and Portal - 2026-07-18
 
 - promoted the Lab's central partition and hosted Portal to a bounded, editable fixture: coral

@@ -559,6 +559,8 @@ export function HybridDirectLab() {
             data-testid={`direct-${path.sourceId}`}
             data-route={path.routeType}
             data-render-route={audiblePath?.routeType ?? path.routeType}
+            data-render-gain={format(audiblePath?.dryGainDb ?? 0, 4)}
+            data-render-lowpass={format(audiblePath?.lowpassHz ?? 20_000, 2)}
             data-azimuth={format(path.azimuthDeg, 4)}
             data-elevation={format(path.elevationDeg, 4)}
             data-audible-reflections={hybridReflectionState.reflectionsBySource[path.sourceId ?? ""]?.length ?? 0}

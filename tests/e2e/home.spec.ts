@@ -131,8 +131,17 @@ test("keeps an explicit Classic route while the Hybrid lab isolates its beta sol
   const [, endpointAZ] = endpointAAfterDrag.split(",");
   await page.getByLabel("Partition endpoint A X").fill("5");
   await expect(page.getByTestId("hybrid-viewport-partition-a")).toHaveAttribute("data-position", `5.0,${endpointAZ}`);
+  await page.getByLabel("Radio plan Z").fill("4");
+  await page.getByLabel("Listener plan Z").fill("4");
+  await expect(radio).toHaveAttribute("data-render-route", "blocked");
+  const concreteGain = await radio.getAttribute("data-render-gain");
+  const concreteLowpass = await radio.getAttribute("data-render-lowpass");
+  expect(concreteGain).not.toBeNull();
+  expect(concreteLowpass).not.toBeNull();
   await page.getByLabel("Partition material").selectOption("wood_medium");
   await expect(page.getByLabel("Partition material")).toHaveValue("wood_medium");
+  await expect(radio).not.toHaveAttribute("data-render-gain", concreteGain ?? "");
+  await expect(radio).not.toHaveAttribute("data-render-lowpass", concreteLowpass ?? "");
   await page.getByLabel("Portal width").fill("1.8");
   await expect(partitionControls).toContainText("Portal width: 1.80 m");
   const portalHandle = page.getByTestId("hybrid-viewport-portal-handle");

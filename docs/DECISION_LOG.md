@@ -286,3 +286,14 @@ Reason: Rounding the projected centre to 0.1 m moves it microscopically off a sl
 The shared V1 SceneSpec validator correctly rejects that detached Portal, causing an otherwise
 valid Hybrid edit to fail document serialization. Exact projection preserves the existing
 validator contract without loosening its geometry guarantees.
+
+## D-038 ??Preserve perceptible material contrast for blocked Hybrid direct paths
+
+Decision: Raise the Hybrid blocked-direct safety cap from `-24 dB` to `-36 dB` and expose the
+post-mapping gain/low-pass values in diagnostics. Keep the direct and Portal routes material-free
+because no wall transmission is being approximated on those routes.
+
+Reason: The former cap flattened Hard Concrete and Medium Wood to the same gain, masking a
+correctly propagated material change from both the tester and the Browser HRTF graph. A `-36 dB`
+bound remains finite and safe while retaining the difference prescribed by the existing material
+registry. This is a perceptual mapping repair, not a claim of architectural-acoustics accuracy.

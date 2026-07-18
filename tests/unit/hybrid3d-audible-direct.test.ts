@@ -13,11 +13,15 @@ function buildGeometry(options: Readonly<{
   listenerHeightM?: number;
   radioHeightM?: number;
   portalOpen?: boolean;
+  partitionMaterialId?: string;
 }>) {
   const scene: SceneSpec = structuredClone(CONCRETE_PARTITION_PRESET);
   scene.listener.position = { x: options.listenerPlan.x, y: options.listenerPlan.z };
   scene.sources[0]!.position = { x: options.radioPlan.x, y: options.radioPlan.z };
   scene.portals[0]!.open = options.portalOpen ?? true;
+  scene.walls = scene.walls.map((wall) => wall.id === "partition_center"
+    ? { ...wall, materialId: options.partitionMaterialId ?? wall.materialId }
+    : wall);
   const document = createSceneDocumentV2(scene, {
     spatial3d: {
       coordinateSystem: "x-right-y-up-z-forward",
@@ -78,9 +82,32 @@ describe("resolveHybridAudibleDirectState", () => {
 
     expect(radio).toMatchObject({
       routeType: "blocked",
-      dryGainDb: -24,
+      dryGainDb: -34,
       lowpassHz: 700,
       portalIds: [],
     });
+  });
+
+  it("keeps blocked concrete and wood partitions audibly distinct", () => {
+    const blockedOptions = {
+      listenerPlan: { x: 3, z: 4 },
+      radioPlan: { x: 9, z: 4 },
+      portalOpen: false,
+    } as const;
+    const concreteGeometry = buildGeometry({ ...blockedOptions, partitionMaterialId: "concrete_hard" });
+    const woodGeometry = buildGeometry({ ...blockedOptions, partitionMaterialId: "wood_medium" });
+    const concrete = resolveHybridAudibleDirectState(
+      concreteGeometry,
+      computeHybridDirectFrame(concreteGeometry),
+    ).paths.find((path) => path.sourceId === "radio");
+    const wood = resolveHybridAudibleDirectState(
+      woodGeometry,
+      computeHybridDirectFrame(woodGeometry),
+    ).paths.find((path) => path.sourceId === "radio");
+
+    expect(concrete?.routeType).toBe("blocked");
+    expect(wood?.routeType).toBe("blocked");
+    expect(concrete?.dryGainDb).toBeLessThan(wood?.dryGainDb ?? 0);
+    expect(concrete?.lowpassHz).toBeLessThan(wood?.lowpassHz ?? 20_000);
   });
 });
