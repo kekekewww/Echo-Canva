@@ -24,6 +24,13 @@ asset format.
 Current phase: ready for the Hybrid modelling-workbench usability gate. Next action: obtain a
 PASS/FAIL verdict before any further UI visual-polish or generalized 3D authoring work.
 
+Human review: all other workbench interactions passed (2026-07-19). The owner requested one
+targeted correction: X/Z and Y must read as a single Transform inspector instead of two adjacent
+cards. The correction merges them into one X/Y/Z card while retaining the selected-object filter.
+`pnpm lint`, `pnpm typecheck`, `pnpm test` (47 files / 294 tests), and `pnpm e2e` (25 Chromium
+production-server tests) passed after the correction. Next action: confirm the unified Transform
+card visually before treating this gate as fully accepted.
+
 ## Hybrid selected-object UI - 2026-07-18
 
 - made the 3D viewport and its precision controls legible as one interaction: dragging a Listener,

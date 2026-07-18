@@ -353,9 +353,9 @@ export function HybridDirectLab() {
         <p className="hybrid-selection-hint">{SELECTION_COPY[selectedTarget].controlHint}</p>
       </section>
 
-      <section className="control-section hybrid-control-card hybrid-pose-card">
+      <section className="control-section hybrid-control-card hybrid-transform-card">
         <p className="panel-kicker">Transform</p>
-        <h3>Ground plane · X / Z</h3>
+        <h3>Position · X / Y / Z</h3>
         <label className="field-label" htmlFor="listener-plan-x">
           {planAxisLabel("Listener", "X", listenerPlanPosition.x)}
         </label>
@@ -463,11 +463,8 @@ export function HybridDirectLab() {
         >
           Reset plan positions
         </button>
-      </section>
-
-      <section className="control-section hybrid-control-card hybrid-height-card">
-        <p className="panel-kicker">Transform</p>
-        <h3>Elevation · Y</h3>
+        <div className="hybrid-transform-elevation">
+        <p className="hybrid-transform-axis-label">Elevation axis · Y</p>
         <label className="field-label" htmlFor="listener-height">Listener elevation: {format(listenerHeightM)} m</label>
         <input
           id="listener-height"
@@ -501,6 +498,7 @@ export function HybridDirectLab() {
           type="range"
           value={rainHeightM}
         />
+        </div>
       </section>
 
       <section className="control-section hybrid-control-card hybrid-partition-card" data-testid="hybrid-partition-controls">

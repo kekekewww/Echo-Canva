@@ -1934,32 +1934,38 @@ select {
   padding-top: 0.55rem;
 }
 
-.hybrid-control-rack[data-selected-target="listener"] .hybrid-pose-card label:not([for^="listener-"]),
-.hybrid-control-rack[data-selected-target="listener"] .hybrid-pose-card input:not([id^="listener-"]),
-.hybrid-control-rack[data-selected-target="radio"] .hybrid-pose-card label:not([for^="radio-"]),
-.hybrid-control-rack[data-selected-target="radio"] .hybrid-pose-card input:not([id^="radio-"]),
-.hybrid-control-rack[data-selected-target="rain"] .hybrid-pose-card label:not([for^="rain-"]),
-.hybrid-control-rack[data-selected-target="rain"] .hybrid-pose-card input:not([id^="rain-"]),
-.hybrid-control-rack[data-selected-target="listener"] .hybrid-height-card label:not([for^="listener-"]),
-.hybrid-control-rack[data-selected-target="listener"] .hybrid-height-card input:not([id^="listener-"]),
-.hybrid-control-rack[data-selected-target="radio"] .hybrid-height-card label:not([for^="radio-"]),
-.hybrid-control-rack[data-selected-target="radio"] .hybrid-height-card input:not([id^="radio-"]),
-.hybrid-control-rack[data-selected-target="rain"] .hybrid-height-card label:not([for^="rain-"]),
-.hybrid-control-rack[data-selected-target="rain"] .hybrid-height-card input:not([id^="rain-"]) {
+.hybrid-transform-elevation {
+  border-top: 1px solid rgba(103, 205, 211, 0.32);
+  margin-top: 0.8rem;
+  padding-top: 0.1rem;
+}
+
+.hybrid-transform-axis-label {
+  color: var(--signal-bright);
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  margin: 0.55rem 0 0;
+  text-transform: uppercase;
+}
+
+.hybrid-control-rack[data-selected-target="listener"] .hybrid-transform-card label:not([for^="listener-"]),
+.hybrid-control-rack[data-selected-target="listener"] .hybrid-transform-card input:not([id^="listener-"]),
+.hybrid-control-rack[data-selected-target="radio"] .hybrid-transform-card label:not([for^="radio-"]),
+.hybrid-control-rack[data-selected-target="radio"] .hybrid-transform-card input:not([id^="radio-"]),
+.hybrid-control-rack[data-selected-target="rain"] .hybrid-transform-card label:not([for^="rain-"]),
+.hybrid-control-rack[data-selected-target="rain"] .hybrid-transform-card input:not([id^="rain-"]) {
   display: none;
 }
 
-.hybrid-control-rack[data-selected-target="radio"] .hybrid-pose-card .secondary-action,
-.hybrid-control-rack[data-selected-target="rain"] .hybrid-pose-card .secondary-action {
+.hybrid-control-rack[data-selected-target="radio"] .hybrid-transform-card .secondary-action,
+.hybrid-control-rack[data-selected-target="rain"] .hybrid-transform-card .secondary-action {
   display: none;
 }
 
-.hybrid-control-rack[data-selected-target="partition-a"] .hybrid-pose-card,
-.hybrid-control-rack[data-selected-target="partition-a"] .hybrid-height-card,
-.hybrid-control-rack[data-selected-target="partition-b"] .hybrid-pose-card,
-.hybrid-control-rack[data-selected-target="partition-b"] .hybrid-height-card,
-.hybrid-control-rack[data-selected-target="portal"] .hybrid-pose-card,
-.hybrid-control-rack[data-selected-target="portal"] .hybrid-height-card {
+.hybrid-control-rack[data-selected-target="partition-a"] .hybrid-transform-card,
+.hybrid-control-rack[data-selected-target="partition-b"] .hybrid-transform-card,
+.hybrid-control-rack[data-selected-target="portal"] .hybrid-transform-card {
   display: none;
 }
 
