@@ -10,6 +10,7 @@ import {
   type Vec3,
 } from "@/acoustics/hybrid3d/geometry";
 import type { HybridGeometry } from "@/acoustics/hybrid3d/compile";
+import { findFirstOrderReflections3D, type FirstOrderReflection3D } from "@/acoustics/hybrid3d/reflections";
 
 export type DirectPath3D = Readonly<{
   sourceId?: string;
@@ -29,6 +30,7 @@ export type HybridDirectFrame = Readonly<{
   classicProjectionHash: string;
   computedAtMs: number;
   paths: readonly DirectPath3D[];
+  firstOrderReflectionsBySource: Readonly<Record<string, readonly FirstOrderReflection3D[]>>;
 }>;
 
 function degrees(radians: number): number {
@@ -78,5 +80,15 @@ export function computeHybridDirectFrame(
     classicProjectionHash: geometry.document.compatibility.classicProjectionHash,
     computedAtMs,
     paths: computeHybridDirectPaths(geometry),
+    firstOrderReflectionsBySource: Object.fromEntries(
+      geometry.document.baseScene.sources.map((source) => [
+        source.id,
+        findFirstOrderReflections3D(
+          geometry.sourcePositions[source.id]!,
+          geometry.listenerPosition,
+          geometry.bvh,
+        ),
+      ]),
+    ),
   };
 }

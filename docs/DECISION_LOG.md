@@ -125,3 +125,9 @@ Reason: The envelope enables 3D metadata without changing existing editor, AI, i
 Decision: Implement P2 as a Lab-only 3D direct-path solver over finite extruded floor, ceiling, and wall patches with explicit portal openings, a cached static BVH, and a persistent-node X/Y/Z Browser HRTF adapter. Keep Classic as the default route and leave Classic reflection/reverb untouched.
 
 Reason: A finite-patch direct solver gives testable distance, delay, azimuth, elevation, doorway visibility, and panner behavior before adding the much riskier 3D reflection or late-field models. Caching only static geometry prevents pose edits from becoming a main-thread rebuilding cost, while the isolated Lab makes rollback immediate.
+
+## D-021 ??Finite-patch validation before 3D reflection audio
+
+Decision: Add first-order Hybrid Image Source geometry to the Worker only after finite-polygon containment, physical-wall deduplication, and both-leg visibility checks pass analytic tests. Do not yet route those paths into the audible early-reflection bank.
+
+Reason: A visually plausible mirror point can still be outside the actual patch or hidden behind a second surface. Keeping the solver diagnostic-only until its deterministic path contract is proven avoids audible false reflections and preserves the current Classic reverb fallback.

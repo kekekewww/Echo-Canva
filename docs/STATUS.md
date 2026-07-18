@@ -1,6 +1,16 @@
 # Status
 
-Current phase: Hybrid 3D P2 direct-propagation beta implemented in the isolated Lab. Next action: P3 deterministic first-order floor, ceiling, and wall reflections.
+Current phase: Hybrid 3D P3-A deterministic first-order geometry implemented in the isolated Lab Worker. Next action: P3-B map validated 3D paths into the persistent early-reflection audio tap bank.
+
+## Hybrid 3D P3-A — deterministic first-order reflection geometry - 2026-07-18
+
+- added 3D Image Source reflection candidates for floor, ceiling, and physical wall surfaces, including stable IDs, reflection point, path/delay, excess delay, and arrival direction
+- finite-patch containment, paired wall-face deduplication, and both-leg visibility reject invalid or occluded candidates before Worker output
+- Hybrid direct Worker now returns per-source first-order reflection candidates; Lab displays each source's candidate count
+- analytic G002 floor, G003 ceiling, G004 vertical-wall, finite-patch rejection, and occluded-leg tests pass
+- focused `pnpm lint`, `pnpm typecheck`, and 10 Hybrid direct/Worker/reflection unit tests - PASS
+
+Known deviation: P3-A does not yet make the new 3D reflection paths audible. The existing Classic early-reflection/late-reverb graph is untouched; P3-B will add a persistent-node 3D tap adapter with smoothing and listening verification.
 
 ## Hybrid 3D P2 — direct propagation beta - 2026-07-18
 

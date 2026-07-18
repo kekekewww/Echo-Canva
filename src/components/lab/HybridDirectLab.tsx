@@ -135,6 +135,9 @@ export function HybridDirectLab() {
             <p>Distance {format(path.distanceM)} m · Delay {format(path.delayMs)} ms</p>
             <p>Azimuth {format(path.azimuthDeg)}° · Elevation {format(path.elevationDeg)}°</p>
             <p>{path.directVisible ? "Direct path clear." : `Blocked by ${path.occluderWallIds.join(", ")}.`}</p>
+            <p>
+              First-order 3D reflections: {direct.frame.firstOrderReflectionsBySource[path.sourceId ?? ""]?.length ?? 0}
+            </p>
           </article>
         ))}
       </div>
