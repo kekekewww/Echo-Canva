@@ -19,6 +19,10 @@ not yet a direct-manipulation 3D wall/Portal editor; that is a separately scoped
 Current phase: camera, wheel, and Portal-surface repair are ready for human verification. Next
 action: obtain a PASS/FAIL verdict before starting 3D wall/Portal editing or audio integration.
 
+Human result: `PASS` (2026-07-18). The 3D viewport interaction, wheel containment, and Portal
+wall representation operated normally. The owner requested that remaining core functions take
+priority over further UI optimization.
+
 ## Hybrid Lab interactive 3D viewport - 2026-07-18
 
 - added a dependency-free orthographic SVG 3D scene viewport with finite room shell, partition,
