@@ -171,3 +171,14 @@ Reason: Averaging only accepted receiver connections hides missed rays and makes
 look artificially stable. Direction-normalized energy preserves that loss in the convergence
 signal. This is an instrumented deterministic baseline, not evidence that the planned late-field
 thresholds or a renderable diffuse tail have been achieved.
+
+## D-028 ??Keep P6 six-band and atmosphere helpers Hybrid-only and default-off
+
+Decision: Derive a six-band Hybrid projection from the immutable Classic three-band material
+registry using log-frequency interpolation, and provide bounded pure atmosphere helpers without
+changing Classic propagation or routing any result into audio.
+
+Reason: The v1 registry and `343 m/s` Classic solver are part of the validated baseline. A
+separate data-only projection preserves exact compatibility while giving P6 a testable energy and
+medium contract before any six-band renderer, humidity UI, or air-absorption feature flag is
+considered.

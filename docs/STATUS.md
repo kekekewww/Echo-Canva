@@ -1,5 +1,25 @@
 # Status
 
+## Hybrid 3D P6-A six-band materials and atmospheric medium foundations - 2026-07-18
+
+- added data-only 125–4,000 Hz six-band material projection with exact v1 anchors and
+  log-frequency interpolation between Low/Mid/High
+- added energy-balance validation for absorption, transmission, specular, and diffuse components
+- added bounded temperature time-of-flight, segmented propagation, and ISO 9613-1-style air-loss
+  helpers without changing the Classic constant-speed solver or enabling any Hybrid material/media
+  runtime flag
+- added formula, boundary, and test documentation in `docs/3d-extension/P6_MATERIALS_AND_MEDIA.md`
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 43 files / 279 tests
+- `pnpm e2e` - PASS, 25 Chromium production-server tests
+
+Known limitation: P6-A has no six-band renderer, air-loss calibration, wind model, humidity UI,
+or audio path. It is deliberately not yet user-testable.
+
+Current phase: P6-A data foundations are pending automated verification. Next action: verify this
+isolated slice, then retain it default-off until a separately scoped Hybrid propagation integration.
+
 ## Hybrid 3D P5-B stationary receiver-connection benchmark - 2026-07-18
 
 - added a deterministic P5 stationary-frame benchmark over progressively rotated Fibonacci

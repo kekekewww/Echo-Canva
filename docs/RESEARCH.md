@@ -47,17 +47,20 @@
 12. V. R. Algazi, R. O. Duda, D. M. Thompson, and C. Avendano, "The CIPIC HRTF Database," IEEE WASPAA, 2001.
     Use: background on measured HRTF datasets. The MVP does not load CIPIC directly.
 
+13. ISO 9613-1, "Acoustics — Attenuation of sound during propagation outdoors — Part 1: Calculation of the absorption of sound by the atmosphere," 1993.
+    Use: source form for P6-A's bounded, data-only molecular air-absorption helper. It is not used to make a measurement-accuracy claim.
+
 ## OpenAI and Codex
 
-13. OpenAI, "Structured model outputs."
+14. OpenAI, "Structured model outputs."
     URL: https://developers.openai.com/api/docs/guides/structured-outputs
     Use: strict JSON Schema for GPT-5.6 scene compilation.
 
-14. OpenAI, "Custom instructions with AGENTS.md."
+15. OpenAI, "Custom instructions with AGENTS.md."
     URL: https://learn.chatgpt.com/docs/agent-configuration/agents-md
     Use: persistent Codex repository instructions and nested overrides.
 
-15. OpenAI Build Week on Devpost.
+16. OpenAI Build Week on Devpost.
     URL: https://openai.devpost.com/
     Use: submission requirements, deadline, tracks, and judging criteria.
 
