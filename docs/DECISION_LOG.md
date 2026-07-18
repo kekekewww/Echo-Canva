@@ -182,3 +182,13 @@ Reason: The v1 registry and `343 m/s` Classic solver are part of the validated b
 separate data-only projection preserves exact compatibility while giving P6 a testable energy and
 medium contract before any six-band renderer, humidity UI, or air-absorption feature flag is
 considered.
+
+## D-029 ??Give Hybrid X/Z pose editing a plan-map control rather than only sliders
+
+Decision: Add a constrained, draggable 2.5D map to the Hybrid Lab for Listener, Radio, and Rain
+positions. Retain the numeric X/Z controls for precision and keyboard accessibility; keep Y as a
+separate elevation control and leave wall/portal editing in Classic.
+
+Reason: The Lab's original sliders made the coordinate contract testable but did not make spatial
+relationships immediately legible. A minimal map directly connects a drag direction to the
+resulting HRTF position while avoiding a second, divergent scene-editor implementation.

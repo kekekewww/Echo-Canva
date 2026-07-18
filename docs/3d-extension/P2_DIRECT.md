@@ -45,7 +45,13 @@ Static floor/ceiling/wall patches are compiled into a deterministic AABB BVH. Th
 - a wall/portal/base-scene change has a new projection hash and recompiles the static geometry;
 - a Worker failure falls back to the same deterministic Lab computation and reports the fallback.
 
-The Lab exposes Listener, Radio, and Rain elevation sliders plus a portal toggle. Its Direct diagnostics show route, distance, delay, azimuth, elevation, and occluding wall IDs. **Start 3D Audio** sends the solved positions to the persistent Browser HRTF panners in Simulated mode.
+The Lab exposes a small editable X/Z plan map for Listener, Radio, and Rain, retained numeric
+fine-position sliders, elevation sliders, and a portal toggle. The plan map deliberately moves
+only the three poses: it does not become a second wall editor or alter the frozen Classic scene.
+Markers are pointer-draggable, snap to 0.1 m, support arrow-key movement, and display their
+current X/Z coordinates. Its Direct diagnostics show route, distance, delay, azimuth, elevation,
+and occluding wall IDs. **Start 3D Audio** sends the solved positions to the persistent Browser
+HRTF panners in Simulated mode.
 
 ## Evidence
 
@@ -57,6 +63,9 @@ The Lab exposes Listener, Radio, and Rain elevation sliders plus a portal toggle
 - Pose-only rebinding retains the exact same BVH identity.
 - The Hybrid Worker test confirms cache reuse and terminal disposal behavior.
 - Audio unit coverage confirms a Hybrid pose writes relative X/Y/Z (`6`, `2`, `0`) to a persistent HRTF panner without creating another source graph.
+- Production browser coverage moves Radio through the plan map with both keyboard and pointer
+  input, verifies the X/Z sliders remain synchronized, and retains direct visibility through the
+  open doorway when the pointer target is placed on the portal center line.
 
 ## Current boundary
 

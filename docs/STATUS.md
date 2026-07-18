@@ -1,5 +1,25 @@
 # Status
 
+## Hybrid 3D Lab plan-position editor - 2026-07-18
+
+- added a visually constrained 12 m × 8 m X/Z plan map for Listener, Radio, and Rain; it shows
+  the partition/portal and direct lines while retaining the existing fine-position sliders
+- marker drags snap to 0.1 m, keyboard arrows move markers accessibly, and both paths update the
+  same Hybrid pose state and persistent HRTF mapping
+- production Chromium verifies both keyboard and pointer movement, slider synchronization, and
+  the expected direct route through the open portal center line
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 43 files / 279 tests
+- `pnpm e2e` - PASS, 25 Chromium production-server tests
+
+Known limitation: this is a pose-control map, not a second full scene editor. Walls, portals,
+materials, and the validated Classic workflow remain unchanged.
+
+Current phase: the Lab's horizontal coordinate contract is now directly visible and testable.
+Next action: continue only with independently gated Hybrid propagation work; do not replace the
+Classic editor or enable unmeasured late-field audio.
+
 ## Hybrid 3D P6-A six-band materials and atmospheric medium foundations - 2026-07-18
 
 - added data-only 125–4,000 Hz six-band material projection with exact v1 anchors and

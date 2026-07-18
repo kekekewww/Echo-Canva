@@ -7,6 +7,7 @@ import {
   compileHybridStaticGeometry,
 } from "@/acoustics/hybrid3d/compile";
 import { renderHybridEarlyReflections } from "@/acoustics/hybrid3d/reflection-rendering";
+import { HybridPlanPositionEditor } from "@/components/lab/HybridPlanPositionEditor";
 import { CONCRETE_PARTITION_PRESET } from "@/domain/presets/concrete-partition";
 import { createSceneDocumentV2 } from "@/domain/scene-document/serialize";
 import type { SceneSpec } from "@/domain/scene/types";
@@ -118,8 +119,20 @@ export function HybridDirectLab() {
         test vertical positioning.
       </p>
 
+      <HybridPlanPositionEditor
+        listenerPosition={listenerPlanPosition}
+        onMoveListener={setListenerPlanPosition}
+        onMoveSource={(sourceId, position) => {
+          if (sourceId === "radio") setRadioPlanPosition(position);
+          else setRainPlanPosition(position);
+        }}
+        portalOpen={portalOpen}
+        radioPosition={radioPlanPosition}
+        rainPosition={rainPlanPosition}
+      />
+
       <div className="control-section">
-        <h3>Plan position controls</h3>
+        <h3>Fine plan position controls</h3>
         <p className="control-note">
           Listener and source positions use metres inside this 12 m × 8 m room. A source to the
           listener&apos;s left or right should move to the corresponding ear; moving it in Z changes
