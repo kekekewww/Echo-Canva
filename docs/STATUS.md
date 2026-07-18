@@ -23,6 +23,11 @@ input path.
 Current phase: ready for the Hybrid selected-object usability gate. Next action: obtain a
 PASS/FAIL verdict before further visual-layout changes.
 
+Human result: `PASS` (2026-07-18). The owner confirmed that the selected-object bridge behaves
+normally and does not disrupt the existing Hybrid controls or audible behavior. Any further UI
+work should now be a separately directed visual-layout pass rather than an unreviewed workflow
+rewrite.
+
 ## Hybrid material contrast repair - 2026-07-18
 
 - traced the editable partition material from control state through the V2 document, finite-patch
