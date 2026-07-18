@@ -452,17 +452,6 @@ export function HybridDirectLab() {
           type="range"
           value={rainPlanPosition.z}
         />
-        <button
-          className="secondary-action"
-          onClick={() => {
-            setListenerPlanPosition({ x: 3, z: 4 });
-            setRadioPlanPosition({ x: 9, z: 4 });
-            setRainPlanPosition({ x: 10, z: 1.5 });
-          }}
-          type="button"
-        >
-          Reset plan positions
-        </button>
         <div className="hybrid-transform-elevation">
         <p className="hybrid-transform-axis-label">Elevation axis · Y</p>
         <label className="field-label" htmlFor="listener-height">Listener elevation: {format(listenerHeightM)} m</label>
@@ -499,6 +488,17 @@ export function HybridDirectLab() {
           value={rainHeightM}
         />
         </div>
+        <button
+          className="secondary-action"
+          onClick={() => {
+            setListenerPlanPosition({ x: 3, z: 4 });
+            setRadioPlanPosition({ x: 9, z: 4 });
+            setRainPlanPosition({ x: 10, z: 1.5 });
+          }}
+          type="button"
+        >
+          Reset plan positions
+        </button>
       </section>
 
       <section className="control-section hybrid-control-card hybrid-partition-card" data-testid="hybrid-partition-controls">
