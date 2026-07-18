@@ -131,3 +131,9 @@ Reason: A finite-patch direct solver gives testable distance, delay, azimuth, el
 Decision: Add first-order Hybrid Image Source geometry to the Worker only after finite-polygon containment, physical-wall deduplication, and both-leg visibility checks pass analytic tests. Do not yet route those paths into the audible early-reflection bank.
 
 Reason: A visually plausible mirror point can still be outside the actual patch or hidden behind a second surface. Keeping the solver diagnostic-only until its deterministic path contract is proven avoids audible false reflections and preserves the current Classic reverb fallback.
+
+## D-022 ??Expose Hybrid plan positions before judging horizontal HRTF
+
+Decision: The Hybrid Lab must expose direct controls for Listener, Radio, and Rain plan `X`/`Z` positions, while retaining the separate `Y` elevation controls and the same fixed persistent HRTF graph.
+
+Reason: The initial Lab exposed only height. Its default sources were both placed to the listener's right, so a tester could observe elevation but could neither create a left/centre/right comparison nor distinguish a coordinate-mapping defect from a fixed scene layout. Explicit plan controls make the coordinate contract testable without modifying the validated Classic editor or rebuilding audio nodes.

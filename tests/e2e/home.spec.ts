@@ -18,6 +18,10 @@ test("keeps an explicit Classic route while the Hybrid lab isolates its beta sol
   await expect(page.getByTestId("hybrid-direct-lab")).toBeVisible();
   const radio = page.getByTestId("direct-radio");
   await expect(radio).toHaveAttribute("data-route", "direct");
+  const initialAzimuth = await radio.getAttribute("data-azimuth");
+  await page.getByLabel("Radio plan X").fill("11");
+  await expect(radio).not.toHaveAttribute("data-azimuth", initialAzimuth ?? "");
+  await expect(page.getByLabel("Radio plan X")).toHaveValue("11");
   const initialElevation = await radio.getAttribute("data-elevation");
   await page.getByLabel("Radio elevation").fill("2.8");
   await expect.poll(() => pageErrors).toEqual([]);

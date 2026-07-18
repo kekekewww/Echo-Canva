@@ -1,5 +1,18 @@
 # Status
 
+## Hybrid 3D P2 Lab planar-control repair - 2026-07-18
+
+- added explicit Listener, Radio, and Rain plan-position sliders for `X` (left/right) and `Z` (front/back), alongside the existing `Y` elevation controls
+- added the Lab coordinate contract and a reset action, so the default right-side source placement is no longer the only available horizontal HRTF test state
+- each plan edit produces a fresh validated Hybrid pose and updates the same persistent Browser HRTF panners; no source graph is rebuilt
+- browser coverage changes Radio plan `X` and requires the solver azimuth to change; audio coverage requires both positive and negative relative `X` values to reach the same persistent panner
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 38 files / 260 tests
+- `pnpm e2e` - PASS, 25 Chromium production-server tests (including production build)
+
+Known limitation: P2 still renders only the Hybrid direct component. Its blocked/portal diagnostics, new 3D reflections, and late-field model do not yet change the Hybrid Lab audio; those remain bounded follow-up slices rather than claims of a complete 3D acoustic renderer.
+
 Current phase: Hybrid 3D P3-A deterministic first-order geometry implemented in the isolated Lab Worker. Next action: P3-B map validated 3D paths into the persistent early-reflection audio tap bank.
 
 ## Hybrid 3D P3-A — deterministic first-order reflection geometry - 2026-07-18

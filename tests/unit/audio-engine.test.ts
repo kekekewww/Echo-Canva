@@ -340,6 +340,19 @@ describe("AudioEngine", () => {
     expect(harness.context.panners[0]?.positionY.targets.at(-1)?.target).toBe(2);
     expect(harness.context.panners[0]?.positionZ.targets.at(-1)?.target).toBe(0);
     expect(harness.engine.getDiagnostics().sourceStarts).toBe(scene.sources.length);
+
+    harness.engine.applyHybridDirectState({
+      listenerPosition: { x: 3, y: 1.5, z: 4 },
+      sourcePositions: {
+        radio: { x: -3, y: 1.5, z: 4 },
+        rain: { x: 10, y: 1.5, z: 1.5 },
+      },
+    });
+
+    expect(harness.context.panners[0]?.positionX.targets.at(-1)?.target).toBe(-6);
+    expect(harness.context.panners[0]?.positionY.targets.at(-1)?.target).toBe(0);
+    expect(harness.context.panners[0]?.positionZ.targets.at(-1)?.target).toBe(0);
+    expect(harness.engine.getDiagnostics().sourceStarts).toBe(scene.sources.length);
   });
 
   it("applies blocked-frame direct gain, filter, route distance, and virtual panner position without creating another graph", async () => {

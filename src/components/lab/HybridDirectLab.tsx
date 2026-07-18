@@ -12,20 +12,37 @@ import type { SceneSpec } from "@/domain/scene/types";
 import { useAudioEngine } from "@/hooks/useAudioEngine";
 import { useHybridDirectPaths } from "@/hooks/useHybridDirectPaths";
 
+type PlanPosition = Readonly<{ x: number; z: number }>;
+
+const PLAN_X_RANGE = { min: 0.2, max: 11.8 };
+const PLAN_Z_RANGE = { min: 0.2, max: 7.8 };
+
 function format(value: number, digits = 2): string {
   return value.toFixed(digits);
+}
+
+function planPositionLabel(name: string, position: PlanPosition): string {
+  return `${name} plan position: X ${format(position.x)} m, Z ${format(position.z)} m`;
 }
 
 export function HybridDirectLab() {
   const [listenerHeightM, setListenerHeightM] = useState(1.5);
   const [radioHeightM, setRadioHeightM] = useState(1.3);
   const [rainHeightM, setRainHeightM] = useState(1.5);
+  const [listenerPlanPosition, setListenerPlanPosition] = useState<PlanPosition>({ x: 3, z: 4 });
+  const [radioPlanPosition, setRadioPlanPosition] = useState<PlanPosition>({ x: 9, z: 4 });
+  const [rainPlanPosition, setRainPlanPosition] = useState<PlanPosition>({ x: 10, z: 1.5 });
   const [portalOpen, setPortalOpen] = useState(true);
   const baseScene = useMemo<SceneSpec>(() => {
     const scene: SceneSpec = structuredClone(CONCRETE_PARTITION_PRESET);
     scene.portals[0]!.open = portalOpen;
+    scene.listener.position = { x: listenerPlanPosition.x, y: listenerPlanPosition.z };
+    for (const source of scene.sources) {
+      const position = source.id === "radio" ? radioPlanPosition : rainPlanPosition;
+      source.position = { x: position.x, y: position.z };
+    }
     return scene;
-  }, [portalOpen]);
+  }, [listenerPlanPosition, portalOpen, radioPlanPosition, rainPlanPosition]);
   const document = useMemo(
     () => createSceneDocumentV2(baseScene, {
       spatial3d: {
@@ -74,8 +91,121 @@ export function HybridDirectLab() {
         This lab extrudes the validated 2D scene into floor, ceiling, and finite-thickness wall
         patches. It reports geometric direct visibility, distance, delay, azimuth, and elevation.
       </p>
+      <p className="control-note">
+        Coordinate contract: X is left/right on the plan, Y is elevation, and Z is front/back on
+        the plan. Use the plan controls below to test horizontal HRTF panning; the elevation controls
+        test vertical positioning.
+      </p>
 
       <div className="control-section">
+        <h3>Plan position controls</h3>
+        <p className="control-note">
+          Listener and source positions use metres inside this 12 m × 8 m room. A source to the
+          listener&apos;s left or right should move to the corresponding ear; moving it in Z changes
+          front/back distance and angle.
+        </p>
+        <label className="field-label" htmlFor="listener-plan-x">
+          {planPositionLabel("Listener", listenerPlanPosition)}
+        </label>
+        <input
+          id="listener-plan-x"
+          aria-label="Listener plan X"
+          max={PLAN_X_RANGE.max}
+          min={PLAN_X_RANGE.min}
+          onChange={(event) => setListenerPlanPosition((position) => ({
+            ...position,
+            x: Number(event.target.value),
+          }))}
+          step="0.1"
+          type="range"
+          value={listenerPlanPosition.x}
+        />
+        <input
+          id="listener-plan-z"
+          aria-label="Listener plan Z"
+          max={PLAN_Z_RANGE.max}
+          min={PLAN_Z_RANGE.min}
+          onChange={(event) => setListenerPlanPosition((position) => ({
+            ...position,
+            z: Number(event.target.value),
+          }))}
+          step="0.1"
+          type="range"
+          value={listenerPlanPosition.z}
+        />
+        <label className="field-label" htmlFor="radio-plan-x">
+          {planPositionLabel("Radio", radioPlanPosition)}
+        </label>
+        <input
+          id="radio-plan-x"
+          aria-label="Radio plan X"
+          max={PLAN_X_RANGE.max}
+          min={PLAN_X_RANGE.min}
+          onChange={(event) => setRadioPlanPosition((position) => ({
+            ...position,
+            x: Number(event.target.value),
+          }))}
+          step="0.1"
+          type="range"
+          value={radioPlanPosition.x}
+        />
+        <input
+          id="radio-plan-z"
+          aria-label="Radio plan Z"
+          max={PLAN_Z_RANGE.max}
+          min={PLAN_Z_RANGE.min}
+          onChange={(event) => setRadioPlanPosition((position) => ({
+            ...position,
+            z: Number(event.target.value),
+          }))}
+          step="0.1"
+          type="range"
+          value={radioPlanPosition.z}
+        />
+        <label className="field-label" htmlFor="rain-plan-x">
+          {planPositionLabel("Rain", rainPlanPosition)}
+        </label>
+        <input
+          id="rain-plan-x"
+          aria-label="Rain plan X"
+          max={PLAN_X_RANGE.max}
+          min={PLAN_X_RANGE.min}
+          onChange={(event) => setRainPlanPosition((position) => ({
+            ...position,
+            x: Number(event.target.value),
+          }))}
+          step="0.1"
+          type="range"
+          value={rainPlanPosition.x}
+        />
+        <input
+          id="rain-plan-z"
+          aria-label="Rain plan Z"
+          max={PLAN_Z_RANGE.max}
+          min={PLAN_Z_RANGE.min}
+          onChange={(event) => setRainPlanPosition((position) => ({
+            ...position,
+            z: Number(event.target.value),
+          }))}
+          step="0.1"
+          type="range"
+          value={rainPlanPosition.z}
+        />
+        <button
+          className="secondary-action"
+          onClick={() => {
+            setListenerPlanPosition({ x: 3, z: 4 });
+            setRadioPlanPosition({ x: 9, z: 4 });
+            setRainPlanPosition({ x: 10, z: 1.5 });
+          }}
+          type="button"
+        >
+          Reset plan positions
+        </button>
+      </div>
+
+      <div className="control-section">
+        <h3>Elevation controls</h3>
         <label className="field-label" htmlFor="listener-height">Listener elevation: {format(listenerHeightM)} m</label>
         <input
           id="listener-height"
@@ -128,6 +258,7 @@ export function HybridDirectLab() {
           <article
             data-testid={`direct-${path.sourceId}`}
             data-route={path.routeType}
+            data-azimuth={format(path.azimuthDeg, 4)}
             data-elevation={format(path.elevationDeg, 4)}
             key={path.sourceId}
           >
