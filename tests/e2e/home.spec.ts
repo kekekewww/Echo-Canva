@@ -29,8 +29,8 @@ test("keeps an explicit Classic route while the Hybrid lab isolates its beta sol
   await page.mouse.up();
   await expect(viewport).not.toHaveAttribute("data-camera", initialCamera ?? "");
   const cameraAfterOrbit = await viewport.getAttribute("data-camera");
-  const pageScrollBeforeViewportWheel = await page.evaluate(() => window.scrollY);
   await viewport.hover();
+  const pageScrollBeforeViewportWheel = await page.evaluate(() => window.scrollY);
   await page.mouse.wheel(0, 120);
   await expect(viewport).not.toHaveAttribute("data-camera", cameraAfterOrbit ?? "");
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(pageScrollBeforeViewportWheel);
@@ -46,11 +46,17 @@ test("keeps an explicit Classic route while the Hybrid lab isolates its beta sol
   const plan = page.getByTestId("hybrid-plan-editor");
   const planRadio = page.getByTestId("hybrid-plan-radio");
   await expect(plan).toBeVisible();
+  const planRadioPosition = await planRadio.getAttribute("data-position");
+  if (!planRadioPosition) throw new Error("Hybrid plan radio needs a position.");
+  const [planRadioX, planRadioZ] = planRadioPosition.split(",").map(Number);
   await planRadio.press("ArrowLeft");
   await planRadio.press("ArrowUp");
-  await expect(planRadio).toHaveAttribute("data-position", "8.9,4.1");
-  await expect(page.getByLabel("Radio plan X")).toHaveValue("8.9");
-  await expect(page.getByLabel("Radio plan Z")).toHaveValue("4.1");
+  await expect(planRadio).toHaveAttribute(
+    "data-position",
+    `${(planRadioX! - 0.1).toFixed(1)},${(planRadioZ! + 0.1).toFixed(1)}`,
+  );
+  await expect(page.getByLabel("Radio plan X")).toHaveValue((planRadioX! - 0.1).toFixed(1));
+  await expect(page.getByLabel("Radio plan Z")).toHaveValue((planRadioZ! + 0.1).toFixed(1));
 
   const planBox = await plan.locator(".hybrid-plan-svg").boundingBox();
   const radioCoreBox = await planRadio.locator(".hybrid-plan-source-core").boundingBox();
@@ -97,6 +103,16 @@ test("keeps an explicit Classic route while the Hybrid lab isolates its beta sol
   await expect(radio).not.toHaveAttribute("data-elevation", initialElevation ?? "");
   await page.getByRole("button", { name: "Close partition portal" }).click();
   await expect(radio).toHaveAttribute("data-route", "blocked");
+  await expect(radio).toHaveAttribute("data-render-route", "blocked");
+  await page.getByLabel("Radio plan Z").fill("1.5");
+  await page.getByLabel("Radio elevation").fill("1.5");
+  await page.getByLabel("Listener plan Z").fill("1.5");
+  await page.getByRole("button", { name: "Open partition portal" }).click();
+  await expect(radio).toHaveAttribute("data-route", "blocked");
+  await expect(radio).toHaveAttribute("data-render-route", "portal");
+  await expect(radio).toContainText("Audible route portal");
+  await page.getByRole("button", { name: "Close partition portal" }).click();
+  await expect(radio).toHaveAttribute("data-render-route", "blocked");
 
   const atmosphere = page.getByTestId("atmosphere-preview");
   const speed = atmosphere.locator("[data-speed-mps]");

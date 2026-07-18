@@ -1,5 +1,31 @@
 # Status
 
+## Hybrid 3D occlusion and portal-aware audio - 2026-07-18
+
+- mapped Hybrid finite-patch direct-path results into the existing persistent Browser HRTF graph:
+  a direct path keeps its source position, a blocked path receives material-aware attenuation and
+  low-pass filtering, and a valid open Portal route uses the listener-facing opening as the
+  virtual 3D HRTF position
+- retained the tested Classic X/Z visibility graph only for the Portal-aware approximation after
+  the finite-patch solver has established that the 3D direct line is blocked; an above-door line
+  remains blocked even if its X/Z projection crosses the open Portal
+- added audible-route, gain, and low-pass diagnostics, pure routing coverage, persistent-node
+  audio-engine coverage, and browser coverage for open-Portal versus closed-Portal rendering
+- corrected two browser-test assumptions: Playwright scrolls an element into view during `hover`,
+  so page-scroll is now sampled after hover; and a viewport drag changes the plan position before
+  keyboard movement, so the asserted position is now derived from the displayed state
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 46 files / 289 tests
+- `pnpm e2e` - PASS, 25 Chromium production-server tests
+
+Known limitation: this is portal-aware sound propagation, not wave diffraction or a full 3D portal
+visibility graph. Atmospheric controls remain display-only, and direct 3D wall/Portal authoring is
+still a separate scope.
+
+Current phase: ready for the Hybrid wall-occlusion and Portal-perception listening gate. Next
+action: obtain a PASS/FAIL verdict before starting 3D wall/Portal editing or audible medium work.
+
 ## Hybrid viewport orbit and wall-surface repair - 2026-07-18
 
 - expanded the visual camera orbit to permit continuous yaw and upper/lower scene views; the

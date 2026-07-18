@@ -370,10 +370,10 @@ export class AudioEngine {
     context: AudioContextLike,
   ): void {
     for (const source of scene.sources) {
-      const sourcePosition = state.sourcePositions[source.id];
-      if (!sourcePosition) continue;
+      const sourceState = state.sourceStates[source.id];
+      if (!sourceState) continue;
       this.sourceGraphs.get(source.id)?.applySpatialDirect(
-        sourcePosition,
+        sourceState,
         state.listenerPosition,
         context.currentTime,
       );

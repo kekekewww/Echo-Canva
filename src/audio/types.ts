@@ -98,9 +98,19 @@ export type AudioEngineStatus =
 
 export type SpatialPosition3 = Readonly<{ x: number; y: number; z: number }>;
 
+export type HybridDirectRouteType = "direct" | "portal" | "blocked";
+
+export type HybridDirectSourceAudioState = Readonly<{
+  position: SpatialPosition3;
+  effectiveDistanceM: number;
+  dryGainDb: number;
+  lowpassHz: number;
+  routeType: HybridDirectRouteType;
+}>;
+
 export type HybridDirectAudioState = Readonly<{
   listenerPosition: SpatialPosition3;
-  sourcePositions: Readonly<Record<string, SpatialPosition3>>;
+  sourceStates: Readonly<Record<string, HybridDirectSourceAudioState>>;
 }>;
 
 export type HybridEarlyReflectionTap = Readonly<{

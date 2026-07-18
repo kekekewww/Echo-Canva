@@ -13,6 +13,7 @@ import {
   speedOfSoundForAtmosphere,
   type HybridAtmosphere,
 } from "@/acoustics/hybrid3d/atmosphere";
+import { resolveHybridAudibleDirectState } from "@/acoustics/hybrid3d/audible-direct";
 import { renderHybridEarlyReflections } from "@/acoustics/hybrid3d/reflection-rendering";
 import { HybridPlanPositionEditor } from "@/components/lab/HybridPlanPositionEditor";
 import { HybridSpatialViewport } from "@/components/lab/HybridSpatialViewport";
@@ -81,6 +82,14 @@ export function HybridDirectLab() {
   const geometry = useMemo(() => bindHybridPoses(staticGeometry, document), [document, staticGeometry]);
   const direct = useHybridDirectPaths(document, geometry);
   const paths = direct.frame.paths;
+  const audibleDirect = useMemo(
+    () => resolveHybridAudibleDirectState(geometry, direct.frame),
+    [direct.frame, geometry],
+  );
+  const audiblePathsBySource = useMemo(
+    () => new Map(audibleDirect.paths.map((path) => [path.sourceId, path])),
+    [audibleDirect.paths],
+  );
   const atmospherePreview = useMemo(() => ({
     speedMps: speedOfSoundForAtmosphere(atmosphere),
     travelTimeMs: atmosphereTimeOfFlightSeconds(100, atmosphere) * 1000,
@@ -110,11 +119,8 @@ export function HybridDirectLab() {
   } = useAudioEngine(baseScene, "simulated", null, null);
 
   useEffect(() => {
-    applyHybridDirectState({
-      listenerPosition: geometry.listenerPosition,
-      sourcePositions: geometry.sourcePositions,
-    });
-  }, [applyHybridDirectState, geometry]);
+    applyHybridDirectState(audibleDirect.audioState);
+  }, [applyHybridDirectState, audibleDirect]);
 
   useEffect(() => {
     applyHybridReflectionState(hybridReflectionState);
@@ -477,10 +483,13 @@ export function HybridDirectLab() {
           {direct.notice ? ` · ${direct.notice}` : ""}
         </p>
         <div className="hybrid-path-grid">
-        {paths.map((path) => (
+        {paths.map((path) => {
+          const audiblePath = audiblePathsBySource.get(path.sourceId ?? "");
+          return (
           <article
             data-testid={`direct-${path.sourceId}`}
             data-route={path.routeType}
+            data-render-route={audiblePath?.routeType ?? path.routeType}
             data-azimuth={format(path.azimuthDeg, 4)}
             data-elevation={format(path.elevationDeg, 4)}
             data-audible-reflections={hybridReflectionState.reflectionsBySource[path.sourceId ?? ""]?.length ?? 0}
@@ -491,10 +500,15 @@ export function HybridDirectLab() {
             <p>Azimuth {format(path.azimuthDeg)}° · Elevation {format(path.elevationDeg)}°</p>
             <p>{path.directVisible ? "Direct path clear." : `Blocked by ${path.occluderWallIds.join(", ")}.`}</p>
             <p>
+              Audible route {audiblePath?.routeType ?? path.routeType}; gain {format(audiblePath?.dryGainDb ?? 0)} dB;
+              low-pass {format(audiblePath?.lowpassHz ?? 20_000, 0)} Hz.
+            </p>
+            <p>
               Audible first-order 3D taps: {hybridReflectionState.reflectionsBySource[path.sourceId ?? ""]?.length ?? 0}
             </p>
           </article>
-        ))}
+          );
+        })}
         </div>
       </section>
 

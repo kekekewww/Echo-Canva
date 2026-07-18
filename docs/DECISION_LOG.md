@@ -247,3 +247,18 @@ Reason: A line-only partition was visually indistinguishable from a column and m
 state unclear. Viewport wheel events must not scroll the page during a 3D editing gesture. The
 camera remains visual-only; the intentionally fixed wall geometry will be made directly editable
 only in a separate, tested scene-authoring scope.
+
+## D-035 ??Route Hybrid direct-path results through the persistent acoustic controls
+
+Decision: Keep the Hybrid finite-patch 3D solver authoritative for direct visibility, 3D distance,
+and blocked-wall detection. When that solver reports a blocked path, reuse the already-validated
+2D portal visibility graph only as a portal-aware routing approximation: it selects the
+listener-facing opening in X/Z, which is lifted to the opening's 3D centre for Browser HRTF
+rendering. Apply the resulting route gain, low-pass, virtual position, and effective distance to
+the existing persistent source graph through parameter smoothing.
+
+Reason: The Hybrid Lab previously sent pose coordinates to the panner but never applied an
+occlusion or portal-route render state, so moving through a wall had no audible consequence. This
+composition preserves finite-patch vertical doorway visibility, avoids claiming wave diffraction,
+does not create audio nodes per update, and provides a tested migration path before a full 3D
+visibility-graph solver is warranted.

@@ -330,9 +330,9 @@ describe("AudioEngine", () => {
 
     harness.engine.applyHybridDirectState({
       listenerPosition: { x: 3, y: 1.5, z: 4 },
-      sourcePositions: {
-        radio: { x: 9, y: 3.5, z: 4 },
-        rain: { x: 10, y: 1.5, z: 1.5 },
+      sourceStates: {
+        radio: { position: { x: 9, y: 3.5, z: 4 }, effectiveDistanceM: 6.3249, dryGainDb: 0, lowpassHz: 20_000, routeType: "direct" },
+        rain: { position: { x: 10, y: 1.5, z: 1.5 }, effectiveDistanceM: 7.8262, dryGainDb: 0, lowpassHz: 20_000, routeType: "direct" },
       },
     });
 
@@ -343,9 +343,9 @@ describe("AudioEngine", () => {
 
     harness.engine.applyHybridDirectState({
       listenerPosition: { x: 3, y: 1.5, z: 4 },
-      sourcePositions: {
-        radio: { x: -3, y: 1.5, z: 4 },
-        rain: { x: 10, y: 1.5, z: 1.5 },
+      sourceStates: {
+        radio: { position: { x: -3, y: 1.5, z: 4 }, effectiveDistanceM: 6, dryGainDb: 0, lowpassHz: 20_000, routeType: "direct" },
+        rain: { position: { x: 10, y: 1.5, z: 1.5 }, effectiveDistanceM: 7.8262, dryGainDb: 0, lowpassHz: 20_000, routeType: "direct" },
       },
     });
 
@@ -353,6 +353,18 @@ describe("AudioEngine", () => {
     expect(harness.context.panners[0]?.positionY.targets.at(-1)?.target).toBe(0);
     expect(harness.context.panners[0]?.positionZ.targets.at(-1)?.target).toBe(0);
     expect(harness.engine.getDiagnostics().sourceStarts).toBe(scene.sources.length);
+
+    harness.engine.applyHybridDirectState({
+      listenerPosition: { x: 3, y: 1.5, z: 4 },
+      sourceStates: {
+        radio: { position: { x: 6, y: 1.05, z: 4 }, effectiveDistanceM: 8.5, dryGainDb: -18, lowpassHz: 1_400, routeType: "portal" },
+        rain: { position: { x: 10, y: 1.5, z: 1.5 }, effectiveDistanceM: 7.8262, dryGainDb: 0, lowpassHz: 20_000, routeType: "direct" },
+      },
+    });
+
+    expect(harness.context.panners[0]?.positionX.targets.at(-1)?.target).toBe(3);
+    expect(harness.context.panners[0]?.positionY.targets.at(-1)?.target).toBeCloseTo(-0.45);
+    expect(harness.context.filters[4]?.frequency.targets.at(-1)?.target).toBe(1_400);
   });
 
   it("maps Hybrid 3D early reflections to persistent tap nodes", async () => {

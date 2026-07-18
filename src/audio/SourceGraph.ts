@@ -14,6 +14,7 @@ import type {
   GainNodeLike,
   PannerNodeLike,
   HybridEarlyReflectionTap,
+  HybridDirectSourceAudioState,
 } from "@/audio/types";
 import type { PreviewMode } from "@/domain/editor/state";
 import type { SceneSpec } from "@/domain/scene/types";
@@ -215,19 +216,21 @@ export class SourceGraph {
   }
 
   applySpatialDirect(
-    sourcePosition: Readonly<{ x: number; y: number; z: number }>,
+    sourceState: HybridDirectSourceAudioState,
     listenerPosition: Readonly<{ x: number; y: number; z: number }>,
     now: number,
   ): void {
     if (this.disposed) return;
+    const sourcePosition = sourceState.position;
     const relativeX = sourcePosition.x - listenerPosition.x;
     const relativeY = sourcePosition.y - listenerPosition.y;
     const relativeZ = sourcePosition.z - listenerPosition.z;
     smoothParameter(
       this.distanceGain.gain,
-      distanceAttenuation(Math.hypot(relativeX, relativeY, relativeZ)),
+      dbToLinear(sourceState.dryGainDb) * distanceAttenuation(sourceState.effectiveDistanceM),
       now,
     );
+    smoothParameter(this.lowPass.frequency, sourceState.lowpassHz, now);
     smoothParameter(this.panner.positionX, relativeX, now);
     smoothParameter(this.panner.positionY, relativeY, now);
     smoothParameter(this.panner.positionZ, relativeZ === 0 ? 0 : -relativeZ, now);
