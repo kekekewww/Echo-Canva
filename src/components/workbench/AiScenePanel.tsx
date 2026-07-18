@@ -30,6 +30,7 @@ type AiScenePanelProps = Readonly<{
   compiler: SceneCompilerState;
   explanation: AcousticExplanationState;
   selectedSourceId: string | null;
+  selectedSourceName: string | null;
   canExplain: boolean;
   onGenerate(prompt: string): Promise<void>;
   onApplyScene(scene: SceneSpec): void;
@@ -41,6 +42,7 @@ export function AiScenePanel({
   compiler,
   explanation,
   selectedSourceId,
+  selectedSourceName,
   canExplain,
   onGenerate,
   onApplyScene,
@@ -125,6 +127,11 @@ export function AiScenePanel({
         </div>
         <p className="control-note">
           Explains projected engine values only; it does not listen to audio or claim physical accuracy.
+        </p>
+        <p className="control-note">
+          {selectedSourceName
+            ? `Selected source: ${selectedSourceName}.`
+            : "Select a source before requesting an explanation."}
         </p>
         <button
           className="primary-action"

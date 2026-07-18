@@ -307,6 +307,52 @@ select {
   margin: 0.55rem 0 0;
 }
 
+.scene-transfer {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 1.1rem;
+}
+
+.secondary-action {
+  background: rgba(10, 21, 28, 0.56);
+  border: 1px solid var(--rule);
+  border-radius: 0.55rem;
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  padding: 0.62rem 0.78rem;
+  text-align: left;
+}
+
+.secondary-action:hover,
+.secondary-action:focus-visible {
+  border-color: var(--signal);
+}
+
+.scene-transfer-notice {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.scene-transfer-notice.success {
+  color: var(--signal-bright);
+}
+
+.scene-transfer-notice.error {
+  color: var(--danger);
+}
+
+.visually-hidden {
+  block-size: 1px;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  inline-size: 1px;
+  overflow: hidden;
+  position: absolute;
+  white-space: nowrap;
+}
+
 .audio-button {
   gap: 0.5rem;
 }

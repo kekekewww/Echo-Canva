@@ -107,7 +107,7 @@ Each item is complete only when its Acceptance and Verify sections pass.
   ```
   Verification: 2026-07-18 compiler-service deterministic adapter evaluation passed all 10 bounded canonical fixtures (9 directly; 1 after exactly one repair) and rejected all 5 adversarial fixtures. Production Chromium coverage separately verifies compiler application, script/remote-URL failure preservation, and unavailable-candidate preservation.
 
-- [ ] **10. Implement explanation, export, diagnostics, and product polish**
+- [x] **10. Implement explanation, export, diagnostics, and product polish**
   Spec ref: `PRD.md > US-07, US-08`
   What to build: explanation endpoint, evidence/limitations UI, JSON import/export, debug metrics, onboarding text, headphones notice, loading/error states, keyboard basics, responsive layout.
   Acceptance: Explanation matches exact snapshot values; import round-trip preserves scene; OpenAI outage leaves manual mode operational; no unsupported accuracy claim appears.
@@ -116,8 +116,8 @@ Each item is complete only when its Acceptance and Verify sections pass.
   pnpm test
   pnpm e2e
   ```
-  Partial verification: the grounded explanation endpoint and evidence/limitation UI passed on 2026-07-18. This checklist item remains open because JSON import/export and the remaining product-polish scope are not yet implemented.
-  **Human Gate D:** GPT compiler and explanation.
+  Verification: grounded explanation, evidence/limitation UI, JSON import/export, diagnostics, onboarding text, headphones notice, loading/error states, native keyboard controls, and responsive-layout coverage passed on 2026-07-18. Production Chromium verifies download/import round-trip and invalid-import preservation.
+  **Human Gate D:** PASS (2026-07-18) - GPT compiler and explanation.
 
 - [ ] **11. Stabilize performance, security, compatibility, and deployment**
   Spec ref: `ARCHITECTURE.md > Performance budgets`

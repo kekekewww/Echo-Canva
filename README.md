@@ -33,6 +33,10 @@ OPENROUTER_API_KEY=sk-or-v1-...
 
 This explicitly selects `openai/gpt-5.6-luna` for both scene compilation and acoustic explanation. Restart the local server after saving the file. To use the canonical OpenAI configuration instead, omit `AI_PROVIDER` (or set it to `openai`) and set `OPENAI_API_KEY`. OpenRouter is an opt-in compatibility-test path; the existing no-key fallback remains available if any provider request fails.
 
+### Scene transfer
+
+Use **Export scene JSON** in the left workbench panel to download the current validated scene. **Import scene JSON** accepts only a supported, versioned Echo Canvas scene smaller than 1 MB; invalid or unsupported JSON is rejected without changing the current editor state.
+
 ## Verify
 
 ```bash

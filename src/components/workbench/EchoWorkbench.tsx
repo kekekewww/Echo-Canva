@@ -214,10 +214,12 @@ export function EchoWorkbench() {
           acousticFrame={acoustic.frame}
           acousticMetrics={acoustic.metrics}
           mode={state.mode}
+          scene={state.scene}
           wallCount={state.scene.walls.length}
           onAddWall={addWall}
           onAudioStatusChange={() => void toggleAudio()}
           onModeChange={(mode) => dispatch({ type: "SET_MODE", mode })}
+          onImportScene={(scene) => dispatchEditorAction({ type: "REPLACE_SCENE", scene })}
           onPresetChange={loadPreset}
         />
 
@@ -260,6 +262,7 @@ export function EchoWorkbench() {
           currentScene={state.scene}
           explanation={explanation}
           selectedSourceId={selectedSource?.id ?? null}
+          selectedSourceName={selectedSource?.name ?? null}
           canExplain={canExplain}
           onApplyScene={(scene) => {
             explanationRequestNonce.current += 1;

@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const SVG_VIEW_BOX = { width: 900, height: 600 };
@@ -52,6 +54,34 @@ test.describe("editor workbench", () => {
     await page.getByRole("button", { name: "Start Audio" }).click();
     await expect(page.getByRole("button", { name: "Stop Audio" })).toBeVisible();
     await expect(page.getByText(/Browser spatializer running/i)).toBeVisible();
+  });
+
+  test("exports a validated scene, imports it atomically, and rejects invalid JSON", async ({ page }) => {
+    const downloadPromise = page.waitForEvent("download");
+    await page.getByRole("button", { name: "Export scene JSON" }).click();
+    const download = await downloadPromise;
+    const downloadPath = await download.path();
+    if (!downloadPath) throw new Error("Exported scene JSON did not produce a download path.");
+    const exportedJson = await readFile(downloadPath, "utf8");
+    expect(JSON.parse(exportedJson)).toMatchObject({ schemaVersion: "1.0", name: "Concrete Partition" });
+
+    await page.getByLabel("Scene preset").selectOption("hard-room");
+    await expect(page.getByRole("heading", { name: "Hard Room" })).toBeVisible();
+    await page.getByLabel("Import scene JSON").setInputFiles({
+      name: "concrete-partition.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(exportedJson),
+    });
+    await expect(page.getByRole("heading", { name: "Concrete Partition" })).toBeVisible();
+    await expect(page.getByRole("status")).toContainText(/Scene JSON imported/i);
+
+    await page.getByLabel("Import scene JSON").setInputFiles({
+      name: "invalid-scene.json",
+      mimeType: "application/json",
+      buffer: Buffer.from('{"schemaVersion":'),
+    });
+    await expect(page.getByRole("heading", { name: "Concrete Partition" })).toBeVisible();
+    await expect(page.getByRole("status")).toContainText(/Import rejected/i);
   });
 
   test("drags a source and listener in world coordinates", async ({ page }) => {

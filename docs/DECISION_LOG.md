@@ -101,3 +101,9 @@ Reason: An outage, timeout, refusal, or rate limit must retain the server's acti
 Decision: Keep the canonical OpenAI Responses API configuration as the default, while allowing a server-only, explicitly selected OpenRouter provider that uses the fixed `openai/gpt-5.6-luna` model ID.
 
 Reason: The owner has an OpenRouter API key but no OpenAI Platform key. OpenRouter documents a Responses-compatible beta endpoint, so the adapter enables live Gate D testing without exposing a key to the browser. The adapter remains opt-in because it is a beta compatibility layer; the no-key fallback and all deterministic acoustic paths remain unchanged.
+
+## D-017 — Validated browser JSON transfer
+
+Decision: Export the current validated `SceneSpec` as a browser download and import only through the existing serialization parser and editor reducer.
+
+Reason: The transfer controls need no server, account, or new storage. Reusing `parseScene` preserves schema-version migration and domain validation, while `REPLACE_SCENE` keeps imports atomic and gives the worker/audio graph a fresh revision.

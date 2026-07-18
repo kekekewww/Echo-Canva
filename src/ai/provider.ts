@@ -21,7 +21,9 @@ export type AiProviderConfig = Readonly<{
  * Resolves server-only model credentials. An absent or invalid selection leaves
  * the application in its existing preset/manual fallback mode.
  */
-export function getAiProviderConfig(environment: NodeJS.ProcessEnv = process.env): AiProviderConfig | null {
+export function getAiProviderConfig(
+  environment: Readonly<Record<string, string | undefined>> = process.env,
+): AiProviderConfig | null {
   const provider = environment.AI_PROVIDER?.trim().toLowerCase();
 
   if (provider === "openrouter") {

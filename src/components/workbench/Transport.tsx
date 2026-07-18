@@ -2,7 +2,9 @@ import type { AcousticFrame } from "@/acoustics/compute-frame";
 import type { AudioEngineDiagnostics } from "@/audio/types";
 import type { AudioStatus, PreviewMode } from "@/domain/editor/state";
 import type { AcousticFrameMetrics } from "@/hooks/useAcousticFrame";
+import { SceneTransfer } from "@/components/workbench/SceneTransfer";
 import { PRESETS, type PresetId } from "@/domain/presets";
+import type { SceneSpec } from "@/domain/scene/types";
 
 type TransportProps = Readonly<{
   activePresetId: PresetId;
@@ -11,10 +13,12 @@ type TransportProps = Readonly<{
   acousticFrame: AcousticFrame | null;
   acousticMetrics: AcousticFrameMetrics | null;
   mode: PreviewMode;
+  scene: SceneSpec;
   wallCount: number;
   onAddWall: () => void;
   onAudioStatusChange: (status: AudioStatus) => void;
   onModeChange: (mode: PreviewMode) => void;
+  onImportScene: (scene: SceneSpec) => void;
   onPresetChange: (presetId: PresetId) => void;
 }>;
 
@@ -35,10 +39,12 @@ export function Transport({
   acousticFrame,
   acousticMetrics,
   mode,
+  scene,
   wallCount,
   onAddWall,
   onAudioStatusChange,
   onModeChange,
+  onImportScene,
   onPresetChange,
 }: TransportProps) {
   return (
@@ -78,6 +84,8 @@ export function Transport({
           ? "Wall limit reached. Delete a wall before adding another."
           : `${100 - wallCount} wall slots available.`}
       </p>
+
+      <SceneTransfer scene={scene} onImportScene={onImportScene} />
 
       <div className="control-section">
         <p className="field-label">Preview mode</p>
