@@ -2,7 +2,7 @@
 
 import { clientPointToSvg, type Rect } from "@/domain/editor/coordinates";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   DEFAULT_VIEWPORT_CAMERA,
@@ -81,6 +81,7 @@ export function HybridSpatialViewport({
 }: HybridSpatialViewportProps) {
   const [camera, setCamera] = useState<ViewportCamera>(DEFAULT_VIEWPORT_CAMERA);
   const [dragState, setDragState] = useState<DragState | null>(null);
+  const viewportRef = useRef<HTMLElement>(null);
   const objectPositions: Readonly<Record<ObjectId, ViewportVec3>> = {
     listener: { x: listenerPosition.x, y: listenerHeightM, z: listenerPosition.z },
     radio: { x: radioPosition.x, y: radioHeightM, z: radioPosition.z },
@@ -99,14 +100,28 @@ export function HybridSpatialViewport({
       projectViewportPoint({ x: 12, y: ROOM_HEIGHT_M, z: 8 }, camera),
       projectViewportPoint({ x: 0, y: ROOM_HEIGHT_M, z: 8 }, camera),
     ],
-    partitionTop: projectViewportPoint({ x: 6, y: ROOM_HEIGHT_M, z: 0 }, camera),
-    partitionBottom: projectViewportPoint({ x: 6, y: 0, z: 0 }, camera),
-    partitionLowerPortal: projectViewportPoint({ x: 6, y: 0, z: 3.4 }, camera),
-    partitionUpperPortal: projectViewportPoint({ x: 6, y: ROOM_HEIGHT_M, z: 3.4 }, camera),
-    partitionLowerFar: projectViewportPoint({ x: 6, y: 0, z: 4.6 }, camera),
-    partitionUpperFar: projectViewportPoint({ x: 6, y: ROOM_HEIGHT_M, z: 4.6 }, camera),
-    partitionFarTop: projectViewportPoint({ x: 6, y: ROOM_HEIGHT_M, z: 8 }, camera),
-    partitionFarBottom: projectViewportPoint({ x: 6, y: 0, z: 8 }, camera),
+    partitionNearPanel: [
+      projectViewportPoint({ x: 6, y: 0, z: 0 }, camera),
+      projectViewportPoint({ x: 6, y: ROOM_HEIGHT_M, z: 0 }, camera),
+      projectViewportPoint({ x: 6, y: ROOM_HEIGHT_M, z: 3.4 }, camera),
+      projectViewportPoint({ x: 6, y: 0, z: 3.4 }, camera),
+    ],
+    partitionFarPanel: [
+      projectViewportPoint({ x: 6, y: 0, z: 4.6 }, camera),
+      projectViewportPoint({ x: 6, y: ROOM_HEIGHT_M, z: 4.6 }, camera),
+      projectViewportPoint({ x: 6, y: ROOM_HEIGHT_M, z: 8 }, camera),
+      projectViewportPoint({ x: 6, y: 0, z: 8 }, camera),
+    ],
+    partitionClosedPanel: [
+      projectViewportPoint({ x: 6, y: 0, z: 0 }, camera),
+      projectViewportPoint({ x: 6, y: ROOM_HEIGHT_M, z: 0 }, camera),
+      projectViewportPoint({ x: 6, y: ROOM_HEIGHT_M, z: 8 }, camera),
+      projectViewportPoint({ x: 6, y: 0, z: 8 }, camera),
+    ],
+    portalNearBottom: projectViewportPoint({ x: 6, y: 0, z: 3.4 }, camera),
+    portalNearTop: projectViewportPoint({ x: 6, y: ROOM_HEIGHT_M, z: 3.4 }, camera),
+    portalFarBottom: projectViewportPoint({ x: 6, y: 0, z: 4.6 }, camera),
+    portalFarTop: projectViewportPoint({ x: 6, y: ROOM_HEIGHT_M, z: 4.6 }, camera),
   }), [camera]);
   const axis = useMemo(() => {
     const origin = projectViewportPoint({ x: 6, y: 0, z: 4 }, camera);
@@ -116,6 +131,20 @@ export function HybridSpatialViewport({
       z: lineDelta(origin, projectViewportPoint({ x: 6, y: 0, z: 5 }, camera)),
     };
   }, [camera]);
+
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return undefined;
+    const zoomViewport = (event: WheelEvent): void => {
+      event.preventDefault();
+      setCamera((current) => clampViewportCamera({
+        ...current,
+        zoom: current.zoom + (event.deltaY < 0 ? 0.08 : -0.08),
+      }));
+    };
+    viewport.addEventListener("wheel", zoomViewport, { passive: false });
+    return () => viewport.removeEventListener("wheel", zoomViewport);
+  }, []);
 
   function clientToViewport(event: ReactPointerEvent<SVGElement>): ScreenPoint {
     const svg = event.currentTarget.ownerSVGElement ?? event.currentTarget;
@@ -195,11 +224,12 @@ export function HybridSpatialViewport({
       className="hybrid-spatial-viewport"
       data-camera={`${camera.yawDeg.toFixed(1)},${camera.pitchDeg.toFixed(1)},${camera.zoom.toFixed(2)}`}
       data-testid="hybrid-spatial-viewport"
+      ref={viewportRef}
     >
       <header className="hybrid-viewport-header">
         <div>
           <p className="panel-kicker">3D scene viewport</p>
-          <h3>Drag objects to move them. Drag empty space to orbit.</h3>
+          <h3>Drag objects to move them. Drag empty space to orbit 360°.</h3>
         </div>
         <div className="hybrid-view-buttons" aria-label="Camera views">
           <button onClick={() => setCamera({ yawDeg: 0, pitchDeg: 78, zoom: 1 })} type="button">Top</button>
@@ -209,19 +239,13 @@ export function HybridSpatialViewport({
       </header>
       <p className="control-note" id="hybrid-viewport-help">
         Cyan objects are sources; amber is the listener head. Normal drag moves X/Z. Hold Shift while
-        dragging an object to change Y height. The mouse wheel zooms; north is declared as +Z.
+        dragging an object to change Y height. The mouse wheel zooms without scrolling this page;
+        north is declared as +Z.
       </p>
       <svg
         aria-describedby="hybrid-viewport-help"
         aria-label="Interactive 3D acoustic scene viewport"
         className="hybrid-viewport-svg"
-        onWheel={(event) => {
-          event.preventDefault();
-          setCamera((current) => clampViewportCamera({
-            ...current,
-            zoom: current.zoom + (event.deltaY < 0 ? 0.08 : -0.08),
-          }));
-        }}
         preserveAspectRatio="xMidYMid meet"
         role="group"
         viewBox="0 0 1200 720"
@@ -255,11 +279,19 @@ export function HybridSpatialViewport({
         })}
         <polyline className="hybrid-viewport-room-edge" fill="none" points={points([...projected.floor, projected.floor[0]!])} />
         <polyline className="hybrid-viewport-ceiling-edge" fill="none" points={points([...projected.ceiling, projected.ceiling[0]!])} />
-        <line className="hybrid-viewport-partition" x1={projected.partitionTop.x} x2={projected.partitionBottom.x} y1={projected.partitionTop.y} y2={projected.partitionBottom.y} />
-        <line className="hybrid-viewport-partition" x1={projected.partitionUpperPortal.x} x2={projected.partitionLowerPortal.x} y1={projected.partitionUpperPortal.y} y2={projected.partitionLowerPortal.y} />
-        <line className="hybrid-viewport-partition" x1={projected.partitionFarTop.x} x2={projected.partitionFarBottom.x} y1={projected.partitionFarTop.y} y2={projected.partitionFarBottom.y} />
-        <line className={portalOpen ? "hybrid-viewport-portal" : "hybrid-viewport-portal is-closed"} x1={projected.partitionUpperPortal.x} x2={projected.partitionUpperFar.x} y1={projected.partitionUpperPortal.y} y2={projected.partitionUpperFar.y} />
-        <line className={portalOpen ? "hybrid-viewport-portal" : "hybrid-viewport-portal is-closed"} x1={projected.partitionLowerPortal.x} x2={projected.partitionLowerFar.x} y1={projected.partitionLowerPortal.y} y2={projected.partitionLowerFar.y} />
+        {portalOpen ? (
+          <>
+            <polygon className="hybrid-viewport-wall-panel" points={points(projected.partitionNearPanel)} />
+            <polygon className="hybrid-viewport-wall-panel" points={points(projected.partitionFarPanel)} />
+            <polyline
+              className="hybrid-viewport-portal"
+              fill="none"
+              points={points([projected.portalNearBottom, projected.portalNearTop, projected.portalFarTop, projected.portalFarBottom])}
+            />
+          </>
+        ) : (
+          <polygon className="hybrid-viewport-wall-panel is-closed" points={points(projected.partitionClosedPanel)} />
+        )}
         {(Object.keys(objectPositions) as ObjectId[]).map((objectId) => {
           const position = objectPositions[objectId];
           const screen = projectViewportPoint(position, camera);

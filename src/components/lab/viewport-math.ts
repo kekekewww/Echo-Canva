@@ -16,8 +16,8 @@ export const DEFAULT_VIEWPORT_CAMERA: ViewportCamera = Object.freeze({
   zoom: 1,
 });
 
-const MIN_PITCH_DEG = 12;
-const MAX_PITCH_DEG = 78;
+const MIN_PITCH_DEG = -85;
+const MAX_PITCH_DEG = 85;
 const MIN_ZOOM = 0.65;
 const MAX_ZOOM = 1.7;
 
@@ -77,8 +77,13 @@ export function unprojectViewportPointAtHeight(
   const vertical = -(screen.y - VIEWPORT_CENTER.y) / scale;
   const residual = vertical - Math.cos(pitch) * heightM;
   const sinePitch = Math.sin(pitch);
-  const relativeX = Math.cos(yaw) * u + Math.sin(yaw) * residual / sinePitch;
-  const relativeZ = Math.sin(yaw) * u - Math.cos(yaw) * residual / sinePitch;
+  // At a horizon-level view the ground plane is nearly edge-on. Keep the drag inverse finite while
+  // allowing the camera itself to orbit continuously through that presentation angle.
+  const stableSinePitch = Math.abs(sinePitch) < Math.sin(radians(5))
+    ? Math.sign(sinePitch || 1) * Math.sin(radians(5))
+    : sinePitch;
+  const relativeX = Math.cos(yaw) * u + Math.sin(yaw) * residual / stableSinePitch;
+  const relativeZ = Math.sin(yaw) * u - Math.cos(yaw) * residual / stableSinePitch;
   return { x: relativeX + 6, y: heightM, z: relativeZ + 4 };
 }
 

@@ -236,3 +236,14 @@ Reason: The Lab needs a direct-manipulation 3D scene interaction without giving 
 authority over acoustic calculations or adding a renderer/runtime dependency. Orthographic math
 keeps object dragging exactly invertible on a fixed-height plane, while camera orbit remains a
 purely presentational view state.
+
+## D-034 ??Treat the Portal as a wall opening, not a line artifact
+
+Decision: Render the fixed Hybrid partition as filled wall panels on either side of an open Portal,
+or one continuous panel when closed. Give the viewport a native non-passive wheel handler and
+permit full yaw plus above/below orbit presentation angles.
+
+Reason: A line-only partition was visually indistinguishable from a column and made the Portal
+state unclear. Viewport wheel events must not scroll the page during a 3D editing gesture. The
+camera remains visual-only; the intentionally fixed wall geometry will be made directly editable
+only in a separate, tested scene-authoring scope.

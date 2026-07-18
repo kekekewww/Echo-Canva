@@ -1,5 +1,24 @@
 # Status
 
+## Hybrid viewport orbit and wall-surface repair - 2026-07-18
+
+- expanded the visual camera orbit to permit continuous yaw and upper/lower scene views; the
+  fixed-height drag inverse stays finite through the horizon presentation angle
+- installed a native non-passive wheel handler on the viewport so wheel input zooms the 3D scene
+  without scrolling the enclosing page
+- replaced the Portal partition's line-only representation with filled wall panels around an
+  explicit cyan opening; closing the Portal renders one continuous opaque wall panel
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 45 files / 286 tests
+- `pnpm e2e` - PASS, 25 Chromium production-server tests
+
+Known limitation: the Hybrid wall is intentionally fixed to the Concrete Partition scenario. It is
+not yet a direct-manipulation 3D wall/Portal editor; that is a separately scoped future extension.
+
+Current phase: camera, wheel, and Portal-surface repair are ready for human verification. Next
+action: obtain a PASS/FAIL verdict before starting 3D wall/Portal editing or audio integration.
+
 ## Hybrid Lab interactive 3D viewport - 2026-07-18
 
 - added a dependency-free orthographic SVG 3D scene viewport with finite room shell, partition,

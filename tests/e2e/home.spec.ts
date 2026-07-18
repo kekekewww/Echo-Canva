@@ -28,6 +28,12 @@ test("keeps an explicit Classic route while the Hybrid lab isolates its beta sol
   await page.mouse.move(viewportBox.x + 118, viewportBox.y + 68);
   await page.mouse.up();
   await expect(viewport).not.toHaveAttribute("data-camera", initialCamera ?? "");
+  const cameraAfterOrbit = await viewport.getAttribute("data-camera");
+  const pageScrollBeforeViewportWheel = await page.evaluate(() => window.scrollY);
+  await viewport.hover();
+  await page.mouse.wheel(0, 120);
+  await expect(viewport).not.toHaveAttribute("data-camera", cameraAfterOrbit ?? "");
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(pageScrollBeforeViewportWheel);
   const viewportRadioCore = await viewportRadio.locator(".hybrid-viewport-source-core").boundingBox();
   if (!viewportRadioCore) throw new Error("Hybrid 3D source needs a rendered bounding box.");
   await page.mouse.move(viewportRadioCore.x + viewportRadioCore.width / 2, viewportRadioCore.y + viewportRadioCore.height / 2);

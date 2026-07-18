@@ -1660,7 +1660,7 @@ select {
 .hybrid-viewport-ceiling,
 .hybrid-viewport-room-edge,
 .hybrid-viewport-ceiling-edge,
-.hybrid-viewport-partition,
+.hybrid-viewport-wall-panel,
 .hybrid-viewport-portal,
 .hybrid-viewport-axis,
 .hybrid-viewport-compass {
@@ -1669,9 +1669,13 @@ select {
 
 .hybrid-viewport-room-edge { stroke: rgba(161, 242, 240, 0.32); stroke-width: 3; }
 .hybrid-viewport-ceiling-edge { stroke: rgba(161, 242, 240, 0.16); stroke-dasharray: 7 8; stroke-width: 2; }
-.hybrid-viewport-partition { stroke: #809092; stroke-width: 12; }
+.hybrid-viewport-wall-panel {
+  fill: rgba(105, 125, 129, 0.82);
+  stroke: #b0c0c0;
+  stroke-width: 4;
+}
+.hybrid-viewport-wall-panel.is-closed { fill: rgba(128, 144, 146, 0.88); }
 .hybrid-viewport-portal { stroke: var(--signal); stroke-dasharray: 8 7; stroke-width: 7; }
-.hybrid-viewport-portal.is-closed { stroke: var(--danger); stroke-dasharray: 3 5; }
 
 .hybrid-viewport-object { cursor: move; outline: none; }
 .hybrid-viewport-object-hit { fill: transparent; }
