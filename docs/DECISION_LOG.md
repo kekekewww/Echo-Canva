@@ -143,3 +143,9 @@ Reason: The initial Lab exposed only height. Its default sources were both place
 Decision: Render only Worker-validated first-order Hybrid paths through the existing six-tap early-reflection bank. Derive each tap's mid-band amplitude from the built-in material energy balance and its low-pass from the high-to-mid reflection-amplitude ratio; update persistent delay, gain, filter, and 3D panner parameters with the standard smoothing.
 
 Reason: The established three-band registry is sufficient to make hard versus treated early reflections audibly distinct without prematurely claiming a six-band material or air-propagation model. Reusing the fixed bank prevents audio-node churn and preserves the validated Classic graph; path ordering and the six-tap cap make overload deterministic.
+
+## D-024 ??Keep second-order reflection work oracle-gated and disabled
+
+Decision: Add an exhaustive second-order ISM oracle only for scenes with at most 32 representative patches, plus a deterministic pruned-ISM candidate that reports comparison metrics and work statistics. Keep `secondOrderReflections` default-off and do not route its paths to the audio graph.
+
+Reason: Second-order finite-patch paths require ordered surfaces and three visibility legs, so an apparently plausible path can still be invalid. The analytic and 32-patch fixtures establish a stable reference and deterministic pruning behavior, but pair-work reduction is not a hardware CPU benchmark and no Beam comparison has been made. Keeping the branch isolated prevents unmeasured higher-order energy from displacing the validated six first-order audible taps.

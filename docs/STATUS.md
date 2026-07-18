@@ -1,5 +1,20 @@
 # Status
 
+## Hybrid 3D P4 second-order branch experiment - 2026-07-18
+
+- added an exhaustive ordered-pair second-order Image Source oracle for at most 32 representative patches; it is test/benchmark-only
+- added a deterministic Candidate-A pruned ISM branch with path-length and mid-energy prefilters, stable top-K selection, and visibility-work statistics
+- added recall, precision, delay-RMSE, and retained-mid-energy evaluation against the reference
+- small analytic paths match exactly; a 32-patch fixture retains all relevant paths while reducing expensive pair evaluation work by at least `3×`
+- `secondOrderReflections` remains default-off; no second-order path is rendered into the Lab audio graph
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 40 files / 268 tests
+
+Known limitation: the `3×` result is a deterministic evaluated-pair work proxy. It is not a CPU p50/p95 claim, does not compare Beam Tracing, and does not authorize enabling the runtime flag.
+
+Current phase: Hybrid 3D P4 reference/candidate experiment complete. Next action: full integration verification, then keep the candidate isolated pending a broader measured benchmark before any runtime activation.
+
 ## Hybrid 3D P3-B audible first-order reflection taps - 2026-07-18
 
 - converted finite Worker-validated first-order paths into material-aware delay, gain, low-pass, and 3D arrival-position values using the existing three-band registry
@@ -12,8 +27,6 @@
 - `pnpm e2e` - PASS, 25 Chromium production-server tests (including production build)
 
 Known limitation: the reflection gain/filter conversion remains a perceptually tuned three-band approximation. There is no six-band material interpolation, air absorption, second-order path, directional late field, or claim of architectural-acoustics accuracy. P2 blocked/portal diagnostics remain separate from its direct audio mapping.
-
-Current phase: Hybrid 3D P3-B implemented in the isolated Lab. Next action: headphone verification of audible first-order reflection contribution before beginning P4 experimental second-order-path work.
 
 ## Hybrid 3D P2 Lab planar-control repair - 2026-07-18
 

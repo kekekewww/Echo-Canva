@@ -26,11 +26,11 @@ export type FirstOrderReflection3D = Readonly<{
   arrivalDirection: Vec3;
 }>;
 
-function physicalSurfaceId(patch: AcousticPatch3): string {
+export function physicalSurfaceId(patch: AcousticPatch3): string {
   return patch.wallId ?? patch.id;
 }
 
-function representativePatches(bvh: PatchBvh): readonly AcousticPatch3[] {
+export function representativePatches(bvh: PatchBvh): readonly AcousticPatch3[] {
   const seen = new Set<string>();
   return bvh.patches.filter((patch) => {
     if (patch.wallId && !patch.id.endsWith(":front")) return false;
@@ -41,12 +41,16 @@ function representativePatches(bvh: PatchBvh): readonly AcousticPatch3[] {
   });
 }
 
-function reflectedPoint(source: Vec3, patch: AcousticPatch3): Vec3 {
+export function reflectedPoint(source: Vec3, patch: AcousticPatch3): Vec3 {
   const signedDistance = dot3(subtract3(source, patch.vertices[0]!), patch.normal);
   return subtract3(source, scale3(patch.normal, 2 * signedDistance));
 }
 
-function reflectionPoint(imageSource: Vec3, listener: Vec3, patch: AcousticPatch3): Vec3 | null {
+export function imageRayIntersection(
+  imageSource: Vec3,
+  listener: Vec3,
+  patch: AcousticPatch3,
+): Vec3 | null {
   const ray = subtract3(listener, imageSource);
   const denominator = dot3(patch.normal, ray);
   if (Math.abs(denominator) <= EPSILON) return null;
@@ -56,14 +60,15 @@ function reflectionPoint(imageSource: Vec3, listener: Vec3, patch: AcousticPatch
   return pointInPatch3(point, patch) ? point : null;
 }
 
-function legIsVisible(
+export function reflectionLegIsVisible(
   start: Vec3,
   end: Vec3,
   bvh: PatchBvh,
-  surfaceId: string,
+  allowedSurfaceIds: readonly string[],
 ): boolean {
+  const allowed = new Set(allowedSurfaceIds);
   return intersectSegmentBvh(start, end, bvh).every(
-    (hit) => hit.wallId === surfaceId || hit.patchId === surfaceId,
+    (hit) => allowed.has(hit.wallId ?? "") || allowed.has(hit.patchId),
   );
 }
 
@@ -76,9 +81,10 @@ export function findFirstOrderReflections3D(
   const candidates: FirstOrderReflection3D[] = [];
   for (const patch of representativePatches(bvh)) {
     const surfaceId = physicalSurfaceId(patch);
-    const point = reflectionPoint(reflectedPoint(source, patch), listener, patch);
+    const point = imageRayIntersection(reflectedPoint(source, patch), listener, patch);
     if (!point) continue;
-    if (!legIsVisible(source, point, bvh, surfaceId) || !legIsVisible(point, listener, bvh, surfaceId)) {
+    if (!reflectionLegIsVisible(source, point, bvh, [surfaceId]) ||
+      !reflectionLegIsVisible(point, listener, bvh, [surfaceId])) {
       continue;
     }
     const pathLengthM = length3(subtract3(source, point)) + length3(subtract3(point, listener));
