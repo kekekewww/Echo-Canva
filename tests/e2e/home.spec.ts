@@ -25,7 +25,7 @@ test("keeps an explicit Classic route while the Hybrid lab isolates its beta sol
   await expect(page.getByLabel("Radio plan X")).toHaveValue("8.9");
   await expect(page.getByLabel("Radio plan Z")).toHaveValue("4.1");
 
-  const planBox = await plan.locator("svg").boundingBox();
+  const planBox = await plan.locator(".hybrid-plan-svg").boundingBox();
   const radioCoreBox = await planRadio.locator(".hybrid-plan-source-core").boundingBox();
   if (!planBox || !radioCoreBox) throw new Error("Hybrid plan markers need a rendered bounding box.");
   await page.mouse.move(radioCoreBox.x + radioCoreBox.width / 2, radioCoreBox.y + radioCoreBox.height / 2);
@@ -33,6 +33,22 @@ test("keeps an explicit Classic route while the Hybrid lab isolates its beta sol
   await page.mouse.move(planBox.x + planBox.width * (8 / 12), planBox.y + planBox.height * (4 / 8));
   await page.mouse.up();
   await expect(planRadio).toHaveAttribute("data-position", "8.0,4.0");
+
+  const heightEditor = page.getByTestId("hybrid-height-editor");
+  const heightRadio = page.getByTestId("hybrid-height-radio");
+  await expect(heightEditor).toBeVisible();
+  await heightRadio.press("ArrowUp");
+  await expect(heightRadio).toHaveAttribute("data-height", "1.4");
+  await expect(page.getByLabel("Radio elevation")).toHaveValue("1.4");
+  const heightBox = await heightEditor.locator("svg").boundingBox();
+  const heightCoreBox = await heightRadio.locator(".hybrid-height-marker-core").boundingBox();
+  if (!heightBox || !heightCoreBox) throw new Error("Hybrid elevation markers need a rendered bounding box.");
+  await page.mouse.move(heightCoreBox.x + heightCoreBox.width / 2, heightCoreBox.y + heightCoreBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(heightCoreBox.x + heightCoreBox.width / 2, heightBox.y + heightBox.height * (89 / 260));
+  await page.mouse.up();
+  await expect(heightRadio).toHaveAttribute("data-height", "2.0");
+  await expect(page.getByLabel("Radio elevation")).toHaveValue("2");
 
   const radio = page.getByTestId("direct-radio");
   await expect(radio).toHaveAttribute("data-route", "direct");
@@ -54,6 +70,20 @@ test("keeps an explicit Classic route while the Hybrid lab isolates its beta sol
   await expect(radio).not.toHaveAttribute("data-elevation", initialElevation ?? "");
   await page.getByRole("button", { name: "Close partition portal" }).click();
   await expect(radio).toHaveAttribute("data-route", "blocked");
+
+  const atmosphere = page.getByTestId("atmosphere-preview");
+  const speed = atmosphere.locator("[data-speed-mps]");
+  const initialSpeed = await speed.getAttribute("data-speed-mps");
+  await page.getByLabel("Atmosphere temperature").fill("0");
+  await expect(speed).not.toHaveAttribute("data-speed-mps", initialSpeed ?? "");
+  await expect(page.getByLabel("Atmosphere temperature")).toHaveValue("0");
+  const highFrequencyLoss = atmosphere.locator("[data-loss-4khz-db]");
+  const initialHighFrequencyLoss = await highFrequencyLoss.getAttribute("data-loss-4khz-db");
+  await page.getByLabel("Atmosphere relative humidity").fill("90");
+  await expect(highFrequencyLoss).not.toHaveAttribute("data-loss-4khz-db", initialHighFrequencyLoss ?? "");
+  await page.getByLabel("Atmosphere pressure").fill("900");
+  await expect(page.getByLabel("Atmosphere pressure")).toHaveValue("900");
+  await expect(atmosphere).toContainText("do not yet alter this Lab's HRTF");
 
   await page.getByRole("link", { name: "Open Classic 2.5D" }).click();
   await expect(page).toHaveURL(/\/classic$/);

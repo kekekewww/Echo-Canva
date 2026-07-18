@@ -203,3 +203,14 @@ Reason: A directional late renderer must be judged on energy, timing, source cou
 and continuity. The histogram is a small deterministic contract that can be tested independently;
 feeding unmeasured connection samples into the current audio graph would make the late field
 audibly unstable without establishing whether its directional data are valid.
+
+## D-031 ??Expose Hybrid elevation and atmosphere as bounded, honest controls
+
+Decision: Add a pointer-draggable Y elevation map beside the existing X/Z plan map, and expose
+temperature, relative humidity, and pressure as a P6 calculation preview. Keep the atmosphere
+preview out of the direct, HRTF, reflection, and audio paths.
+
+Reason: The Hybrid coordinate contract was not testable through a slider alone, and the existing
+P6 medium model was invisible to a tester. A visual Y control makes all three pose axes directly
+manipulable. The medium panel gives the air model an inspectable, bounded interface without
+misrepresenting an unvalidated audio integration as an audible effect.

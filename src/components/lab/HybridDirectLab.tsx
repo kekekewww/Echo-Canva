@@ -6,6 +6,13 @@ import {
   bindHybridPoses,
   compileHybridStaticGeometry,
 } from "@/acoustics/hybrid3d/compile";
+import {
+  DEFAULT_HYBRID_ATMOSPHERE,
+  airAbsorptionLossDb,
+  atmosphereTimeOfFlightSeconds,
+  speedOfSoundForAtmosphere,
+  type HybridAtmosphere,
+} from "@/acoustics/hybrid3d/atmosphere";
 import { renderHybridEarlyReflections } from "@/acoustics/hybrid3d/reflection-rendering";
 import { HybridPlanPositionEditor } from "@/components/lab/HybridPlanPositionEditor";
 import { CONCRETE_PARTITION_PRESET } from "@/domain/presets/concrete-partition";
@@ -34,6 +41,7 @@ export function HybridDirectLab() {
   const [listenerPlanPosition, setListenerPlanPosition] = useState<PlanPosition>({ x: 3, z: 4 });
   const [radioPlanPosition, setRadioPlanPosition] = useState<PlanPosition>({ x: 9, z: 4 });
   const [rainPlanPosition, setRainPlanPosition] = useState<PlanPosition>({ x: 10, z: 1.5 });
+  const [atmosphere, setAtmosphere] = useState<HybridAtmosphere>(DEFAULT_HYBRID_ATMOSPHERE);
   const [portalOpen, setPortalOpen] = useState(true);
   const [reflectionsEnabled, setReflectionsEnabled] = useState(true);
   const baseScene = useMemo<SceneSpec>(() => {
@@ -72,6 +80,12 @@ export function HybridDirectLab() {
   const geometry = useMemo(() => bindHybridPoses(staticGeometry, document), [document, staticGeometry]);
   const direct = useHybridDirectPaths(document, geometry);
   const paths = direct.frame.paths;
+  const atmospherePreview = useMemo(() => ({
+    speedMps: speedOfSoundForAtmosphere(atmosphere),
+    travelTimeMs: atmosphereTimeOfFlightSeconds(100, atmosphere) * 1000,
+    lossAt1kHzDb: airAbsorptionLossDb(100, 1000, atmosphere),
+    lossAt4kHzDb: airAbsorptionLossDb(100, 4000, atmosphere),
+  }), [atmosphere]);
   const hybridReflectionState = useMemo(() => ({
     listenerPosition: geometry.listenerPosition,
     reflectionsBySource: Object.fromEntries(baseScene.sources.map((source) => [
@@ -120,14 +134,22 @@ export function HybridDirectLab() {
       </p>
 
       <HybridPlanPositionEditor
+        listenerHeightM={listenerHeightM}
         listenerPosition={listenerPlanPosition}
+        onMoveListenerHeight={setListenerHeightM}
         onMoveListener={setListenerPlanPosition}
         onMoveSource={(sourceId, position) => {
           if (sourceId === "radio") setRadioPlanPosition(position);
           else setRainPlanPosition(position);
         }}
+        onMoveSourceHeight={(sourceId, heightM) => {
+          if (sourceId === "radio") setRadioHeightM(heightM);
+          else setRainHeightM(heightM);
+        }}
         portalOpen={portalOpen}
+        radioHeightM={radioHeightM}
         radioPosition={radioPlanPosition}
+        rainHeightM={rainHeightM}
         rainPosition={rainPlanPosition}
       />
 
@@ -280,6 +302,88 @@ export function HybridDirectLab() {
           type="button"
         >
           {portalOpen ? "Close partition portal" : "Open partition portal"}
+        </button>
+      </div>
+
+      <div className="control-section" data-testid="atmosphere-preview">
+        <h3>Atmospheric medium preview</h3>
+        <p className="control-note">
+          Adjust the bounded air model used for the P6 propagation preview. These controls update the
+          displayed medium calculations only; they do not yet alter this Lab&apos;s HRTF, direct delay,
+          reflections, or audible sound.
+        </p>
+        <label className="field-label" htmlFor="atmosphere-temperature">
+          Temperature: {format(atmosphere.temperatureC, 0)} °C
+        </label>
+        <input
+          aria-label="Atmosphere temperature"
+          id="atmosphere-temperature"
+          max="50"
+          min="-20"
+          onChange={(event) => setAtmosphere((current) => ({
+            ...current,
+            temperatureC: Number(event.target.value),
+          }))}
+          step="1"
+          type="range"
+          value={atmosphere.temperatureC}
+        />
+        <label className="field-label" htmlFor="atmosphere-humidity">
+          Relative humidity: {format(atmosphere.relativeHumidity * 100, 0)}%
+        </label>
+        <input
+          aria-label="Atmosphere relative humidity"
+          id="atmosphere-humidity"
+          max="100"
+          min="0"
+          onChange={(event) => setAtmosphere((current) => ({
+            ...current,
+            relativeHumidity: Number(event.target.value) / 100,
+          }))}
+          step="1"
+          type="range"
+          value={atmosphere.relativeHumidity * 100}
+        />
+        <label className="field-label" htmlFor="atmosphere-pressure">
+          Pressure: {format(atmosphere.pressurePa / 100, 0)} hPa
+        </label>
+        <input
+          aria-label="Atmosphere pressure"
+          id="atmosphere-pressure"
+          max="1100"
+          min="800"
+          onChange={(event) => setAtmosphere((current) => ({
+            ...current,
+            pressurePa: Number(event.target.value) * 100,
+          }))}
+          step="1"
+          type="range"
+          value={atmosphere.pressurePa / 100}
+        />
+        <dl className="atmosphere-metrics">
+          <div>
+            <dt>Speed of sound</dt>
+            <dd data-speed-mps={format(atmospherePreview.speedMps, 3)}>{format(atmospherePreview.speedMps, 1)} m/s</dd>
+          </div>
+          <div>
+            <dt>100 m travel time</dt>
+            <dd data-travel-time-ms={format(atmospherePreview.travelTimeMs, 3)}>{format(atmospherePreview.travelTimeMs, 1)} ms</dd>
+          </div>
+          <div>
+            <dt>1 kHz loss over 100 m</dt>
+            <dd data-loss-1khz-db={format(atmospherePreview.lossAt1kHzDb, 5)}>{format(atmospherePreview.lossAt1kHzDb, 3)} dB</dd>
+          </div>
+          <div>
+            <dt>4 kHz loss over 100 m</dt>
+            <dd data-loss-4khz-db={format(atmospherePreview.lossAt4kHzDb, 5)}>{format(atmospherePreview.lossAt4kHzDb, 3)} dB</dd>
+          </div>
+        </dl>
+        <button
+          className="secondary-action"
+          onClick={() => setAtmosphere(DEFAULT_HYBRID_ATMOSPHERE)}
+          type="button"
+        >
+          Reset atmospheric medium
         </button>
       </div>
 

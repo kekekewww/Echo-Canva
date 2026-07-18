@@ -1304,6 +1304,142 @@ select {
   padding-top: 0.6rem;
 }
 
+.hybrid-height-editor {
+  border-top: 1px solid var(--rule-soft);
+  margin-top: 0.8rem;
+  padding-top: 0.8rem;
+}
+
+.hybrid-height-heading {
+  align-items: end;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.hybrid-height-heading h3 {
+  color: var(--ink-soft);
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.hybrid-height-svg {
+  background: #0b1417;
+  border: 1px solid #2a4145;
+  display: block;
+  margin-top: 0.7rem;
+  touch-action: none;
+  user-select: none;
+  width: 100%;
+}
+
+.hybrid-height-bed {
+  fill: rgba(103, 205, 211, 0.018);
+}
+
+.hybrid-height-grid-line {
+  stroke: rgba(103, 205, 211, 0.09);
+  stroke-width: 1;
+}
+
+.hybrid-height-axis-label,
+.hybrid-height-marker-label,
+.hybrid-height-marker-value {
+  font-family: var(--mono);
+  pointer-events: none;
+}
+
+.hybrid-height-axis-label {
+  fill: var(--muted);
+  font-size: 17px;
+  text-anchor: end;
+}
+
+.hybrid-height-floor {
+  stroke: #788b8d;
+  stroke-width: 5;
+}
+
+.hybrid-height-marker {
+  cursor: ns-resize;
+  outline: none;
+}
+
+.hybrid-height-hit {
+  fill: transparent;
+}
+
+.hybrid-height-stem {
+  stroke: rgba(161, 242, 240, 0.46);
+  stroke-width: 5;
+}
+
+.hybrid-height-marker-core {
+  fill: #173539;
+  stroke: var(--signal);
+  stroke-width: 5;
+}
+
+.hybrid-height-listener .hybrid-height-marker-core {
+  fill: var(--listener);
+  stroke: #ffe0ae;
+}
+
+.hybrid-height-marker-label {
+  fill: var(--ink-soft);
+  font-size: 21px;
+  letter-spacing: 0.05em;
+}
+
+.hybrid-height-marker-value {
+  fill: var(--muted);
+  font-size: 17px;
+}
+
+.hybrid-height-marker:hover .hybrid-height-marker-core,
+.hybrid-height-marker:focus-visible .hybrid-height-marker-core {
+  filter: url(#hybrid-plan-glow);
+  stroke: var(--signal-bright);
+  stroke-width: 8;
+}
+
+.hybrid-height-listener:hover .hybrid-height-marker-core,
+.hybrid-height-listener:focus-visible .hybrid-height-marker-core {
+  fill: #f3c77f;
+  stroke: #fff1d5;
+}
+
+.atmosphere-metrics {
+  display: grid;
+  gap: 0.45rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0.9rem 0;
+}
+
+.atmosphere-metrics div {
+  background: rgba(10, 21, 28, 0.56);
+  border: 1px solid var(--rule-soft);
+  min-width: 0;
+  padding: 0.55rem 0.6rem;
+}
+
+.atmosphere-metrics dt {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.59rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.atmosphere-metrics dd {
+  color: var(--signal-bright);
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  margin: 0.35rem 0 0;
+}
+
 @media (max-width: 34rem) {
   .hybrid-plan-heading {
     align-items: start;
@@ -1317,5 +1453,9 @@ select {
 
   .hybrid-plan-marker-value {
     display: none;
+  }
+
+  .atmosphere-metrics {
+    grid-template-columns: 1fr;
   }
 }

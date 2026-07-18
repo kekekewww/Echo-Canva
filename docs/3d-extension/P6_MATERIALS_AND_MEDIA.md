@@ -49,6 +49,11 @@ Unit tests prove exact v1 anchor projection, log-frequency midpoints, six-band e
 hard-versus-treated high-band reflection distinction, 0 C and 20 C 100 m time-of-flight anchors,
 segmented timing, bounded input rejection, and monotonic path/frequency air-loss behavior.
 
+The Hybrid Lab exposes a bounded P6 preview control for temperature, relative humidity, and
+pressure. It shows the calculated speed of sound, 100 m travel time, and 1/4 kHz loss over 100 m.
+Those controls intentionally remain calculation-only: they do not alter the Lab's HRTF position,
+direct delay, reflection taps, or audible sound while `airAbsorption` remains disabled.
+
 This is not a claim of atmospheric measurement accuracy. It has no wind model, no six-band audio
-renderer, no humidity UI, no air-loss calibration against a laboratory measurement, and no change
-to the validated Classic baseline.
+renderer, no air-loss calibration against a laboratory measurement, and no change to the validated
+Classic baseline.

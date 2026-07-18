@@ -1,5 +1,25 @@
 # Status
 
+## Hybrid Lab elevation map and atmospheric preview - 2026-07-18
+
+- added a pointer-draggable, keyboard-accessible Y elevation map for Listener, Radio, and Rain;
+  it is synchronized with the existing fine elevation sliders and the same Hybrid 3D pose state
+- added bounded P6 temperature, relative-humidity, and pressure controls with calculated sound
+  speed, 100 m travel time, and 1/4 kHz loss-over-distance metrics
+- explicitly labelled the medium controls as calculation-only: no HRTF, direct-delay, reflection,
+  or audio routing changes are made while `airAbsorption` remains disabled
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 44 files / 282 tests
+- `pnpm e2e` - PASS, 25 Chromium production-server tests
+
+Known limitation: the elevation map changes the actual Hybrid source/listener pose; atmospheric
+controls intentionally change only the documented P6 metrics, not audible propagation. A broader
+Lab UI redesign remains deferred at the owner's request.
+
+Current phase: coordinate and P6-medium controls are directly testable. Next action: obtain a
+human verdict on their usability and keep media-to-audio integration separately scoped and gated.
+
 ## Hybrid 3D P7-A directional late-field histogram - 2026-07-18
 
 - added a deterministic 12/24-direction Fibonacci histogram for P5 receiver connections, binned
@@ -52,8 +72,9 @@ Classic editor or enable unmeasured late-field audio.
 - `pnpm test` - PASS, 43 files / 279 tests
 - `pnpm e2e` - PASS, 25 Chromium production-server tests
 
-Known limitation: P6-A has no six-band renderer, air-loss calibration, wind model, humidity UI,
-or audio path. It is deliberately not yet user-testable.
+Known limitation: P6-A has no six-band renderer, air-loss calibration, wind model, or audio path.
+The Lab now exposes bounded temperature/humidity/pressure calculations, but those values are still
+not routed to audible propagation.
 
 Current phase: P6-A data foundations are pending automated verification. Next action: verify this
 isolated slice, then retain it default-off until a separately scoped Hybrid propagation integration.

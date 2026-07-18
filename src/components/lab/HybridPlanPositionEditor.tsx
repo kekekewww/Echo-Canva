@@ -23,19 +23,40 @@ type HybridPlanSource = Readonly<{
 
 type DragTarget = "listener" | "radio" | "rain";
 
+type HybridHeightMarker = Readonly<{
+  id: DragTarget;
+  label: "Listener" | "Radio" | "Rain";
+  heightM: number;
+}>;
+
 type HybridPlanPositionEditorProps = Readonly<{
   listenerPosition: HybridPlanPosition;
   radioPosition: HybridPlanPosition;
   rainPosition: HybridPlanPosition;
+  listenerHeightM: number;
+  radioHeightM: number;
+  rainHeightM: number;
   portalOpen: boolean;
   onMoveListener: (position: HybridPlanPosition) => void;
   onMoveSource: (sourceId: "radio" | "rain", position: HybridPlanPosition) => void;
+  onMoveListenerHeight: (heightM: number) => void;
+  onMoveSourceHeight: (sourceId: "radio" | "rain", heightM: number) => void;
 }>;
 
 const WORLD_BOUNDS: Rect = { minX: 0, minY: 0, width: 12, height: 8 };
 const SVG_VIEW_BOX: Rect = { minX: 0, minY: 0, width: 1200, height: 800 };
+const HEIGHT_VIEW_BOX: Rect = { minX: 0, minY: 0, width: 1200, height: 260 };
 const KEYBOARD_STEP_M = 0.1;
 const INSET_M = 0.2;
+const MIN_HEIGHT_M = 0.2;
+const MAX_HEIGHT_M = 2.8;
+const HEIGHT_TRACK_TOP = 34;
+const HEIGHT_TRACK_BOTTOM = 214;
+const HEIGHT_COLUMNS: Readonly<Record<DragTarget, number>> = {
+  listener: 220,
+  radio: 600,
+  rain: 980,
+};
 
 function clampAndSnap(value: number, minimum: number, maximum: number): number {
   return Math.min(maximum, Math.max(minimum, Math.round(value * 10) / 10));
@@ -43,6 +64,25 @@ function clampAndSnap(value: number, minimum: number, maximum: number): number {
 
 function formatPosition(position: HybridPlanPosition): string {
   return `X ${position.x.toFixed(1)} m, Z ${position.z.toFixed(1)} m`;
+}
+
+function formatHeight(heightM: number): string {
+  return `Y ${heightM.toFixed(1)} m`;
+}
+
+function heightToSvgY(heightM: number): number {
+  return HEIGHT_TRACK_BOTTOM - ((heightM - MIN_HEIGHT_M) / (MAX_HEIGHT_M - MIN_HEIGHT_M)) *
+    (HEIGHT_TRACK_BOTTOM - HEIGHT_TRACK_TOP);
+}
+
+function svgYToHeight(svgY: number): number {
+  const clampedY = Math.min(HEIGHT_TRACK_BOTTOM, Math.max(HEIGHT_TRACK_TOP, svgY));
+  return clampAndSnap(
+    MIN_HEIGHT_M + ((HEIGHT_TRACK_BOTTOM - clampedY) / (HEIGHT_TRACK_BOTTOM - HEIGHT_TRACK_TOP)) *
+      (MAX_HEIGHT_M - MIN_HEIGHT_M),
+    MIN_HEIGHT_M,
+    MAX_HEIGHT_M,
+  );
 }
 
 function toPlanPoint(position: HybridPlanPosition): Vec2 {
@@ -61,14 +101,25 @@ export function HybridPlanPositionEditor({
   listenerPosition,
   radioPosition,
   rainPosition,
+  listenerHeightM,
+  radioHeightM,
+  rainHeightM,
   portalOpen,
   onMoveListener,
   onMoveSource,
+  onMoveListenerHeight,
+  onMoveSourceHeight,
 }: HybridPlanPositionEditorProps) {
   const [dragTarget, setDragTarget] = useState<DragTarget | null>(null);
+  const [heightDragTarget, setHeightDragTarget] = useState<DragTarget | null>(null);
   const sources: readonly HybridPlanSource[] = [
     { id: "radio", label: "Radio", position: radioPosition },
     { id: "rain", label: "Rain", position: rainPosition },
+  ];
+  const heightMarkers: readonly HybridHeightMarker[] = [
+    { id: "listener", label: "Listener", heightM: listenerHeightM },
+    { id: "radio", label: "Radio", heightM: radioHeightM },
+    { id: "rain", label: "Rain", heightM: rainHeightM },
   ];
   const listenerPoint = markerPoint(listenerPosition);
   const partitionTop = wallPoint({ x: 6, y: 0 });
@@ -79,6 +130,11 @@ export function HybridPlanPositionEditor({
   function applyPosition(target: DragTarget, position: HybridPlanPosition): void {
     if (target === "listener") onMoveListener(position);
     else onMoveSource(target, position);
+  }
+
+  function applyHeight(target: DragTarget, heightM: number): void {
+    if (target === "listener") onMoveListenerHeight(heightM);
+    else onMoveSourceHeight(target, heightM);
   }
 
   function eventToPlan(event: ReactPointerEvent<SVGGElement>): HybridPlanPosition {
@@ -101,6 +157,12 @@ export function HybridPlanPositionEditor({
     if (target === "listener") return listenerPosition;
     if (target === "radio") return radioPosition;
     return rainPosition;
+  }
+
+  function targetHeight(target: DragTarget | null): number {
+    if (target === "listener") return listenerHeightM;
+    if (target === "radio") return radioHeightM;
+    return rainHeightM;
   }
 
   function startDrag(event: ReactPointerEvent<SVGGElement>, target: DragTarget): void {
@@ -134,6 +196,45 @@ export function HybridPlanPositionEditor({
       x: clampAndSnap(current.x + delta.x, INSET_M, WORLD_BOUNDS.width - INSET_M),
       z: clampAndSnap(current.z + delta.z, INSET_M, WORLD_BOUNDS.height - INSET_M),
     });
+  }
+
+  function eventToHeight(event: ReactPointerEvent<SVGGElement>): number {
+    const svg = event.currentTarget.ownerSVGElement;
+    if (!svg) return targetHeight(heightDragTarget);
+    const bounds = svg.getBoundingClientRect();
+    const point = clientPointToSvg(
+      { x: event.clientX, y: event.clientY },
+      { minX: bounds.left, minY: bounds.top, width: bounds.width, height: bounds.height },
+      HEIGHT_VIEW_BOX,
+    );
+    return svgYToHeight(point.y);
+  }
+
+  function startHeightDrag(event: ReactPointerEvent<SVGGElement>, target: DragTarget): void {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setHeightDragTarget(target);
+  }
+
+  function moveHeightDrag(event: ReactPointerEvent<SVGGElement>): void {
+    if (!heightDragTarget || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
+    applyHeight(heightDragTarget, eventToHeight(event));
+  }
+
+  function stopHeightDrag(event: ReactPointerEvent<SVGGElement>): void {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    setHeightDragTarget(null);
+  }
+
+  function keyboardHeight(target: DragTarget, event: ReactKeyboardEvent<SVGGElement>): void {
+    const delta = event.key === "ArrowUp" ? KEYBOARD_STEP_M
+      : event.key === "ArrowDown" ? -KEYBOARD_STEP_M
+        : null;
+    if (delta === null) return;
+    event.preventDefault();
+    applyHeight(target, clampAndSnap(targetHeight(target) + delta, MIN_HEIGHT_M, MAX_HEIGHT_M));
   }
 
   return (
@@ -245,6 +346,66 @@ export function HybridPlanPositionEditor({
       <p aria-live="polite" className="hybrid-plan-readout">
         Listener: {formatPosition(listenerPosition)} · Radio: {formatPosition(radioPosition)} · Rain: {formatPosition(rainPosition)}
       </p>
+      <div className="hybrid-height-editor" data-testid="hybrid-height-editor">
+        <div className="hybrid-height-heading">
+          <div>
+            <p className="panel-kicker">Elevation map</p>
+            <h3>Drag a marker to place it on Y</h3>
+          </div>
+          <p className="hybrid-plan-scale">0.2–2.8 m</p>
+        </div>
+        <p className="control-note" id="hybrid-height-help">
+          Y is height above the floor. Drag a marker up or down; focus it and use the up/down arrow
+          keys for 0.1 m changes. This changes the 3D source or listener pose used by browser HRTF.
+        </p>
+        <svg
+          aria-describedby="hybrid-height-help"
+          aria-label="Hybrid 3D editable elevation map in meters"
+          className="hybrid-height-svg"
+          preserveAspectRatio="xMidYMid meet"
+          role="group"
+          viewBox="0 0 1200 260"
+        >
+          <rect className="hybrid-height-bed" height="260" width="1200" x="0" y="0" />
+          <line className="hybrid-height-floor" x1="80" x2="1120" y1={HEIGHT_TRACK_BOTTOM} y2={HEIGHT_TRACK_BOTTOM} />
+          {[0.2, 1, 1.5, 2, 2.8].map((heightM) => {
+            const y = heightToSvgY(heightM);
+            return (
+              <g aria-hidden="true" key={heightM}>
+                <line className="hybrid-height-grid-line" x1="80" x2="1120" y1={y} y2={y} />
+                <text className="hybrid-height-axis-label" x="62" y={y + 6}>{heightM.toFixed(1)} m</text>
+              </g>
+            );
+          })}
+          {heightMarkers.map((marker) => {
+            const x = HEIGHT_COLUMNS[marker.id];
+            const y = heightToSvgY(marker.heightM);
+            return (
+              <g
+                aria-label={`Drag ${marker.label} height on elevation map; ${formatHeight(marker.heightM)}`}
+                className={`hybrid-height-marker hybrid-height-${marker.id}`}
+                data-height={marker.heightM.toFixed(1)}
+                data-testid={`hybrid-height-${marker.id}`}
+                key={marker.id}
+                onKeyDown={(event) => keyboardHeight(marker.id, event)}
+                onPointerCancel={stopHeightDrag}
+                onPointerDown={(event) => startHeightDrag(event, marker.id)}
+                onPointerMove={moveHeightDrag}
+                onPointerUp={stopHeightDrag}
+                role="button"
+                tabIndex={0}
+                transform={`translate(${x} ${y})`}
+              >
+                <line className="hybrid-height-stem" x1="0" x2="0" y1={HEIGHT_TRACK_BOTTOM - y} y2="0" />
+                <circle className="hybrid-height-hit" r="38" />
+                <circle className="hybrid-height-marker-core" r="17" />
+                <text className="hybrid-height-marker-label" textAnchor="middle" x="0" y="-36">{marker.label}</text>
+                <text className="hybrid-height-marker-value" textAnchor="middle" x="0" y="42">{formatHeight(marker.heightM)}</text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
     </div>
   );
 }
