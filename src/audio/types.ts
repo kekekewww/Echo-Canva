@@ -96,6 +96,13 @@ export type AudioEngineStatus =
   | "error"
   | "disposed";
 
+export type SpatialPosition3 = Readonly<{ x: number; y: number; z: number }>;
+
+export type HybridDirectAudioState = Readonly<{
+  listenerPosition: SpatialPosition3;
+  sourcePositions: Readonly<Record<string, SpatialPosition3>>;
+}>;
+
 export type AudioEngineDiagnostics = Readonly<{
   status: AudioEngineStatus;
   mode: PreviewMode;

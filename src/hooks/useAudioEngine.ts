@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AudioEngine } from "@/audio/AudioEngine";
 import type { AudioEngineDiagnostics } from "@/audio/types";
+import type { HybridDirectAudioState } from "@/audio/types";
 import type { PreviewMode } from "@/domain/editor/state";
 import type { SceneSpec } from "@/domain/scene/types";
 import type { AcousticFrame } from "@/acoustics/compute-frame";
@@ -12,6 +13,7 @@ type AudioEngineControls = Readonly<{
   diagnostics: AudioEngineDiagnostics;
   startAudio: () => Promise<void>;
   stopAudio: () => Promise<void>;
+  applyHybridDirectState: (state: HybridDirectAudioState) => void;
 }>;
 
 export function useAudioEngine(
@@ -69,10 +71,15 @@ export function useAudioEngine(
     }
   }, [engine, refreshDiagnostics]);
 
+  const applyHybridDirectState = useCallback((state: HybridDirectAudioState) => {
+    engine.applyHybridDirectState(state);
+    refreshDiagnostics();
+  }, [engine, refreshDiagnostics]);
+
   const diagnosticsWithFrameNotice = useMemo(
     () => ({ ...diagnostics, acousticFallbackNotice }),
     [acousticFallbackNotice, diagnostics],
   );
 
-  return { diagnostics: diagnosticsWithFrameNotice, startAudio, stopAudio };
+  return { diagnostics: diagnosticsWithFrameNotice, startAudio, stopAudio, applyHybridDirectState };
 }

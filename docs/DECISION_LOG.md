@@ -119,3 +119,9 @@ Reason: Analytic 3D formulas validate individual solvers, not their integration 
 Decision: Keep `SceneSpec v1` as the Classic data contract and introduce Hybrid data only in a strict `SceneDocumentV2` envelope containing an immutable-compatible `baseScene`, optional extensions, and a deterministic Classic projection hash. Route Hybrid selection through an owning engine router whose default and fallback is Classic.
 
 Reason: The envelope enables 3D metadata without changing existing editor, AI, import/export, worker, or Web Audio consumers. Exact Classic projection and explicit disabled/uninstalled fallbacks make the future engine switch reversible rather than a risky global migration.
+
+## D-020 ??Finite-patch Hybrid direct propagation with persistent HRTF adapter
+
+Decision: Implement P2 as a Lab-only 3D direct-path solver over finite extruded floor, ceiling, and wall patches with explicit portal openings, a cached static BVH, and a persistent-node X/Y/Z Browser HRTF adapter. Keep Classic as the default route and leave Classic reflection/reverb untouched.
+
+Reason: A finite-patch direct solver gives testable distance, delay, azimuth, elevation, doorway visibility, and panner behavior before adding the much riskier 3D reflection or late-field models. Caching only static geometry prevents pose edits from becoming a main-thread rebuilding cost, while the isolated Lab makes rollback immediate.

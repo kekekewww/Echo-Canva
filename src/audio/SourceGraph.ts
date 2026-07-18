@@ -213,6 +213,25 @@ export class SourceGraph {
     this.earlyReflectionBank.apply(sourceFrame.earlyReflections, now);
   }
 
+  applySpatialDirect(
+    sourcePosition: Readonly<{ x: number; y: number; z: number }>,
+    listenerPosition: Readonly<{ x: number; y: number; z: number }>,
+    now: number,
+  ): void {
+    if (this.disposed) return;
+    const relativeX = sourcePosition.x - listenerPosition.x;
+    const relativeY = sourcePosition.y - listenerPosition.y;
+    const relativeZ = sourcePosition.z - listenerPosition.z;
+    smoothParameter(
+      this.distanceGain.gain,
+      distanceAttenuation(Math.hypot(relativeX, relativeY, relativeZ)),
+      now,
+    );
+    smoothParameter(this.panner.positionX, relativeX, now);
+    smoothParameter(this.panner.positionY, relativeY, now);
+    smoothParameter(this.panner.positionZ, relativeZ === 0 ? 0 : -relativeZ, now);
+  }
+
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;

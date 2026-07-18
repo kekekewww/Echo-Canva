@@ -8,6 +8,7 @@ import type {
   AudioEngineStatus,
   DynamicsCompressorNodeLike,
   GainNodeLike,
+  HybridDirectAudioState,
 } from "@/audio/types";
 import { AUDIO_ASSETS } from "@/domain/audio-assets/registry";
 import type { PreviewMode } from "@/domain/editor/state";
@@ -57,6 +58,7 @@ export class AudioEngine {
   private operationTail: Promise<void> = Promise.resolve();
   private desiredScene: SceneSpec | null = null;
   private latestAcousticFrame: AcousticFrame | null = null;
+  private hybridDirectState: HybridDirectAudioState | null = null;
   private sceneVersion = 0;
   private desiredRunning = false;
   private runIntentGeneration = 0;
@@ -119,6 +121,15 @@ export class AudioEngine {
     const scene = this.desiredScene;
     if (!context || !scene) return;
     this.applyFrameParameters(frame, scene, context);
+  }
+
+  applyHybridDirectState(state: HybridDirectAudioState): void {
+    if (this.disposed) return;
+    this.hybridDirectState = state;
+    const context = this.context;
+    const scene = this.desiredScene;
+    if (!context || !scene) return;
+    this.applyHybridDirectParameters(state, scene, context);
   }
 
   async stop(): Promise<void> {
@@ -323,6 +334,10 @@ export class AudioEngine {
   }
 
   private applySourceParameters(scene: SceneSpec, context: AudioContextLike): void {
+    if (this.hybridDirectState) {
+      this.applyHybridDirectParameters(this.hybridDirectState, scene, context);
+      return;
+    }
     const hasMatchingFrame = this.latestAcousticFrame?.revision === scene.revision;
     for (const source of scene.sources) {
       this.sourceGraphs.get(source.id)?.apply(
@@ -331,6 +346,22 @@ export class AudioEngine {
         context.currentTime,
         scene.settings.hrtfEnabled,
         !hasMatchingFrame,
+      );
+    }
+  }
+
+  private applyHybridDirectParameters(
+    state: HybridDirectAudioState,
+    scene: SceneSpec,
+    context: AudioContextLike,
+  ): void {
+    for (const source of scene.sources) {
+      const sourcePosition = state.sourcePositions[source.id];
+      if (!sourcePosition) continue;
+      this.sourceGraphs.get(source.id)?.applySpatialDirect(
+        sourcePosition,
+        state.listenerPosition,
+        context.currentTime,
       );
     }
   }

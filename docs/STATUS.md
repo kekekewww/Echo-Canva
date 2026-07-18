@@ -1,6 +1,22 @@
 # Status
 
-Current phase: Hybrid 3D P1 compatibility layer locked; Gate R1 verification complete. Next action: P2 3D direct-propagation solver in the isolated Hybrid Lab engine.
+Current phase: Hybrid 3D P2 direct-propagation beta implemented in the isolated Lab. Next action: P3 deterministic first-order floor, ceiling, and wall reflections.
+
+## Hybrid 3D P2 — direct propagation beta - 2026-07-18
+
+- added metric `Vec3`, finite polygon/patch intersection, portal-opening exclusion, AABBs, and deterministic static BVH construction
+- extrudes the v1 room into floor, ceiling, and finite-thickness wall faces; direct paths report 3D distance, delay, azimuth, elevation, exact hits, and unique occluding wall IDs
+- added a Hybrid direct Worker that caches static geometry by Classic projection hash and rebinds only source/listener poses for elevation changes
+- added `/lab` direct-path diagnostics with Listener/Radio/Rain elevation controls and open/closed portal verification
+- added a Hybrid direct Browser HRTF adapter: persistent source graphs receive smoothed relative X/Y/Z panner values in Simulated mode
+- analytic/direct coverage includes the 3-4-5 free field case, elevation, finite-patch rejection, open/closed portal, BVH/brute-force agreement, static-BVH pose reuse, Worker cache reuse, and panner mapping
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 37 files / 257 tests
+- `pnpm e2e` - PASS, 25 Chromium production-server tests
+- `pnpm build` - PASS (executed by `pnpm e2e`)
+
+Known deviation: P2 is direct propagation only. Hybrid portal routing beyond an opening directly on the segment, 3D first-order reflection, late-field rendering, and material/media extensions remain disabled. Classic continues to own the default scene preview.
 
 ## Hybrid 3D P1 — scene-v2 compatibility and gated routing - 2026-07-18
 

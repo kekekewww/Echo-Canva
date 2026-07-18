@@ -9,11 +9,21 @@ test("renders the accessible Echo Canvas application shell", async ({ page }) =>
   await expect(page.getByTestId("app-shell")).toBeVisible();
 });
 
-test("keeps an explicit Classic route while the Hybrid lab is gated", async ({ page }) => {
+test("keeps an explicit Classic route while the Hybrid lab isolates its beta solver", async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
   await page.goto("/lab");
   await expect(page.getByTestId("hybrid-lab")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Hybrid 3D Lab" })).toBeVisible();
-  await expect(page.getByText(/not yet enabled/i)).toBeVisible();
+  await expect(page.getByTestId("hybrid-direct-lab")).toBeVisible();
+  const radio = page.getByTestId("direct-radio");
+  await expect(radio).toHaveAttribute("data-route", "direct");
+  const initialElevation = await radio.getAttribute("data-elevation");
+  await page.getByLabel("Radio elevation").fill("2.8");
+  await expect.poll(() => pageErrors).toEqual([]);
+  await expect(radio).not.toHaveAttribute("data-elevation", initialElevation ?? "");
+  await page.getByRole("button", { name: "Close partition portal" }).click();
+  await expect(radio).toHaveAttribute("data-route", "blocked");
 
   await page.getByRole("link", { name: "Open Classic 2.5D" }).click();
   await expect(page).toHaveURL(/\/classic$/);
