@@ -20,6 +20,9 @@ Lab UI redesign remains deferred at the owner's request.
 Current phase: coordinate and P6-medium controls are directly testable. Next action: obtain a
 human verdict on their usability and keep media-to-audio integration separately scoped and gated.
 
+Human result: `PASS` (2026-07-18). Height dragging and the atmospheric-medium preview matched the
+expected interaction; broader Lab UI redesign and audible medium integration remain deferred.
+
 ## Hybrid 3D P7-A directional late-field histogram - 2026-07-18
 
 - added a deterministic 12/24-direction Fibonacci histogram for P5 receiver connections, binned
