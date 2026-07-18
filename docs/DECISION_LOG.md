@@ -225,3 +225,14 @@ Reason: The previous serial stack made a user discover one control at a time and
 relationship between position, elevation, media preview, and resulting path diagnostics. The new
 workbench gives spatial-audio prototyping a clear operating sequence while remaining an isolated,
 reversible presentation change rather than an acoustic-engine rewrite.
+
+## D-033 ??Use a dependency-free orthographic viewport for Hybrid pose control
+
+Decision: Add an SVG orthographic viewport with tested projection and fixed-height unprojection,
+camera orbit/zoom, object dragging, XYZ gizmo, and an explicit `+Z` north convention. Retain the
+numeric and orthographic controls as precision/keyboard alternatives.
+
+Reason: The Lab needs a direct-manipulation 3D scene interaction without giving a visual camera
+authority over acoustic calculations or adding a renderer/runtime dependency. Orthographic math
+keeps object dragging exactly invertible on a fixed-height plane, while camera orbit remains a
+purely presentational view state.

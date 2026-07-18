@@ -16,6 +16,27 @@ test("keeps an explicit Classic route while the Hybrid lab isolates its beta sol
   await expect(page.getByTestId("hybrid-lab")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Hybrid 3D Lab" })).toBeVisible();
   await expect(page.getByTestId("hybrid-direct-lab")).toBeVisible();
+  const viewport = page.getByTestId("hybrid-spatial-viewport");
+  const viewportRadio = page.getByTestId("hybrid-viewport-radio");
+  await expect(viewport).toBeVisible();
+  await expect(viewportRadio).toHaveAttribute("data-position", "9.0,1.3,4.0");
+  const initialCamera = await viewport.getAttribute("data-camera");
+  const viewportBox = await viewport.locator("svg").boundingBox();
+  if (!viewportBox) throw new Error("Hybrid 3D viewport needs a rendered bounding box.");
+  await page.mouse.move(viewportBox.x + 24, viewportBox.y + 24);
+  await page.mouse.down();
+  await page.mouse.move(viewportBox.x + 118, viewportBox.y + 68);
+  await page.mouse.up();
+  await expect(viewport).not.toHaveAttribute("data-camera", initialCamera ?? "");
+  const viewportRadioCore = await viewportRadio.locator(".hybrid-viewport-source-core").boundingBox();
+  if (!viewportRadioCore) throw new Error("Hybrid 3D source needs a rendered bounding box.");
+  await page.mouse.move(viewportRadioCore.x + viewportRadioCore.width / 2, viewportRadioCore.y + viewportRadioCore.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(viewportRadioCore.x - 50, viewportRadioCore.y + 25);
+  await page.mouse.up();
+  await expect(viewportRadio).not.toHaveAttribute("data-position", "9.0,1.3,4.0");
+
+  await page.locator("summary", { hasText: "Open orthographic X/Z and Y reference maps" }).click();
   const plan = page.getByTestId("hybrid-plan-editor");
   const planRadio = page.getByTestId("hybrid-plan-radio");
   await expect(plan).toBeVisible();

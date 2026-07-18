@@ -1584,6 +1584,156 @@ select {
 
 .hybrid-zone-heading .panel-kicker { margin-bottom: 0; }
 
+.hybrid-spatial-viewport {
+  background:
+    radial-gradient(circle at 50% 48%, rgba(103, 205, 211, 0.08), transparent 36%),
+    #081113;
+  border: 1px solid #2a4145;
+  margin-top: 0.7rem;
+  overflow: hidden;
+  padding: 0.65rem;
+}
+
+.hybrid-viewport-header {
+  align-items: end;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+.hybrid-viewport-header h3 {
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+  margin: 0.18rem 0 0;
+}
+
+.hybrid-view-buttons {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.hybrid-view-buttons button {
+  background: transparent;
+  border: 1px solid var(--rule);
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 0.61rem;
+  padding: 0.35rem 0.45rem;
+}
+
+.hybrid-view-buttons button:hover,
+.hybrid-view-buttons button:focus-visible {
+  border-color: var(--signal);
+  color: var(--signal-bright);
+}
+
+.hybrid-viewport-svg {
+  display: block;
+  height: auto;
+  margin-top: 0.5rem;
+  touch-action: none;
+  user-select: none;
+  width: 100%;
+}
+
+.hybrid-viewport-orbit-surface {
+  cursor: grab;
+  fill: rgba(0, 0, 0, 0.001);
+}
+
+.hybrid-viewport-orbit-surface:active { cursor: grabbing; }
+
+.hybrid-viewport-floor {
+  fill: url(#hybrid-viewport-floor);
+  stroke: rgba(103, 205, 211, 0.38);
+  stroke-width: 3;
+}
+
+.hybrid-viewport-ceiling {
+  fill: rgba(103, 205, 211, 0.025);
+  stroke: rgba(103, 205, 211, 0.15);
+  stroke-dasharray: 8 9;
+  stroke-width: 2;
+}
+
+.hybrid-viewport-floor,
+.hybrid-viewport-ceiling,
+.hybrid-viewport-room-edge,
+.hybrid-viewport-ceiling-edge,
+.hybrid-viewport-partition,
+.hybrid-viewport-portal,
+.hybrid-viewport-axis,
+.hybrid-viewport-compass {
+  pointer-events: none;
+}
+
+.hybrid-viewport-room-edge { stroke: rgba(161, 242, 240, 0.32); stroke-width: 3; }
+.hybrid-viewport-ceiling-edge { stroke: rgba(161, 242, 240, 0.16); stroke-dasharray: 7 8; stroke-width: 2; }
+.hybrid-viewport-partition { stroke: #809092; stroke-width: 12; }
+.hybrid-viewport-portal { stroke: var(--signal); stroke-dasharray: 8 7; stroke-width: 7; }
+.hybrid-viewport-portal.is-closed { stroke: var(--danger); stroke-dasharray: 3 5; }
+
+.hybrid-viewport-object { cursor: move; outline: none; }
+.hybrid-viewport-object-hit { fill: transparent; }
+.hybrid-viewport-source-core { fill: #173539; stroke: var(--signal); stroke-width: 4; }
+.hybrid-viewport-source-glyph { fill: var(--signal-bright); pointer-events: none; }
+.hybrid-viewport-listener-head { fill: var(--listener); filter: url(#hybrid-viewport-glow); stroke: #ffe0ae; stroke-width: 3; }
+.hybrid-viewport-listener-body { fill: rgba(231, 173, 94, 0.76); stroke: #ffe0ae; stroke-width: 2; }
+
+.hybrid-viewport-object-label,
+.hybrid-viewport-object-value,
+.hybrid-viewport-axis text,
+.hybrid-viewport-compass text {
+  font-family: var(--mono);
+  pointer-events: none;
+}
+
+.hybrid-viewport-object-label { fill: var(--ink-soft); font-size: 18px; letter-spacing: 0.05em; }
+.hybrid-viewport-object-value { fill: var(--muted); font-size: 14px; }
+
+.hybrid-viewport-object:hover .hybrid-viewport-source-core,
+.hybrid-viewport-object:focus-visible .hybrid-viewport-source-core {
+  fill: var(--signal);
+  filter: url(#hybrid-viewport-glow);
+  stroke: var(--signal-bright);
+  stroke-width: 7;
+}
+
+.hybrid-viewport-object:focus-visible .hybrid-viewport-listener-head {
+  fill: #f3c77f;
+  stroke: #fff1d5;
+  stroke-width: 6;
+}
+
+.hybrid-viewport-axis-origin { fill: var(--ink); }
+.hybrid-viewport-axis line { stroke-width: 4; }
+.hybrid-viewport-axis text { font-size: 16px; font-weight: 700; }
+.hybrid-viewport-axis-x { fill: #e77f71; stroke: #e77f71; }
+.hybrid-viewport-axis-y { fill: #e7ad5e; stroke: #e7ad5e; }
+.hybrid-viewport-axis-z { fill: #67cdd3; stroke: #67cdd3; }
+
+.hybrid-viewport-compass circle { fill: rgba(8, 17, 19, 0.86); stroke: var(--rule); stroke-width: 2; }
+.hybrid-viewport-compass path { fill: var(--signal-bright); stroke: var(--signal); stroke-width: 2; }
+.hybrid-viewport-compass text { fill: var(--ink-soft); font-size: 14px; letter-spacing: 0.05em; }
+
+.hybrid-orthographic-reference {
+  border-top: 1px solid var(--rule-soft);
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+}
+
+.hybrid-orthographic-reference summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+}
+
+.hybrid-orthographic-reference[open] summary { color: var(--signal-bright); }
+
+.hybrid-orthographic-reference .hybrid-plan-editor { margin-top: 0.7rem; }
+
 .hybrid-plan-editor {
   background: transparent;
   border: 0;
@@ -1706,7 +1856,8 @@ select {
   .hybrid-page-header,
   .hybrid-instrument-header,
   .hybrid-command-deck,
-  .hybrid-diagnostics-panel > header {
+  .hybrid-diagnostics-panel > header,
+  .hybrid-viewport-header {
     align-items: stretch;
     flex-direction: column;
   }
@@ -1718,6 +1869,8 @@ select {
   }
 
   .hybrid-signal-strip { justify-content: start; }
+
+  .hybrid-viewport-object-value { display: none; }
 
   .hybrid-plan-heading {
     align-items: start;

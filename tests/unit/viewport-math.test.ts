@@ -1,0 +1,33 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  DEFAULT_VIEWPORT_CAMERA,
+  clampViewportCamera,
+  northViewportAngleDeg,
+  projectViewportPoint,
+  unprojectViewportPointAtHeight,
+} from "@/components/lab/viewport-math";
+
+describe("Hybrid Lab viewport math", () => {
+  it("round-trips a finite object position through the fixed-height drag plane", () => {
+    const original = { x: 9.1, y: 1.3, z: 3.4 };
+    const screen = projectViewportPoint(original, DEFAULT_VIEWPORT_CAMERA);
+    const recovered = unprojectViewportPointAtHeight(screen, original.y, DEFAULT_VIEWPORT_CAMERA);
+
+    expect(recovered.x).toBeCloseTo(original.x, 10);
+    expect(recovered.y).toBe(original.y);
+    expect(recovered.z).toBeCloseTo(original.z, 10);
+  });
+
+  it("clamps an orbit camera to the supported pitch and zoom envelope", () => {
+    expect(clampViewportCamera({ yawDeg: -45, pitchDeg: 100, zoom: 4 })).toEqual({
+      yawDeg: 315,
+      pitchDeg: 78,
+      zoom: 1.7,
+    });
+  });
+
+  it("provides a finite screen-space bearing for declared +Z north", () => {
+    expect(Number.isFinite(northViewportAngleDeg(DEFAULT_VIEWPORT_CAMERA))).toBe(true);
+  });
+});

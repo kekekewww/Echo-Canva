@@ -45,13 +45,15 @@ Static floor/ceiling/wall patches are compiled into a deterministic AABB BVH. Th
 - a wall/portal/base-scene change has a new projection hash and recompiles the static geometry;
 - a Worker failure falls back to the same deterministic Lab computation and reports the fallback.
 
-The Lab exposes a small editable X/Z plan map plus a separate visual Y elevation map for Listener,
-Radio, and Rain, retained numeric fine-position/elevation sliders, and a portal toggle. The maps
-deliberately move only the three poses: they do not become a second wall editor or alter the frozen
-Classic scene. Markers are pointer-draggable, snap to 0.1 m, support arrow-key movement, and show
-their current coordinates. Its Direct diagnostics show route, distance, delay, azimuth, elevation,
-and occluding wall IDs. **Start 3D Audio** sends the solved positions to the persistent Browser
-HRTF panners in Simulated mode.
+The Lab now exposes an interactive orthographic 3D viewport as its primary pose control. It renders
+the finite room shell, partition/portal, listener head, source markers, a camera-relative XYZ gizmo,
+and a compass that explicitly defines North as `+Z`. Dragging an object changes its X/Z pose; holding
+Shift while dragging changes Y elevation. Dragging empty space orbits only the visual camera, and
+the mouse wheel zooms it. Retained numeric fine-position/elevation sliders plus collapsed X/Z and Y
+reference maps provide precise and keyboard-accessible alternatives. These controls deliberately
+move only the three poses: they do not become a second wall editor or alter the frozen Classic scene.
+Its Direct diagnostics show route, distance, delay, azimuth, elevation, and occluding wall IDs.
+**Start 3D Audio** sends the solved positions to the persistent Browser HRTF panners in Simulated mode.
 
 ## Evidence
 

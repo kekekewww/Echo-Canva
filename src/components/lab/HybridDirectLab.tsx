@@ -15,6 +15,7 @@ import {
 } from "@/acoustics/hybrid3d/atmosphere";
 import { renderHybridEarlyReflections } from "@/acoustics/hybrid3d/reflection-rendering";
 import { HybridPlanPositionEditor } from "@/components/lab/HybridPlanPositionEditor";
+import { HybridSpatialViewport } from "@/components/lab/HybridSpatialViewport";
 import { CONCRETE_PARTITION_PRESET } from "@/domain/presets/concrete-partition";
 import { createSceneDocumentV2 } from "@/domain/scene-document/serialize";
 import type { SceneSpec } from "@/domain/scene/types";
@@ -167,9 +168,31 @@ export function HybridDirectLab() {
         <div className="hybrid-spatial-zone">
           <div className="hybrid-zone-heading">
             <p className="panel-kicker">01 / spatial pose</p>
-            <p>Drag on the two drafting surfaces. The cyan/amber markers are the actual inputs to the Hybrid HRTF pose.</p>
+            <p>The viewport is the primary 3D control. Its cyan/amber markers are the actual inputs to the Hybrid HRTF pose.</p>
           </div>
 
+          <HybridSpatialViewport
+            listenerHeightM={listenerHeightM}
+            listenerPosition={listenerPlanPosition}
+            onMoveListenerHeight={setListenerHeightM}
+            onMoveListener={setListenerPlanPosition}
+            onMoveSource={(sourceId, position) => {
+              if (sourceId === "radio") setRadioPlanPosition(position);
+              else setRainPlanPosition(position);
+            }}
+            onMoveSourceHeight={(sourceId, heightM) => {
+              if (sourceId === "radio") setRadioHeightM(heightM);
+              else setRainHeightM(heightM);
+            }}
+            portalOpen={portalOpen}
+            radioHeightM={radioHeightM}
+            radioPosition={radioPlanPosition}
+            rainHeightM={rainHeightM}
+            rainPosition={rainPlanPosition}
+          />
+
+          <details className="hybrid-orthographic-reference">
+            <summary>Open orthographic X/Z and Y reference maps</summary>
       <HybridPlanPositionEditor
         listenerHeightM={listenerHeightM}
         listenerPosition={listenerPlanPosition}
@@ -189,6 +212,7 @@ export function HybridDirectLab() {
         rainHeightM={rainHeightM}
         rainPosition={rainPlanPosition}
           />
+          </details>
         </div>
 
         <aside className="hybrid-control-rack" aria-label="Hybrid pose and medium controls">

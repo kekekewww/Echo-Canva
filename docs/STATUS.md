@@ -1,5 +1,26 @@
 # Status
 
+## Hybrid Lab interactive 3D viewport - 2026-07-18
+
+- added a dependency-free orthographic SVG 3D scene viewport with finite room shell, partition,
+  Portal state, listener head, source markers, camera-relative XYZ axes, and a compass declaring
+  North as `+Z`
+- objects drag on a fixed-elevation plane to update the same Hybrid X/Z pose state; Shift-drag
+  changes Y height, while empty-space drag orbits the visual camera and wheel input zooms it
+- retained fine controls and collapsed orthographic maps as precise/keyboard-accessible references;
+  the camera remains presentation-only and never changes the deterministic acoustic solver
+- added projection/unprojection unit coverage and browser coverage for orbit and source-drag state
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 45 files / 285 tests
+- `pnpm e2e` - PASS, 25 Chromium production-server tests
+
+Known limitation: object dragging moves a source or listener on its fixed-height plane. It does not
+yet support direct 3D wall/portal authoring, object rotation, or camera-dependent acoustic physics.
+
+Current phase: viewport candidate is ready for human interaction verification. Next action: obtain
+a PASS/FAIL verdict before starting the separately scoped Hybrid portal/occlusion audio integration.
+
 ## Hybrid Lab workbench UI - 2026-07-18
 
 - reorganized the isolated Lab around the tester's sequence: audition, spatial pose, exact pose
