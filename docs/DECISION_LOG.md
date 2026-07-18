@@ -149,3 +149,15 @@ Reason: The established three-band registry is sufficient to make hard versus tr
 Decision: Add an exhaustive second-order ISM oracle only for scenes with at most 32 representative patches, plus a deterministic pruned-ISM candidate that reports comparison metrics and work statistics. Keep `secondOrderReflections` default-off and do not route its paths to the audio graph.
 
 Reason: Second-order finite-patch paths require ordered surfaces and three visibility legs, so an apparently plausible path can still be invalid. The analytic and 32-patch fixtures establish a stable reference and deterministic pruning behavior, but pair-work reduction is not a hardware CPU benchmark and no Beam comparison has been made. Keeping the branch isolated prevents unmeasured higher-order energy from displacing the validated six first-order audible taps.
+
+## D-025 ??Use deterministic Fibonacci receiver connections before stochastic late rendering
+
+Decision: Introduce a Fibonacci sphere sampler with progressive golden-angle rotation, finite nearest-hit BVH tracing, visible receiver connections, and a scene-signature-reset energy accumulator. Keep it data-only and separate from the P3 specular tap bank.
+
+Reason: Low-discrepancy deterministic samples make direction coverage, visibility, and accumulator reset reproducible in unit tests. A stochastic or late-audio path would introduce variance, convergence, and perceptual stability questions before a measured comparison exists, so it remains deferred rather than silently affecting the current reverb.
+
+## D-026 ??Measure the 100-wall production interaction budget without browser contention
+
+Decision: Run the production Playwright suite with one browser worker instead of sixteen concurrent browser processes.
+
+Reason: The 50 ms selection and keyboard-edit budget represents one judge-facing production session. A full-suite parallel run can saturate the host and delay a DOM mutation without changing the product implementation; the focused test passed immediately. One worker keeps the integration suite reproducible and preserves the original 50 ms threshold instead of weakening or skipping it.

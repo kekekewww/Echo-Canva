@@ -215,3 +215,29 @@ export function intersectSegmentPatch(start: Vec3, end: Vec3, patch: AcousticPat
     point,
   };
 }
+
+/** Returns a finite-patch hit on a forward ray; direction need not be unit length. */
+export function intersectRayPatch(
+  origin: Vec3,
+  direction: Vec3,
+  patch: AcousticPatch3,
+  maxDistanceM = Number.POSITIVE_INFINITY,
+): SegmentPatchHit | null {
+  const directionLength = length3(direction);
+  if (directionLength <= EPSILON) return null;
+  const denominator = dot3(patch.normal, direction);
+  if (Math.abs(denominator) <= EPSILON) return null;
+  const t = dot3(patch.normal, subtract3(patch.vertices[0]!, origin)) / denominator;
+  if (t <= EPSILON) return null;
+  const distanceM = t * directionLength;
+  if (distanceM > maxDistanceM + EPSILON) return null;
+  const point = add3(origin, scale3(direction, t));
+  if (!pointInPatch3(point, patch)) return null;
+  if (patch.openings.some((opening) => pointIsInsidePortalOpening(point, opening))) return null;
+  return {
+    patchId: patch.id,
+    ...(patch.wallId ? { wallId: patch.wallId } : {}),
+    distanceM,
+    point,
+  };
+}

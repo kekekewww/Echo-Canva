@@ -27,8 +27,9 @@ test("keeps an explicit Classic route while the Hybrid lab isolates its beta sol
   await expect(radio).toHaveAttribute("data-audible-reflections", /[1-6]/);
   const initialAzimuth = await radio.getAttribute("data-azimuth");
   await page.getByLabel("Radio plan X").fill("11");
-  await expect(radio).not.toHaveAttribute("data-azimuth", initialAzimuth ?? "");
   await expect(page.getByLabel("Radio plan X")).toHaveValue("11");
+  await page.getByLabel("Radio plan Z").fill("5");
+  await expect(radio).not.toHaveAttribute("data-azimuth", initialAzimuth ?? "");
   const initialElevation = await radio.getAttribute("data-elevation");
   await page.getByLabel("Radio elevation").fill("2.8");
   await expect.poll(() => pageErrors).toEqual([]);

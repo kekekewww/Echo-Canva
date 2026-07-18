@@ -1,5 +1,20 @@
 # Status
 
+## Hybrid 3D P5-A Fibonacci receiver connections - 2026-07-18
+
+- added deterministic Fibonacci sphere and progressive golden-angle frame rotation
+- added nearest finite-patch ray hits, visible receiver connections, scattering-weighted mid-band energy, and a scene-signature-reset progressive accumulator
+- verified finite hit, wall-blocked connection rejection, non-unit ray/max-distance behavior, deterministic sampling, and atomic accumulation reset
+- no sampling event is rendered; Classic Schroeder late reverb and P3 first-order taps remain unchanged
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 41 files / 271 tests
+- `pnpm e2e` - PASS, 25 Chromium production-server tests; the 100-wall interaction budget runs without parallel-browser scheduling contention
+
+Known limitation: this slice supplies deterministic receiver-connection data only. It does not establish variance/convergence thresholds, stochastic comparisons, air absorption, or directional late-field audio.
+
+Current phase: Hybrid 3D P5-A deterministic receiver connections implemented. Next action: integration verification and a bounded sampling/convergence benchmark before considering any late-field renderer.
+
 ## Hybrid 3D P4 second-order branch experiment - 2026-07-18
 
 - added an exhaustive ordered-pair second-order Image Source oracle for at most 32 representative patches; it is test/benchmark-only
@@ -12,8 +27,6 @@
 - `pnpm test` - PASS, 40 files / 268 tests
 
 Known limitation: the `3×` result is a deterministic evaluated-pair work proxy. It is not a CPU p50/p95 claim, does not compare Beam Tracing, and does not authorize enabling the runtime flag.
-
-Current phase: Hybrid 3D P4 reference/candidate experiment complete. Next action: full integration verification, then keep the candidate isolated pending a broader measured benchmark before any runtime activation.
 
 ## Hybrid 3D P3-B audible first-order reflection taps - 2026-07-18
 

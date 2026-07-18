@@ -1,6 +1,7 @@
 import {
   aabbCentroid3,
   intersectSegmentPatch,
+  intersectRayPatch,
   segmentIntersectsAabb3,
   unionAabb3,
   type Aabb3,
@@ -64,6 +65,62 @@ export function intersectSegmentBvh(start: Vec3, end: Vec3, bvh: PatchBvh): read
     if (node.kind === "leaf") {
       for (const index of node.patchIndexes) {
         const hit = intersectSegmentPatch(start, end, bvh.patches[index]!);
+        if (hit) hits.push(hit);
+      }
+      return;
+    }
+    visit(node.left);
+    visit(node.right);
+  };
+  visit(bvh.root);
+  return hits.sort((left, right) =>
+    left.distanceM !== right.distanceM
+      ? left.distanceM - right.distanceM
+      : left.patchId.localeCompare(right.patchId),
+  );
+}
+
+function rayIntersectsAabb3(
+  origin: Vec3,
+  direction: Vec3,
+  bounds: Aabb3,
+  maxRayParameter: number,
+): boolean {
+  let near = 0;
+  let far = maxRayParameter;
+  for (const axis of ["x", "y", "z"] as const) {
+    if (Math.abs(direction[axis]) <= 1e-8) {
+      if (origin[axis] < bounds.min[axis] || origin[axis] > bounds.max[axis]) return false;
+      continue;
+    }
+    const inverse = 1 / direction[axis];
+    let axisNear = (bounds.min[axis] - origin[axis]) * inverse;
+    let axisFar = (bounds.max[axis] - origin[axis]) * inverse;
+    if (axisNear > axisFar) [axisNear, axisFar] = [axisFar, axisNear];
+    near = Math.max(near, axisNear);
+    far = Math.min(far, axisFar);
+    if (near > far) return false;
+  }
+  return far >= 0;
+}
+
+/** Returns finite-patch ray hits ordered by metric distance. */
+export function intersectRayBvh(
+  origin: Vec3,
+  direction: Vec3,
+  bvh: PatchBvh,
+  maxDistanceM = Number.POSITIVE_INFINITY,
+): readonly SegmentPatchHit[] {
+  if (!bvh.root) return [];
+  const directionLength = Math.hypot(direction.x, direction.y, direction.z);
+  if (directionLength <= 1e-8) return [];
+  const maxRayParameter = maxDistanceM / directionLength;
+  const hits: SegmentPatchHit[] = [];
+  const visit = (node: PatchBvhNode): void => {
+    if (!rayIntersectsAabb3(origin, direction, node.bounds, maxRayParameter)) return;
+    if (node.kind === "leaf") {
+      for (const index of node.patchIndexes) {
+        const hit = intersectRayPatch(origin, direction, bvh.patches[index]!, maxDistanceM);
         if (hit) hits.push(hit);
       }
       return;
