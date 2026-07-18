@@ -31,6 +31,11 @@ cards. The correction merges them into one X/Y/Z card while retaining the select
 production-server tests) passed after the correction. Next action: confirm the unified Transform
 card visually before treating this gate as fully accepted.
 
+Human result: `PASS` (2026-07-19). The owner confirmed the unified Transform card, Outliner,
+selection cards, and compact environment preview. The Hybrid modelling-workbench UI gate is
+accepted; future work should be a separately requested UI polish pass or a separately scoped
+authoring/export feature.
+
 ## Hybrid selected-object UI - 2026-07-18
 
 - made the 3D viewport and its precision controls legible as one interaction: dragging a Listener,
