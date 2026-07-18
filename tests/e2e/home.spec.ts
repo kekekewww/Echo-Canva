@@ -18,6 +18,13 @@ test("keeps an explicit Classic route while the Hybrid lab isolates its beta sol
   await expect(page.getByTestId("hybrid-direct-lab")).toBeVisible();
   const radio = page.getByTestId("direct-radio");
   await expect(radio).toHaveAttribute("data-route", "direct");
+  await expect(radio).toHaveAttribute("data-audible-reflections", /[1-6]/);
+  await page.getByRole("button", { name: "Disable 3D first-order reflections" }).click();
+  await expect(page.getByTestId("hybrid-direct-lab").locator(".audio-control"))
+    .toHaveAttribute("data-reflections-enabled", "false");
+  await expect(radio).toHaveAttribute("data-audible-reflections", "0");
+  await page.getByRole("button", { name: "Enable 3D first-order reflections" }).click();
+  await expect(radio).toHaveAttribute("data-audible-reflections", /[1-6]/);
   const initialAzimuth = await radio.getAttribute("data-azimuth");
   await page.getByLabel("Radio plan X").fill("11");
   await expect(radio).not.toHaveAttribute("data-azimuth", initialAzimuth ?? "");

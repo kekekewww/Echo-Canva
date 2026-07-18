@@ -18,6 +18,7 @@ export type FirstOrderReflection3D = Readonly<{
   id: string;
   surfaceId: string;
   patchId: string;
+  materialId: string;
   reflectionPoint: Vec3;
   pathLengthM: number;
   delayMs: number;
@@ -85,6 +86,7 @@ export function findFirstOrderReflections3D(
       id: `first:${surfaceId}`,
       surfaceId,
       patchId: patch.id,
+      materialId: patch.materialId,
       reflectionPoint: point,
       pathLengthM,
       delayMs: (pathLengthM / SOUND_SPEED_MPS) * 1000,

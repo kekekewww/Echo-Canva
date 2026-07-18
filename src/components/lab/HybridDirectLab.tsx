@@ -6,6 +6,7 @@ import {
   bindHybridPoses,
   compileHybridStaticGeometry,
 } from "@/acoustics/hybrid3d/compile";
+import { renderHybridEarlyReflections } from "@/acoustics/hybrid3d/reflection-rendering";
 import { CONCRETE_PARTITION_PRESET } from "@/domain/presets/concrete-partition";
 import { createSceneDocumentV2 } from "@/domain/scene-document/serialize";
 import type { SceneSpec } from "@/domain/scene/types";
@@ -33,6 +34,7 @@ export function HybridDirectLab() {
   const [radioPlanPosition, setRadioPlanPosition] = useState<PlanPosition>({ x: 9, z: 4 });
   const [rainPlanPosition, setRainPlanPosition] = useState<PlanPosition>({ x: 10, z: 1.5 });
   const [portalOpen, setPortalOpen] = useState(true);
+  const [reflectionsEnabled, setReflectionsEnabled] = useState(true);
   const baseScene = useMemo<SceneSpec>(() => {
     const scene: SceneSpec = structuredClone(CONCRETE_PARTITION_PRESET);
     scene.portals[0]!.open = portalOpen;
@@ -69,8 +71,23 @@ export function HybridDirectLab() {
   const geometry = useMemo(() => bindHybridPoses(staticGeometry, document), [document, staticGeometry]);
   const direct = useHybridDirectPaths(document, geometry);
   const paths = direct.frame.paths;
+  const hybridReflectionState = useMemo(() => ({
+    listenerPosition: geometry.listenerPosition,
+    reflectionsBySource: Object.fromEntries(baseScene.sources.map((source) => [
+      source.id,
+      reflectionsEnabled ? renderHybridEarlyReflections(
+        direct.frame.firstOrderReflectionsBySource[source.id] ?? [],
+      ) : [],
+    ])),
+  }), [
+    baseScene.sources,
+    direct.frame.firstOrderReflectionsBySource,
+    geometry.listenerPosition,
+    reflectionsEnabled,
+  ]);
   const {
     applyHybridDirectState,
+    applyHybridReflectionState,
     diagnostics,
     startAudio,
     stopAudio,
@@ -83,10 +100,14 @@ export function HybridDirectLab() {
     });
   }, [applyHybridDirectState, geometry]);
 
+  useEffect(() => {
+    applyHybridReflectionState(hybridReflectionState);
+  }, [applyHybridReflectionState, hybridReflectionState]);
+
   return (
     <section className="canvas-panel" data-testid="hybrid-direct-lab" aria-labelledby="hybrid-direct-title">
-      <p className="panel-kicker">Hybrid 3D / P2 direct-path beta</p>
-      <h2 id="hybrid-direct-title">3D Direct Propagation</h2>
+      <p className="panel-kicker">Hybrid 3D / P3 first-order reflection beta</p>
+      <h2 id="hybrid-direct-title">3D Direct Propagation + Early Reflections</h2>
       <p className="control-note">
         This lab extrudes the validated 2D scene into floor, ceiling, and finite-thickness wall
         patches. It reports geometric direct visibility, distance, delay, azimuth, and elevation.
@@ -260,6 +281,7 @@ export function HybridDirectLab() {
             data-route={path.routeType}
             data-azimuth={format(path.azimuthDeg, 4)}
             data-elevation={format(path.elevationDeg, 4)}
+            data-audible-reflections={hybridReflectionState.reflectionsBySource[path.sourceId ?? ""]?.length ?? 0}
             key={path.sourceId}
           >
             <h3>{path.sourceId === "radio" ? "Radio" : "Rain"}: {path.routeType}</h3>
@@ -267,13 +289,13 @@ export function HybridDirectLab() {
             <p>Azimuth {format(path.azimuthDeg)}° · Elevation {format(path.elevationDeg)}°</p>
             <p>{path.directVisible ? "Direct path clear." : `Blocked by ${path.occluderWallIds.join(", ")}.`}</p>
             <p>
-              First-order 3D reflections: {direct.frame.firstOrderReflectionsBySource[path.sourceId ?? ""]?.length ?? 0}
+              Audible first-order 3D taps: {hybridReflectionState.reflectionsBySource[path.sourceId ?? ""]?.length ?? 0}
             </p>
           </article>
         ))}
       </div>
 
-      <div className="audio-control">
+      <div className="audio-control" data-reflections-enabled={reflectionsEnabled}>
         <button
           className="audio-button"
           onClick={() => void (diagnostics.status === "idle" ? startAudio() : stopAudio())}
@@ -281,9 +303,18 @@ export function HybridDirectLab() {
         >
           {diagnostics.status === "idle" ? "Start 3D Audio" : "Stop 3D Audio"}
         </button>
+        <button
+          aria-pressed={reflectionsEnabled}
+          className="secondary-action"
+          onClick={() => setReflectionsEnabled((enabled) => !enabled)}
+          type="button"
+        >
+          {reflectionsEnabled ? "Disable 3D first-order reflections" : "Enable 3D first-order reflections"}
+        </button>
         <p className="control-note">
           In Simulated mode, this beta writes the solved relative X/Y/Z direct position to the
-          persistent browser HRTF panners. Early reflections and late reverb remain Classic until P3/P7.
+          persistent browser HRTF panners. P3-B adds Worker-validated first-order 3D reflection taps;
+          the late field remains Classic until P7.
         </p>
       </div>
     </section>

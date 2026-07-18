@@ -6,6 +6,7 @@ import type {
   BiquadFilterNodeLike,
   DelayNodeLike,
   GainNodeLike,
+  HybridEarlyReflectionTap,
   PannerNodeLike,
 } from "@/audio/types";
 import type { AcousticEarlyReflection } from "@/acoustics/compute-frame";
@@ -93,6 +94,29 @@ export class EarlyReflectionBank {
       smoothParameter(nodes.panner.positionX, reflection.reflectionPoint.x - listener.x, now);
       smoothParameter(nodes.panner.positionY, 0, now);
       smoothParameter(nodes.panner.positionZ, -(reflection.reflectionPoint.y - listener.y), now);
+    }
+  }
+
+  applySpatial3d(
+    reflections: readonly HybridEarlyReflectionTap[],
+    listener: Readonly<{ x: number; y: number; z: number }>,
+    now: number,
+  ): void {
+    if (this.disposed) return;
+    for (let index = 0; index < this.taps.length; index += 1) {
+      const nodes = this.taps[index]!;
+      const reflection = reflections[index];
+      if (!reflection) {
+        smoothParameter(nodes.gain.gain, 0, now);
+        continue;
+      }
+      smoothParameter(nodes.delay.delayTime, clampDelaySeconds(reflection.delayMs / 1000), now);
+      smoothParameter(nodes.gain.gain, dbToLinear(reflection.gainDb), now);
+      smoothParameter(nodes.filter.frequency, clampFrequency(reflection.lowpassHz), now);
+      smoothParameter(nodes.panner.positionX, reflection.position.x - listener.x, now);
+      smoothParameter(nodes.panner.positionY, reflection.position.y - listener.y, now);
+      const relativeZ = reflection.position.z - listener.z;
+      smoothParameter(nodes.panner.positionZ, relativeZ === 0 ? 0 : -relativeZ, now);
     }
   }
 

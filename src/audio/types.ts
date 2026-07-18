@@ -103,6 +103,19 @@ export type HybridDirectAudioState = Readonly<{
   sourcePositions: Readonly<Record<string, SpatialPosition3>>;
 }>;
 
+export type HybridEarlyReflectionTap = Readonly<{
+  id: string;
+  position: SpatialPosition3;
+  delayMs: number;
+  gainDb: number;
+  lowpassHz: number;
+}>;
+
+export type HybridReflectionAudioState = Readonly<{
+  listenerPosition: SpatialPosition3;
+  reflectionsBySource: Readonly<Record<string, readonly HybridEarlyReflectionTap[]>>;
+}>;
+
 export type AudioEngineDiagnostics = Readonly<{
   status: AudioEngineStatus;
   mode: PreviewMode;

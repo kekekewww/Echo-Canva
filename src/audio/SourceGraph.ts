@@ -13,6 +13,7 @@ import type {
   AudioNodeLike,
   GainNodeLike,
   PannerNodeLike,
+  HybridEarlyReflectionTap,
 } from "@/audio/types";
 import type { PreviewMode } from "@/domain/editor/state";
 import type { SceneSpec } from "@/domain/scene/types";
@@ -230,6 +231,15 @@ export class SourceGraph {
     smoothParameter(this.panner.positionX, relativeX, now);
     smoothParameter(this.panner.positionY, relativeY, now);
     smoothParameter(this.panner.positionZ, relativeZ === 0 ? 0 : -relativeZ, now);
+  }
+
+  applySpatialReflections(
+    listenerPosition: Readonly<{ x: number; y: number; z: number }>,
+    reflections: readonly HybridEarlyReflectionTap[],
+    now: number,
+  ): void {
+    if (this.disposed) return;
+    this.earlyReflectionBank.applySpatial3d(reflections, listenerPosition, now);
   }
 
   dispose(): void {

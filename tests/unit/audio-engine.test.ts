@@ -355,6 +355,42 @@ describe("AudioEngine", () => {
     expect(harness.engine.getDiagnostics().sourceStarts).toBe(scene.sources.length);
   });
 
+  it("maps Hybrid 3D early reflections to persistent tap nodes", async () => {
+    const harness = makeHarness();
+    const scene = cloneScene();
+    await harness.engine.start(scene);
+    const nodeCounts = [
+      harness.context.delays.length,
+      harness.context.gains.length,
+      harness.context.filters.length,
+      harness.context.panners.length,
+    ];
+
+    harness.engine.applyHybridReflectionState({
+      listenerPosition: { x: 3, y: 1.5, z: 4 },
+      reflectionsBySource: {
+        radio: [{
+          id: "first:ceiling",
+          position: { x: 5, y: 3, z: 7 },
+          delayMs: 21,
+          gainDb: -16,
+          lowpassHz: 5_000,
+        }],
+        rain: [],
+      },
+    });
+
+    const firstRadioReflectionPanner = harness.context.panners[1]!;
+    expect(firstRadioReflectionPanner.positionX.targets.at(-1)?.target).toBe(2);
+    expect(firstRadioReflectionPanner.positionY.targets.at(-1)?.target).toBe(1.5);
+    expect(firstRadioReflectionPanner.positionZ.targets.at(-1)?.target).toBe(-3);
+    expect(harness.context.delays.some(
+      (delay) => delay.delayTime.targets.at(-1)?.target === 0.021,
+    )).toBe(true);
+    expect([harness.context.delays.length, harness.context.gains.length, harness.context.filters.length, harness.context.panners.length])
+      .toEqual(nodeCounts);
+  });
+
   it("applies blocked-frame direct gain, filter, route distance, and virtual panner position without creating another graph", async () => {
     const harness = makeHarness();
     const scene = cloneScene();

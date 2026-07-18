@@ -1,5 +1,20 @@
 # Status
 
+## Hybrid 3D P3-B audible first-order reflection taps - 2026-07-18
+
+- converted finite Worker-validated first-order paths into material-aware delay, gain, low-pass, and 3D arrival-position values using the existing three-band registry
+- mapped the values into the fixed six-tap `EarlyReflectionBank`; position, delay, gain, and filter updates are smoothed and no AudioNode is allocated during updates
+- AudioEngine stores/reapplies the Hybrid direct and reflection states together, so a user gesture that starts audio receives the latest validated tap state without rebuilding source graphs
+- Lab now labels P3 reflection beta, exposes the audible tap count, and provides a direct-only versus direct-plus-first-order-reflections A/B control; production browser coverage requires the Radio to expose between one and six audible 3D taps and to mute/re-enable them safely
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 39 files / 264 tests
+- `pnpm e2e` - PASS, 25 Chromium production-server tests (including production build)
+
+Known limitation: the reflection gain/filter conversion remains a perceptually tuned three-band approximation. There is no six-band material interpolation, air absorption, second-order path, directional late field, or claim of architectural-acoustics accuracy. P2 blocked/portal diagnostics remain separate from its direct audio mapping.
+
+Current phase: Hybrid 3D P3-B implemented in the isolated Lab. Next action: headphone verification of audible first-order reflection contribution before beginning P4 experimental second-order-path work.
+
 ## Hybrid 3D P2 Lab planar-control repair - 2026-07-18
 
 - added explicit Listener, Radio, and Rain plan-position sliders for `X` (left/right) and `Z` (front/back), alongside the existing `Y` elevation controls
@@ -13,8 +28,6 @@
 
 Known limitation: P2 still renders only the Hybrid direct component. Its blocked/portal diagnostics, new 3D reflections, and late-field model do not yet change the Hybrid Lab audio; those remain bounded follow-up slices rather than claims of a complete 3D acoustic renderer.
 
-Current phase: Hybrid 3D P3-A deterministic first-order geometry implemented in the isolated Lab Worker. Next action: P3-B map validated 3D paths into the persistent early-reflection audio tap bank.
-
 ## Hybrid 3D P3-A — deterministic first-order reflection geometry - 2026-07-18
 
 - added 3D Image Source reflection candidates for floor, ceiling, and physical wall surfaces, including stable IDs, reflection point, path/delay, excess delay, and arrival direction
@@ -23,7 +36,7 @@ Current phase: Hybrid 3D P3-A deterministic first-order geometry implemented in 
 - analytic G002 floor, G003 ceiling, G004 vertical-wall, finite-patch rejection, and occluded-leg tests pass
 - focused `pnpm lint`, `pnpm typecheck`, and 10 Hybrid direct/Worker/reflection unit tests - PASS
 
-Known deviation: P3-A does not yet make the new 3D reflection paths audible. The existing Classic early-reflection/late-reverb graph is untouched; P3-B will add a persistent-node 3D tap adapter with smoothing and listening verification.
+Historical boundary: P3-A was geometric-only. P3-B now maps its validated paths into the separate Hybrid Lab tap adapter; the Classic early-reflection/late-reverb graph remains untouched.
 
 ## Hybrid 3D P2 — direct propagation beta - 2026-07-18
 

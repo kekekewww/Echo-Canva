@@ -121,6 +121,32 @@ describe("EarlyReflectionBank", () => {
       .toEqual(nodeCounts);
   });
 
+  it("maps a 3D reflection point to the persistent tap panner and silences removed taps", () => {
+    const context = new FakeContext();
+    const bank = new EarlyReflectionBank(context as never, new FakeNode(), new FakeNode(), () => listener, true);
+    const nodeCounts = [context.delays.length, context.gains.length, context.filters.length, context.panners.length];
+
+    bank.applySpatial3d([{
+      id: "first:ceiling",
+      position: { x: 8, y: 3, z: 5 },
+      delayMs: 18,
+      gainDb: -14,
+      lowpassHz: 6_000,
+    }], { x: 4, y: 1, z: 2 }, 3);
+
+    expect(context.delays[0]?.delayTime.targets.at(-1)?.target).toBeCloseTo(0.018);
+    expect(context.gains[0]?.gain.targets.at(-1)?.target).toBeCloseTo(10 ** (-14 / 20));
+    expect(context.filters[0]?.frequency.targets.at(-1)?.target).toBe(6_000);
+    expect(context.panners[0]?.positionX.targets.at(-1)?.target).toBe(4);
+    expect(context.panners[0]?.positionY.targets.at(-1)?.target).toBe(2);
+    expect(context.panners[0]?.positionZ.targets.at(-1)?.target).toBe(-3);
+
+    bank.applySpatial3d([], { x: 4, y: 1, z: 2 }, 3.1);
+    expect(context.gains.every((gain) => gain.gain.targets.at(-1)?.target === 0)).toBe(true);
+    expect([context.delays.length, context.gains.length, context.filters.length, context.panners.length])
+      .toEqual(nodeCounts);
+  });
+
   it("rolls back partial tap allocation and disconnects all owned nodes on disposal", () => {
     const failed = new FakeContext();
     failed.failOnCreation = 6;

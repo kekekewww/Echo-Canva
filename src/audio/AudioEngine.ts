@@ -9,6 +9,7 @@ import type {
   DynamicsCompressorNodeLike,
   GainNodeLike,
   HybridDirectAudioState,
+  HybridReflectionAudioState,
 } from "@/audio/types";
 import { AUDIO_ASSETS } from "@/domain/audio-assets/registry";
 import type { PreviewMode } from "@/domain/editor/state";
@@ -59,6 +60,7 @@ export class AudioEngine {
   private desiredScene: SceneSpec | null = null;
   private latestAcousticFrame: AcousticFrame | null = null;
   private hybridDirectState: HybridDirectAudioState | null = null;
+  private hybridReflectionState: HybridReflectionAudioState | null = null;
   private sceneVersion = 0;
   private desiredRunning = false;
   private runIntentGeneration = 0;
@@ -130,6 +132,15 @@ export class AudioEngine {
     const scene = this.desiredScene;
     if (!context || !scene) return;
     this.applyHybridDirectParameters(state, scene, context);
+  }
+
+  applyHybridReflectionState(state: HybridReflectionAudioState): void {
+    if (this.disposed) return;
+    this.hybridReflectionState = state;
+    const context = this.context;
+    const scene = this.desiredScene;
+    if (!context || !scene) return;
+    this.applyHybridReflectionParameters(state, scene, context);
   }
 
   async stop(): Promise<void> {
@@ -336,6 +347,9 @@ export class AudioEngine {
   private applySourceParameters(scene: SceneSpec, context: AudioContextLike): void {
     if (this.hybridDirectState) {
       this.applyHybridDirectParameters(this.hybridDirectState, scene, context);
+      if (this.hybridReflectionState) {
+        this.applyHybridReflectionParameters(this.hybridReflectionState, scene, context);
+      }
       return;
     }
     const hasMatchingFrame = this.latestAcousticFrame?.revision === scene.revision;
@@ -361,6 +375,20 @@ export class AudioEngine {
       this.sourceGraphs.get(source.id)?.applySpatialDirect(
         sourcePosition,
         state.listenerPosition,
+        context.currentTime,
+      );
+    }
+  }
+
+  private applyHybridReflectionParameters(
+    state: HybridReflectionAudioState,
+    scene: SceneSpec,
+    context: AudioContextLike,
+  ): void {
+    for (const source of scene.sources) {
+      this.sourceGraphs.get(source.id)?.applySpatialReflections(
+        state.listenerPosition,
+        state.reflectionsBySource[source.id] ?? [],
         context.currentTime,
       );
     }

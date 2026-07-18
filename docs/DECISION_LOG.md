@@ -137,3 +137,9 @@ Reason: A visually plausible mirror point can still be outside the actual patch 
 Decision: The Hybrid Lab must expose direct controls for Listener, Radio, and Rain plan `X`/`Z` positions, while retaining the separate `Y` elevation controls and the same fixed persistent HRTF graph.
 
 Reason: The initial Lab exposed only height. Its default sources were both placed to the listener's right, so a tester could observe elevation but could neither create a left/centre/right comparison nor distinguish a coordinate-mapping defect from a fixed scene layout. Explicit plan controls make the coordinate contract testable without modifying the validated Classic editor or rebuilding audio nodes.
+
+## D-023 ??Material-aware fixed-bank rendering for Hybrid first-order reflections
+
+Decision: Render only Worker-validated first-order Hybrid paths through the existing six-tap early-reflection bank. Derive each tap's mid-band amplitude from the built-in material energy balance and its low-pass from the high-to-mid reflection-amplitude ratio; update persistent delay, gain, filter, and 3D panner parameters with the standard smoothing.
+
+Reason: The established three-band registry is sufficient to make hard versus treated early reflections audibly distinct without prematurely claiming a six-band material or air-propagation model. Reusing the fixed bank prevents audio-node churn and preserves the validated Classic graph; path ordering and the six-tap cap make overload deterministic.
