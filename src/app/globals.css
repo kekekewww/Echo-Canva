@@ -1677,6 +1677,34 @@ select {
 .hybrid-viewport-wall-panel.is-closed { fill: rgba(128, 144, 146, 0.88); }
 .hybrid-viewport-portal { stroke: var(--signal); stroke-dasharray: 8 7; stroke-width: 7; }
 
+.hybrid-viewport-partition-handle,
+.hybrid-viewport-portal-handle { cursor: grab; outline: none; }
+.hybrid-viewport-partition-handle:active,
+.hybrid-viewport-portal-handle:active { cursor: grabbing; }
+.hybrid-viewport-partition-handle-hit,
+.hybrid-viewport-portal-handle-hit { fill: transparent; }
+.hybrid-viewport-partition-handle-core {
+  fill: #e77f71;
+  stroke: #fff0dc;
+  stroke-width: 2;
+}
+.hybrid-viewport-portal-handle-core {
+  fill: rgba(8, 17, 19, 0.84);
+  stroke: var(--signal-bright);
+  stroke-width: 4;
+}
+.hybrid-viewport-partition-handle-label {
+  fill: var(--ink-soft);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  pointer-events: none;
+}
+.hybrid-viewport-partition-handle:focus-visible .hybrid-viewport-partition-handle-core,
+.hybrid-viewport-portal-handle:focus-visible .hybrid-viewport-portal-handle-core {
+  filter: url(#hybrid-viewport-glow);
+  stroke-width: 5;
+}
+
 .hybrid-viewport-object { cursor: move; outline: none; }
 .hybrid-viewport-object-hit { fill: transparent; }
 .hybrid-viewport-source-core { fill: #173539; stroke: var(--signal); stroke-width: 4; }

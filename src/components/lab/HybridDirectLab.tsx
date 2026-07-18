@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   bindHybridPoses,
@@ -17,6 +17,13 @@ import { resolveHybridAudibleDirectState } from "@/acoustics/hybrid3d/audible-di
 import { renderHybridEarlyReflections } from "@/acoustics/hybrid3d/reflection-rendering";
 import { HybridPlanPositionEditor } from "@/components/lab/HybridPlanPositionEditor";
 import { HybridSpatialViewport } from "@/components/lab/HybridSpatialViewport";
+import {
+  constrainPartitionEndpoint,
+  constrainPortalToPartition,
+  type HybridEditablePartition,
+  type HybridEditablePortal,
+} from "@/components/lab/partition-editing";
+import { MATERIALS } from "@/domain/materials/registry";
 import { CONCRETE_PARTITION_PRESET } from "@/domain/presets/concrete-partition";
 import { createSceneDocumentV2 } from "@/domain/scene-document/serialize";
 import type { SceneSpec } from "@/domain/scene/types";
@@ -44,18 +51,51 @@ export function HybridDirectLab() {
   const [radioPlanPosition, setRadioPlanPosition] = useState<PlanPosition>({ x: 9, z: 4 });
   const [rainPlanPosition, setRainPlanPosition] = useState<PlanPosition>({ x: 10, z: 1.5 });
   const [atmosphere, setAtmosphere] = useState<HybridAtmosphere>(DEFAULT_HYBRID_ATMOSPHERE);
-  const [portalOpen, setPortalOpen] = useState(true);
+  const [partition, setPartition] = useState<HybridEditablePartition>({
+    a: { x: 6, z: 0.2 },
+    b: { x: 6, z: 7.8 },
+    thicknessM: 0.2,
+    materialId: "concrete_hard",
+  });
+  const [portal, setPortal] = useState<HybridEditablePortal>({
+    center: { x: 6, z: 4 },
+    widthM: 1.2,
+    heightM: 2.1,
+    open: true,
+  });
   const [reflectionsEnabled, setReflectionsEnabled] = useState(true);
+  const movePartitionEndpoint = useCallback((endpoint: "a" | "b", position: PlanPosition) => {
+    const nextPartition = constrainPartitionEndpoint(partition, endpoint, position);
+    if (nextPartition === partition) return;
+    setPartition(nextPartition);
+    setPortal((current) => constrainPortalToPartition(current, nextPartition));
+  }, [partition]);
+  const updatePortal = useCallback((next: HybridEditablePortal) => {
+    setPortal(constrainPortalToPartition(next, partition));
+  }, [partition]);
   const baseScene = useMemo<SceneSpec>(() => {
     const scene: SceneSpec = structuredClone(CONCRETE_PARTITION_PRESET);
-    scene.portals[0]!.open = portalOpen;
+    scene.walls = scene.walls.map((wall) => wall.id === "partition_center" ? {
+      ...wall,
+      a: { x: partition.a.x, y: partition.a.z },
+      b: { x: partition.b.x, y: partition.b.z },
+      thicknessM: partition.thicknessM,
+      materialId: partition.materialId,
+    } : wall);
+    scene.portals[0] = {
+      ...scene.portals[0]!,
+      center: { x: portal.center.x, y: portal.center.z },
+      widthM: portal.widthM,
+      heightM: portal.heightM,
+      open: portal.open,
+    };
     scene.listener.position = { x: listenerPlanPosition.x, y: listenerPlanPosition.z };
     for (const source of scene.sources) {
       const position = source.id === "radio" ? radioPlanPosition : rainPlanPosition;
       source.position = { x: position.x, y: position.z };
     }
     return scene;
-  }, [listenerPlanPosition, portalOpen, radioPlanPosition, rainPlanPosition]);
+  }, [listenerPlanPosition, partition, portal, radioPlanPosition, rainPlanPosition]);
   const document = useMemo(
     () => createSceneDocumentV2(baseScene, {
       spatial3d: {
@@ -190,7 +230,10 @@ export function HybridDirectLab() {
               if (sourceId === "radio") setRadioHeightM(heightM);
               else setRainHeightM(heightM);
             }}
-            portalOpen={portalOpen}
+            partition={partition}
+            portal={portal}
+            onMovePartitionEndpoint={movePartitionEndpoint}
+            onMovePortalCenter={(center) => updatePortal({ ...portal, center })}
             radioHeightM={radioHeightM}
             radioPosition={radioPlanPosition}
             rainHeightM={rainHeightM}
@@ -212,7 +255,8 @@ export function HybridDirectLab() {
           if (sourceId === "radio") setRadioHeightM(heightM);
           else setRainHeightM(heightM);
         }}
-        portalOpen={portalOpen}
+        partition={partition}
+        portal={portal}
         radioHeightM={radioHeightM}
         radioPosition={radioPlanPosition}
         rainHeightM={rainHeightM}
@@ -377,17 +421,42 @@ export function HybridDirectLab() {
           value={rainHeightM}
         />
         <button
-          aria-pressed={portalOpen}
+          aria-pressed={portal.open}
           className="secondary-action"
-          onClick={() => setPortalOpen((open) => !open)}
+          onClick={() => updatePortal({ ...portal, open: !portal.open })}
           type="button"
         >
-          {portalOpen ? "Close partition portal" : "Open partition portal"}
+          {portal.open ? "Close partition portal" : "Open partition portal"}
         </button>
       </section>
 
+      <section className="control-section hybrid-control-card" data-testid="hybrid-partition-controls">
+        <p className="panel-kicker">04 / partition and Portal</p>
+        <h3>Edit the audible barrier</h3>
+        <p className="control-note">
+          Drag the coral Wall A/B handles or cyan Portal handle in the viewport. These controls are
+          the precise alternative; Portal remains attached to the partition automatically.
+        </p>
+        <label className="field-label" htmlFor="partition-a-x">Wall A X: {format(partition.a.x)} m</label>
+        <input id="partition-a-x" aria-label="Partition endpoint A X" max="11.8" min="0.2" onChange={(event) => movePartitionEndpoint("a", { ...partition.a, x: Number(event.target.value) })} step="0.1" type="range" value={partition.a.x} />
+        <label className="field-label" htmlFor="partition-a-z">Wall A Z: {format(partition.a.z)} m</label>
+        <input id="partition-a-z" aria-label="Partition endpoint A Z" max="7.8" min="0.2" onChange={(event) => movePartitionEndpoint("a", { ...partition.a, z: Number(event.target.value) })} step="0.1" type="range" value={partition.a.z} />
+        <label className="field-label" htmlFor="partition-b-x">Wall B X: {format(partition.b.x)} m</label>
+        <input id="partition-b-x" aria-label="Partition endpoint B X" max="11.8" min="0.2" onChange={(event) => movePartitionEndpoint("b", { ...partition.b, x: Number(event.target.value) })} step="0.1" type="range" value={partition.b.x} />
+        <label className="field-label" htmlFor="partition-b-z">Wall B Z: {format(partition.b.z)} m</label>
+        <input id="partition-b-z" aria-label="Partition endpoint B Z" max="7.8" min="0.2" onChange={(event) => movePartitionEndpoint("b", { ...partition.b, z: Number(event.target.value) })} step="0.1" type="range" value={partition.b.z} />
+        <label className="field-label" htmlFor="partition-material">Partition material</label>
+        <select aria-label="Partition material" id="partition-material" onChange={(event) => setPartition((current) => ({ ...current, materialId: event.target.value }))} value={partition.materialId}>
+          {MATERIALS.map((material) => <option key={material.id} value={material.id}>{material.displayName}</option>)}
+        </select>
+        <label className="field-label" htmlFor="portal-width">Portal width: {format(portal.widthM)} m</label>
+        <input id="portal-width" aria-label="Portal width" max="3" min="0.4" onChange={(event) => updatePortal({ ...portal, widthM: Number(event.target.value) })} step="0.1" type="range" value={portal.widthM} />
+        <label className="field-label" htmlFor="portal-height">Portal height: {format(portal.heightM)} m</label>
+        <input id="portal-height" aria-label="Portal height" max="2.8" min="0.4" onChange={(event) => updatePortal({ ...portal, heightM: Number(event.target.value) })} step="0.1" type="range" value={portal.heightM} />
+      </section>
+
       <section className="control-section hybrid-control-card" data-testid="atmosphere-preview">
-        <p className="panel-kicker">04 / medium model</p>
+        <p className="panel-kicker">05 / medium model</p>
         <h3>Atmospheric preview</h3>
         <p className="control-note">
           Adjust the bounded air model used for the P6 propagation preview. These controls update the

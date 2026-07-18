@@ -14,6 +14,11 @@ import {
   type ViewportCamera,
   type ViewportVec3,
 } from "./viewport-math";
+import {
+  portalEdgePoints,
+  type HybridEditablePartition,
+  type HybridEditablePortal,
+} from "./partition-editing";
 
 type PlanPosition = Readonly<{ x: number; z: number }>;
 type ObjectId = "listener" | "radio" | "rain";
@@ -25,16 +30,21 @@ type HybridSpatialViewportProps = Readonly<{
   radioHeightM: number;
   rainPosition: PlanPosition;
   rainHeightM: number;
-  portalOpen: boolean;
+  partition: HybridEditablePartition;
+  portal: HybridEditablePortal;
   onMoveListener: (position: PlanPosition) => void;
   onMoveListenerHeight: (heightM: number) => void;
   onMoveSource: (sourceId: "radio" | "rain", position: PlanPosition) => void;
   onMoveSourceHeight: (sourceId: "radio" | "rain", heightM: number) => void;
+  onMovePartitionEndpoint: (endpoint: "a" | "b", position: PlanPosition) => void;
+  onMovePortalCenter: (center: PlanPosition) => void;
 }>;
 
 type DragState =
   | Readonly<{ kind: "orbit"; pointer: ScreenPoint; camera: ViewportCamera }>
-  | Readonly<{ kind: "object"; objectId: ObjectId; pointer: ScreenPoint; position: ViewportVec3 }>;
+  | Readonly<{ kind: "object"; objectId: ObjectId; pointer: ScreenPoint; position: ViewportVec3 }>
+  | Readonly<{ kind: "partition-endpoint"; endpoint: "a" | "b" }>
+  | Readonly<{ kind: "portal"; heightM: number }>;
 
 const VIEW_BOX: Rect = { minX: 0, minY: 0, width: 1200, height: 720 };
 const ROOM_HEIGHT_M = 2.8;
@@ -73,11 +83,14 @@ export function HybridSpatialViewport({
   radioHeightM,
   rainPosition,
   rainHeightM,
-  portalOpen,
+  partition,
+  portal,
   onMoveListener,
   onMoveListenerHeight,
   onMoveSource,
   onMoveSourceHeight,
+  onMovePartitionEndpoint,
+  onMovePortalCenter,
 }: HybridSpatialViewportProps) {
   const [camera, setCamera] = useState<ViewportCamera>(DEFAULT_VIEWPORT_CAMERA);
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -87,7 +100,23 @@ export function HybridSpatialViewport({
     radio: { x: radioPosition.x, y: radioHeightM, z: radioPosition.z },
     rain: { x: rainPosition.x, y: rainHeightM, z: rainPosition.z },
   };
-  const projected = useMemo(() => ({
+  const projected = useMemo(() => {
+    const portalEdges = portalEdgePoints(portal, partition);
+    const panel = (start: PlanPosition, end: PlanPosition, lowerY: number, upperY: number) => [
+      projectViewportPoint({ x: start.x, y: lowerY, z: start.z }, camera),
+      projectViewportPoint({ x: start.x, y: upperY, z: start.z }, camera),
+      projectViewportPoint({ x: end.x, y: upperY, z: end.z }, camera),
+      projectViewportPoint({ x: end.x, y: lowerY, z: end.z }, camera),
+    ];
+    const wallPanels = portal.open
+      ? [
+        panel(partition.a, portalEdges.near, 0, ROOM_HEIGHT_M),
+        panel(portalEdges.near, portalEdges.far, portal.heightM, ROOM_HEIGHT_M),
+        panel(portalEdges.far, partition.b, 0, ROOM_HEIGHT_M),
+      ]
+      : [panel(partition.a, partition.b, 0, ROOM_HEIGHT_M)];
+
+    return {
     floor: [
       projectViewportPoint({ x: 0, y: 0, z: 0 }, camera),
       projectViewportPoint({ x: 12, y: 0, z: 0 }, camera),
@@ -100,29 +129,18 @@ export function HybridSpatialViewport({
       projectViewportPoint({ x: 12, y: ROOM_HEIGHT_M, z: 8 }, camera),
       projectViewportPoint({ x: 0, y: ROOM_HEIGHT_M, z: 8 }, camera),
     ],
-    partitionNearPanel: [
-      projectViewportPoint({ x: 6, y: 0, z: 0 }, camera),
-      projectViewportPoint({ x: 6, y: ROOM_HEIGHT_M, z: 0 }, camera),
-      projectViewportPoint({ x: 6, y: ROOM_HEIGHT_M, z: 3.4 }, camera),
-      projectViewportPoint({ x: 6, y: 0, z: 3.4 }, camera),
-    ],
-    partitionFarPanel: [
-      projectViewportPoint({ x: 6, y: 0, z: 4.6 }, camera),
-      projectViewportPoint({ x: 6, y: ROOM_HEIGHT_M, z: 4.6 }, camera),
-      projectViewportPoint({ x: 6, y: ROOM_HEIGHT_M, z: 8 }, camera),
-      projectViewportPoint({ x: 6, y: 0, z: 8 }, camera),
-    ],
-    partitionClosedPanel: [
-      projectViewportPoint({ x: 6, y: 0, z: 0 }, camera),
-      projectViewportPoint({ x: 6, y: ROOM_HEIGHT_M, z: 0 }, camera),
-      projectViewportPoint({ x: 6, y: ROOM_HEIGHT_M, z: 8 }, camera),
-      projectViewportPoint({ x: 6, y: 0, z: 8 }, camera),
-    ],
-    portalNearBottom: projectViewportPoint({ x: 6, y: 0, z: 3.4 }, camera),
-    portalNearTop: projectViewportPoint({ x: 6, y: ROOM_HEIGHT_M, z: 3.4 }, camera),
-    portalFarBottom: projectViewportPoint({ x: 6, y: 0, z: 4.6 }, camera),
-    portalFarTop: projectViewportPoint({ x: 6, y: ROOM_HEIGHT_M, z: 4.6 }, camera),
-  }), [camera]);
+      wallPanels,
+      portalOutline: [
+        projectViewportPoint({ x: portalEdges.near.x, y: 0, z: portalEdges.near.z }, camera),
+        projectViewportPoint({ x: portalEdges.near.x, y: portal.heightM, z: portalEdges.near.z }, camera),
+        projectViewportPoint({ x: portalEdges.far.x, y: portal.heightM, z: portalEdges.far.z }, camera),
+        projectViewportPoint({ x: portalEdges.far.x, y: 0, z: portalEdges.far.z }, camera),
+      ],
+      endpointA: projectViewportPoint({ x: partition.a.x, y: 0, z: partition.a.z }, camera),
+      endpointB: projectViewportPoint({ x: partition.b.x, y: 0, z: partition.b.z }, camera),
+      portalCenter: projectViewportPoint({ x: portal.center.x, y: portal.heightM * 0.5, z: portal.center.z }, camera),
+    };
+  }, [camera, partition, portal]);
   const axis = useMemo(() => {
     const origin = projectViewportPoint({ x: 6, y: 0, z: 4 }, camera);
     return {
@@ -218,6 +236,41 @@ export function HybridSpatialViewport({
     setDragState(null);
   }
 
+  function beginPartitionEndpointDrag(
+    event: ReactPointerEvent<SVGGElement>,
+    endpoint: "a" | "b",
+  ): void {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDragState({ kind: "partition-endpoint", endpoint });
+  }
+
+  function beginPortalDrag(event: ReactPointerEvent<SVGGElement>): void {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDragState({ kind: "portal", heightM: portal.heightM * 0.5 });
+  }
+
+  function dragPartitionEditor(event: ReactPointerEvent<SVGGElement>): void {
+    if (!event.currentTarget.hasPointerCapture(event.pointerId) || !dragState) return;
+    if (dragState.kind === "partition-endpoint") {
+      const next = unprojectViewportPointAtHeight(clientToViewport(event), 0, camera);
+      onMovePartitionEndpoint(dragState.endpoint, { x: next.x, z: next.z });
+      return;
+    }
+    if (dragState.kind === "portal") {
+      const next = unprojectViewportPointAtHeight(clientToViewport(event), dragState.heightM, camera);
+      onMovePortalCenter({ x: next.x, z: next.z });
+    }
+  }
+
+  function endPartitionEditorDrag(event: ReactPointerEvent<SVGGElement>): void {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    setDragState(null);
+  }
+
   const northAngle = northViewportAngleDeg(camera);
   return (
     <section
@@ -279,19 +332,56 @@ export function HybridSpatialViewport({
         })}
         <polyline className="hybrid-viewport-room-edge" fill="none" points={points([...projected.floor, projected.floor[0]!])} />
         <polyline className="hybrid-viewport-ceiling-edge" fill="none" points={points([...projected.ceiling, projected.ceiling[0]!])} />
-        {portalOpen ? (
-          <>
-            <polygon className="hybrid-viewport-wall-panel" points={points(projected.partitionNearPanel)} />
-            <polygon className="hybrid-viewport-wall-panel" points={points(projected.partitionFarPanel)} />
-            <polyline
-              className="hybrid-viewport-portal"
-              fill="none"
-              points={points([projected.portalNearBottom, projected.portalNearTop, projected.portalFarTop, projected.portalFarBottom])}
-            />
-          </>
-        ) : (
-          <polygon className="hybrid-viewport-wall-panel is-closed" points={points(projected.partitionClosedPanel)} />
+        {projected.wallPanels.map((wallPanel, index) => (
+          <polygon
+            className={`hybrid-viewport-wall-panel${portal.open ? "" : " is-closed"}`}
+            key={`partition-panel-${index}`}
+            points={points(wallPanel)}
+          />
+        ))}
+        {portal.open && (
+          <polyline className="hybrid-viewport-portal" fill="none" points={points(projected.portalOutline)} />
         )}
+        {(["a", "b"] as const).map((endpoint) => {
+          const screen = endpoint === "a" ? projected.endpointA : projected.endpointB;
+          return (
+            <g
+              aria-label={`Drag partition endpoint ${endpoint.toUpperCase()} in 3D scene`}
+              className="hybrid-viewport-partition-handle"
+              data-position={`${(endpoint === "a" ? partition.a : partition.b).x.toFixed(1)},${(endpoint === "a" ? partition.a : partition.b).z.toFixed(1)}`}
+              data-testid={`hybrid-viewport-partition-${endpoint}`}
+              key={endpoint}
+              onPointerCancel={endPartitionEditorDrag}
+              onPointerDown={(event) => beginPartitionEndpointDrag(event, endpoint)}
+              onPointerMove={dragPartitionEditor}
+              onPointerUp={endPartitionEditorDrag}
+              role="button"
+              tabIndex={0}
+              transform={`translate(${screen.x} ${screen.y})`}
+            >
+              <circle className="hybrid-viewport-partition-handle-hit" r="28" />
+              <rect className="hybrid-viewport-partition-handle-core" height="14" width="14" x="-7" y="-7" />
+              <text className="hybrid-viewport-partition-handle-label" textAnchor="middle" x="0" y="-19">Wall {endpoint.toUpperCase()}</text>
+            </g>
+          );
+        })}
+        <g
+          aria-label="Drag Portal centre along the partition"
+          className="hybrid-viewport-portal-handle"
+          data-position={`${portal.center.x.toFixed(1)},${portal.center.z.toFixed(1)}`}
+          data-testid="hybrid-viewport-portal-handle"
+          onPointerCancel={endPartitionEditorDrag}
+          onPointerDown={beginPortalDrag}
+          onPointerMove={dragPartitionEditor}
+          onPointerUp={endPartitionEditorDrag}
+          role="button"
+          tabIndex={0}
+          transform={`translate(${projected.portalCenter.x} ${projected.portalCenter.y})`}
+        >
+          <circle className="hybrid-viewport-portal-handle-hit" r="30" />
+          <path className="hybrid-viewport-portal-handle-core" d="M-10 10 L-10 -10 L10 -10 L10 10 Z" />
+          <text className="hybrid-viewport-partition-handle-label" textAnchor="middle" x="0" y="-22">Portal</text>
+        </g>
         {(Object.keys(objectPositions) as ObjectId[]).map((objectId) => {
           const position = objectPositions[objectId];
           const screen = projectViewportPoint(position, camera);

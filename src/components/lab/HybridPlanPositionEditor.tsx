@@ -8,6 +8,11 @@ import {
 } from "@/domain/editor/coordinates";
 import type { Vec2 } from "@/domain/scene/types";
 import {
+  portalEdgePoints,
+  type HybridEditablePartition,
+  type HybridEditablePortal,
+} from "@/components/lab/partition-editing";
+import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
   useState,
@@ -36,7 +41,8 @@ type HybridPlanPositionEditorProps = Readonly<{
   listenerHeightM: number;
   radioHeightM: number;
   rainHeightM: number;
-  portalOpen: boolean;
+  partition: HybridEditablePartition;
+  portal: HybridEditablePortal;
   onMoveListener: (position: HybridPlanPosition) => void;
   onMoveSource: (sourceId: "radio" | "rain", position: HybridPlanPosition) => void;
   onMoveListenerHeight: (heightM: number) => void;
@@ -104,7 +110,8 @@ export function HybridPlanPositionEditor({
   listenerHeightM,
   radioHeightM,
   rainHeightM,
-  portalOpen,
+  partition,
+  portal,
   onMoveListener,
   onMoveSource,
   onMoveListenerHeight,
@@ -122,10 +129,11 @@ export function HybridPlanPositionEditor({
     { id: "rain", label: "Rain", heightM: rainHeightM },
   ];
   const listenerPoint = markerPoint(listenerPosition);
-  const partitionTop = wallPoint({ x: 6, y: 0 });
-  const partitionBottom = wallPoint({ x: 6, y: 8 });
-  const doorTop = wallPoint({ x: 6, y: 4.6 });
-  const doorBottom = wallPoint({ x: 6, y: 3.4 });
+  const partitionTop = wallPoint({ x: partition.a.x, y: partition.a.z });
+  const partitionBottom = wallPoint({ x: partition.b.x, y: partition.b.z });
+  const portalEdges = portalEdgePoints(portal, partition);
+  const doorTop = wallPoint({ x: portalEdges.near.x, y: portalEdges.near.z });
+  const doorBottom = wallPoint({ x: portalEdges.far.x, y: portalEdges.far.z });
 
   function applyPosition(target: DragTarget, position: HybridPlanPosition): void {
     if (target === "listener") onMoveListener(position);
@@ -278,7 +286,7 @@ export function HybridPlanPositionEditor({
         </g>
         <rect className="hybrid-plan-room" height="800" width="1200" x="0" y="0" />
         <line className="hybrid-plan-partition" x1={partitionTop.x} x2={partitionBottom.x} y1={partitionTop.y} y2={partitionBottom.y} />
-        {portalOpen ? (
+        {portal.open ? (
           <line className="hybrid-plan-portal" x1={doorTop.x} x2={doorBottom.x} y1={doorTop.y} y2={doorBottom.y} />
         ) : (
           <line className="hybrid-plan-portal hybrid-plan-portal-closed" x1={doorTop.x} x2={doorBottom.x} y1={doorTop.y} y2={doorBottom.y} />

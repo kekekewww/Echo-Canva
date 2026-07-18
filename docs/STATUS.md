@@ -1,5 +1,30 @@
 # Status
 
+## Hybrid editable partition and Portal - 2026-07-18
+
+- promoted the Lab's central partition and hosted Portal to a bounded, editable fixture: coral
+  Wall A/B endpoints and a cyan Portal handle can be dragged in the 3D viewport; equivalent
+  precision controls set endpoint X/Z, material, Portal width, and Portal height
+- constrained all edits to the 12 m by 8 m Lab, a minimum partition length, and a Portal that
+  stays attached to and fits within the edited wall; the Portal centre retains full projection
+  precision on angled walls so it continues to satisfy the shared SceneSpec validator
+- flowed every accepted edit through the V2 document, static geometry, finite-patch direct solver,
+  existing portal-aware audible route, material-aware render parameters, and the reference plan
+- added focused constraint coverage and Chromium verification for both direct 3D handle drags,
+  material selection, and Portal sizing; Classic remains untouched
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 47 files / 293 tests
+- `pnpm e2e` - PASS, 25 Chromium production-server tests
+
+Known limitation: this is one deliberately bounded partition/Portal fixture, not generalized 3D
+wall creation, deletion, or arbitrary room-shell editing. It remains an interactive acoustic
+approximation; Portal routing is not wave diffraction.
+
+Current phase: ready for the Hybrid editable-wall and Portal-to-audio perception gate. Next
+action: obtain a PASS/FAIL verdict before expanding any general 3D authoring or beginning the
+requested Lab UI optimization pass.
+
 ## Hybrid 3D occlusion and portal-aware audio - 2026-07-18
 
 - mapped Hybrid finite-patch direct-path results into the existing persistent Browser HRTF graph:
@@ -25,6 +50,9 @@ still a separate scope.
 
 Current phase: ready for the Hybrid wall-occlusion and Portal-perception listening gate. Next
 action: obtain a PASS/FAIL verdict before starting 3D wall/Portal editing or audible medium work.
+
+Human result: `PASS` (2026-07-18). Direct 3D occlusion and portal-aware audible routing behaved
+as expected; the owner authorized the bounded editable-partition implementation next.
 
 ## Hybrid viewport orbit and wall-surface repair - 2026-07-18
 

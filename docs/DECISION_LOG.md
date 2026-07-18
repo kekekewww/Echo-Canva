@@ -262,3 +262,27 @@ occlusion or portal-route render state, so moving through a wall had no audible 
 composition preserves finite-patch vertical doorway visibility, avoids claiming wave diffraction,
 does not create audio nodes per update, and provides a tested migration path before a full 3D
 visibility-graph solver is warranted.
+
+## D-036 ??Make the Hybrid partition editable before adding general 3D authoring
+
+Decision: Promote the Lab's central partition and its attached Portal from hard-coded presentation
+geometry to one validated, directly editable scene fixture. Expose endpoint handles and a Portal
+centre handle in the 3D viewport, plus compact precision controls for the same wall, Portal, and
+material values. Each edit rebuilds only the Hybrid static geometry needed for that changed wall
+and continues through the existing document validation, direct solver, and audible route path.
+
+Reason: A fixed visual wall prevents the Lab from testing the core authoring-to-audio loop the
+product promises. Starting with one bounded partition preserves the room shell, Classic editor,
+and scene limits while proving direct 3D manipulation, Portal attachment, and material changes
+before considering multi-wall create/delete/rotation tooling.
+
+## D-037 ??Preserve exact Portal attachment on angled editable walls
+
+Decision: Keep the Portal centre at full projected precision whenever an endpoint moves; round
+only values that are true display or bounded-control values, such as rendered labels and Portal
+width/height.
+
+Reason: Rounding the projected centre to 0.1 m moves it microscopically off a sloped host wall.
+The shared V1 SceneSpec validator correctly rejects that detached Portal, causing an otherwise
+valid Hybrid edit to fail document serialization. Exact projection preserves the existing
+validator contract without loosening its geometry guarantees.
