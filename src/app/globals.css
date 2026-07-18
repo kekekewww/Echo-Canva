@@ -1705,6 +1705,12 @@ select {
   stroke-width: 5;
 }
 
+.hybrid-viewport-partition-handle.is-selected .hybrid-viewport-partition-handle-core,
+.hybrid-viewport-portal-handle.is-selected .hybrid-viewport-portal-handle-core {
+  filter: url(#hybrid-viewport-glow);
+  stroke-width: 6;
+}
+
 .hybrid-viewport-object { cursor: move; outline: none; }
 .hybrid-viewport-object-hit { fill: transparent; }
 .hybrid-viewport-source-core { fill: #173539; stroke: var(--signal); stroke-width: 4; }
@@ -1732,6 +1738,19 @@ select {
 }
 
 .hybrid-viewport-object:focus-visible .hybrid-viewport-listener-head {
+  fill: #f3c77f;
+  stroke: #fff1d5;
+  stroke-width: 6;
+}
+
+.hybrid-viewport-object.is-selected .hybrid-viewport-source-core {
+  fill: var(--signal);
+  filter: url(#hybrid-viewport-glow);
+  stroke: var(--signal-bright);
+  stroke-width: 7;
+}
+
+.hybrid-viewport-object.is-selected .hybrid-viewport-listener-head {
   fill: #f3c77f;
   stroke: #fff1d5;
   stroke-width: 6;
@@ -1778,6 +1797,37 @@ select {
   gap: 0.8rem;
 }
 
+.hybrid-selection-card {
+  background:
+    linear-gradient(120deg, rgba(103, 205, 211, 0.14), rgba(231, 173, 94, 0.07)),
+    var(--panel-deep);
+  border: 1px solid #42666b;
+  border-left: 4px solid var(--signal);
+  padding: 0.85rem;
+}
+
+.hybrid-selection-card h3 {
+  color: var(--ink-soft);
+  font-size: 1rem;
+  margin: 0.18rem 0 0.4rem;
+}
+
+.hybrid-selection-card p {
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.hybrid-selection-card .hybrid-selection-hint {
+  border-top: 1px solid rgba(103, 205, 211, 0.2);
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  margin-top: 0.65rem;
+  padding-top: 0.55rem;
+}
+
 .hybrid-control-rack .control-section {
   border-top: 0;
   margin: 0;
@@ -1795,6 +1845,26 @@ select {
   border-top: 1px solid var(--rule-soft);
   margin-top: 0.6rem;
   padding-top: 0.55rem;
+}
+
+.hybrid-control-rack[data-selected-target="listener"] label[for^="listener-"],
+.hybrid-control-rack[data-selected-target="radio"] label[for^="radio-"],
+.hybrid-control-rack[data-selected-target="rain"] label[for^="rain-"] {
+  border-left: 3px solid var(--signal);
+  color: var(--ink-soft);
+  padding-left: 0.45rem;
+}
+
+.hybrid-control-rack[data-selected-target="partition-a"] [data-testid="hybrid-partition-controls"],
+.hybrid-control-rack[data-selected-target="partition-b"] [data-testid="hybrid-partition-controls"],
+.hybrid-control-rack[data-selected-target="portal"] [data-testid="hybrid-partition-controls"] {
+  border-color: #e77f71;
+  box-shadow: inset 3px 0 0 #e77f71;
+}
+
+.hybrid-control-rack[data-selected-target="portal"] [data-testid="hybrid-partition-controls"] {
+  border-color: var(--signal);
+  box-shadow: inset 3px 0 0 var(--signal);
 }
 
 .hybrid-control-card input[type="range"] {

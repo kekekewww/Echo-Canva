@@ -41,6 +41,7 @@ test("keeps an explicit Classic route while the Hybrid lab isolates its beta sol
   await page.mouse.move(viewportRadioCore.x - 50, viewportRadioCore.y + 25);
   await page.mouse.up();
   await expect(viewportRadio).not.toHaveAttribute("data-position", "9.0,1.3,4.0");
+  await expect(page.getByTestId("hybrid-selection-card")).toContainText("Radio");
 
   await page.locator("summary", { hasText: "Open orthographic X/Z and Y reference maps" }).click();
   const plan = page.getByTestId("hybrid-plan-editor");

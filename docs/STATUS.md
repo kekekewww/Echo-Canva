@@ -1,5 +1,28 @@
 # Status
 
+## Hybrid selected-object UI - 2026-07-18
+
+- made the 3D viewport and its precision controls legible as one interaction: dragging a Listener,
+  source, Wall A/B endpoint, or Portal selects it, gives its scene marker a persistent visual
+  focus state, and updates a plain-language selected-object card above the controls
+- added a control hint that identifies what each selected object changes; Listener/source X/Y/Z
+  labels and the wall/Portal card receive matching semantic highlights without removing any
+  keyboard-accessible precision inputs
+- preserved the existing instrument palette as functional vocabulary: amber Listener, cyan
+  source/Portal, and coral barrier endpoints; no acoustic result, model claim, or Classic route
+  changed
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 47 files / 294 tests
+- `pnpm e2e` - PASS, 25 Chromium production-server tests
+
+Known limitation: this is a selection and orientation pass, not general scene authoring. The
+reference maps and precision controls remain visible so direct manipulation never hides a tested
+input path.
+
+Current phase: ready for the Hybrid selected-object usability gate. Next action: obtain a
+PASS/FAIL verdict before further visual-layout changes.
+
 ## Hybrid material contrast repair - 2026-07-18
 
 - traced the editable partition material from control state through the V2 document, finite-patch
@@ -22,6 +45,10 @@ or late-field precision model.
 Current phase: material-audibility repair is ready for the same Hybrid editable-wall gate. Next
 action: obtain a PASS/FAIL retest before beginning a separate UI optimization pass or any
 higher-order reflection research.
+
+Human result: `PASS` (2026-07-18). On a closed-Portal blocked route, the owner confirmed that
+partition material contrast is now observable; first-order reflection fidelity remains a known
+model boundary rather than a defect in this repair.
 
 ## Hybrid editable partition and Portal - 2026-07-18
 

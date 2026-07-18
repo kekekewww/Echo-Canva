@@ -16,7 +16,10 @@ import {
 import { resolveHybridAudibleDirectState } from "@/acoustics/hybrid3d/audible-direct";
 import { renderHybridEarlyReflections } from "@/acoustics/hybrid3d/reflection-rendering";
 import { HybridPlanPositionEditor } from "@/components/lab/HybridPlanPositionEditor";
-import { HybridSpatialViewport } from "@/components/lab/HybridSpatialViewport";
+import {
+  HybridSpatialViewport,
+  type HybridViewportSelection,
+} from "@/components/lab/HybridSpatialViewport";
 import {
   constrainPartitionEndpoint,
   constrainPortalToPartition,
@@ -31,6 +34,43 @@ import { useAudioEngine } from "@/hooks/useAudioEngine";
 import { useHybridDirectPaths } from "@/hooks/useHybridDirectPaths";
 
 type PlanPosition = Readonly<{ x: number; z: number }>;
+
+const SELECTION_COPY: Readonly<Record<HybridViewportSelection, Readonly<{
+  label: string;
+  description: string;
+  controlHint: string;
+}>>> = {
+  listener: {
+    label: "Listener",
+    description: "The listener head sets the reference point for every Browser HRTF direction.",
+    controlHint: "Fine position and vertical pose controls are highlighted below.",
+  },
+  radio: {
+    label: "Radio source",
+    description: "This point source is spatialized relative to the selected listener position.",
+    controlHint: "Fine position and vertical pose controls are highlighted below.",
+  },
+  rain: {
+    label: "Rain source",
+    description: "This point source is spatialized relative to the selected listener position.",
+    controlHint: "Fine position and vertical pose controls are highlighted below.",
+  },
+  "partition-a": {
+    label: "Wall A endpoint",
+    description: "This coral handle moves the first endpoint of the audible barrier in X/Z.",
+    controlHint: "Partition controls are highlighted below; the Portal remains attached.",
+  },
+  "partition-b": {
+    label: "Wall B endpoint",
+    description: "This coral handle moves the second endpoint of the audible barrier in X/Z.",
+    controlHint: "Partition controls are highlighted below; the Portal remains attached.",
+  },
+  portal: {
+    label: "Portal opening",
+    description: "This cyan doorway moves along the partition and can route blocked sound around it.",
+    controlHint: "Portal width, height, and open state are highlighted below.",
+  },
+};
 
 const PLAN_X_RANGE = { min: 0.2, max: 11.8 };
 const PLAN_Z_RANGE = { min: 0.2, max: 7.8 };
@@ -63,6 +103,7 @@ export function HybridDirectLab() {
     heightM: 2.1,
     open: true,
   });
+  const [selectedTarget, setSelectedTarget] = useState<HybridViewportSelection>("listener");
   const [reflectionsEnabled, setReflectionsEnabled] = useState(true);
   const movePartitionEndpoint = useCallback((endpoint: "a" | "b", position: PlanPosition) => {
     const nextPartition = constrainPartitionEndpoint(partition, endpoint, position);
@@ -234,10 +275,12 @@ export function HybridDirectLab() {
             portal={portal}
             onMovePartitionEndpoint={movePartitionEndpoint}
             onMovePortalCenter={(center) => updatePortal({ ...portal, center })}
+            onSelectTarget={setSelectedTarget}
             radioHeightM={radioHeightM}
             radioPosition={radioPlanPosition}
             rainHeightM={rainHeightM}
             rainPosition={rainPlanPosition}
+            selectedTarget={selectedTarget}
           />
 
           <details className="hybrid-orthographic-reference">
@@ -265,7 +308,17 @@ export function HybridDirectLab() {
           </details>
         </div>
 
-        <aside className="hybrid-control-rack" aria-label="Hybrid pose and medium controls">
+        <aside
+          className="hybrid-control-rack"
+          aria-label="Hybrid pose and medium controls"
+          data-selected-target={selectedTarget}
+        >
+      <section className="hybrid-selection-card" data-testid="hybrid-selection-card">
+        <p className="panel-kicker">Selected in scene</p>
+        <h3>{SELECTION_COPY[selectedTarget].label}</h3>
+        <p>{SELECTION_COPY[selectedTarget].description}</p>
+        <p className="hybrid-selection-hint">{SELECTION_COPY[selectedTarget].controlHint}</p>
+      </section>
 
       <section className="control-section hybrid-control-card">
         <p className="panel-kicker">02 / exact position</p>

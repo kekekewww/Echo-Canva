@@ -297,3 +297,15 @@ Reason: The former cap flattened Hard Concrete and Medium Wood to the same gain,
 correctly propagated material change from both the tester and the Browser HRTF graph. A `-36 dB`
 bound remains finite and safe while retaining the difference prescribed by the existing material
 registry. This is a perceptual mapping repair, not a claim of architectural-acoustics accuracy.
+
+## D-039 ??Make the selected 3D object the control-system anchor
+
+Decision: Treat selection as a visual and instructional state in the Hybrid Lab. A direct drag
+selects its Listener, source, wall endpoint, or Portal; the scene marker, selected-object card,
+and corresponding control group use the same semantic colour and language. Retain all existing
+precision controls rather than replacing them with a hidden contextual inspector.
+
+Reason: The tester could move 3D objects but could not reliably tell which numeric controls
+described the manipulated object. A visible selection bridge makes the 3D viewport teach the
+control rack while preserving keyboard access, testability, and the established direct-manipulation
+workflow.

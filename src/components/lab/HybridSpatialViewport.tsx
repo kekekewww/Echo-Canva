@@ -22,6 +22,7 @@ import {
 
 type PlanPosition = Readonly<{ x: number; z: number }>;
 type ObjectId = "listener" | "radio" | "rain";
+export type HybridViewportSelection = ObjectId | "partition-a" | "partition-b" | "portal";
 
 type HybridSpatialViewportProps = Readonly<{
   listenerPosition: PlanPosition;
@@ -38,6 +39,8 @@ type HybridSpatialViewportProps = Readonly<{
   onMoveSourceHeight: (sourceId: "radio" | "rain", heightM: number) => void;
   onMovePartitionEndpoint: (endpoint: "a" | "b", position: PlanPosition) => void;
   onMovePortalCenter: (center: PlanPosition) => void;
+  selectedTarget: HybridViewportSelection;
+  onSelectTarget: (target: HybridViewportSelection) => void;
 }>;
 
 type DragState =
@@ -91,6 +94,8 @@ export function HybridSpatialViewport({
   onMoveSourceHeight,
   onMovePartitionEndpoint,
   onMovePortalCenter,
+  selectedTarget,
+  onSelectTarget,
 }: HybridSpatialViewportProps) {
   const [camera, setCamera] = useState<ViewportCamera>(DEFAULT_VIEWPORT_CAMERA);
   const [dragState, setDragState] = useState<DragState | null>(null);
@@ -209,6 +214,7 @@ export function HybridSpatialViewport({
   function beginObjectDrag(event: ReactPointerEvent<SVGGElement>, objectId: ObjectId): void {
     event.preventDefault();
     event.stopPropagation();
+    onSelectTarget(objectId);
     event.currentTarget.setPointerCapture(event.pointerId);
     setDragState({
       kind: "object",
@@ -242,6 +248,7 @@ export function HybridSpatialViewport({
   ): void {
     event.preventDefault();
     event.stopPropagation();
+    onSelectTarget(`partition-${endpoint}`);
     event.currentTarget.setPointerCapture(event.pointerId);
     setDragState({ kind: "partition-endpoint", endpoint });
   }
@@ -249,6 +256,7 @@ export function HybridSpatialViewport({
   function beginPortalDrag(event: ReactPointerEvent<SVGGElement>): void {
     event.preventDefault();
     event.stopPropagation();
+    onSelectTarget("portal");
     event.currentTarget.setPointerCapture(event.pointerId);
     setDragState({ kind: "portal", heightM: portal.heightM * 0.5 });
   }
@@ -291,9 +299,10 @@ export function HybridSpatialViewport({
         </div>
       </header>
       <p className="control-note" id="hybrid-viewport-help">
-        Cyan objects are sources; amber is the listener head. Normal drag moves X/Z. Hold Shift while
-        dragging an object to change Y height. The mouse wheel zooms without scrolling this page;
-        north is declared as +Z.
+        Amber is the listener, cyan objects are sources, coral handles edit the wall, and the cyan
+        doorway edits the Portal. Drag selects an object; normal drag moves X/Z, while Shift-drag
+        changes an object&apos;s Y height. The mouse wheel zooms without scrolling this page; north is
+        declared as +Z.
       </p>
       <svg
         aria-describedby="hybrid-viewport-help"
@@ -347,7 +356,7 @@ export function HybridSpatialViewport({
           return (
             <g
               aria-label={`Drag partition endpoint ${endpoint.toUpperCase()} in 3D scene`}
-              className="hybrid-viewport-partition-handle"
+              className={`hybrid-viewport-partition-handle${selectedTarget === `partition-${endpoint}` ? " is-selected" : ""}`}
               data-position={`${(endpoint === "a" ? partition.a : partition.b).x.toFixed(1)},${(endpoint === "a" ? partition.a : partition.b).z.toFixed(1)}`}
               data-testid={`hybrid-viewport-partition-${endpoint}`}
               key={endpoint}
@@ -367,7 +376,7 @@ export function HybridSpatialViewport({
         })}
         <g
           aria-label="Drag Portal centre along the partition"
-          className="hybrid-viewport-portal-handle"
+          className={`hybrid-viewport-portal-handle${selectedTarget === "portal" ? " is-selected" : ""}`}
           data-position={`${portal.center.x.toFixed(1)},${portal.center.z.toFixed(1)}`}
           data-testid="hybrid-viewport-portal-handle"
           onPointerCancel={endPartitionEditorDrag}
@@ -389,7 +398,7 @@ export function HybridSpatialViewport({
           return (
             <g
               aria-label={`Drag ${style.label} in 3D scene; X ${position.x.toFixed(1)} m, Y ${position.y.toFixed(1)} m, Z ${position.z.toFixed(1)} m`}
-              className={`hybrid-viewport-object ${style.className}`}
+              className={`hybrid-viewport-object ${style.className}${selectedTarget === objectId ? " is-selected" : ""}`}
               data-position={`${position.x.toFixed(1)},${position.y.toFixed(1)},${position.z.toFixed(1)}`}
               data-testid={`hybrid-viewport-${objectId}`}
               key={objectId}
