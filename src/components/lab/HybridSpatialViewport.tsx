@@ -290,7 +290,7 @@ export function HybridSpatialViewport({
       <header className="hybrid-viewport-header">
         <div>
           <p className="panel-kicker">3D scene viewport</p>
-          <h3>Drag objects to move them. Drag empty space to orbit 360°.</h3>
+          <h3>Orbit · select · place</h3>
         </div>
         <div className="hybrid-view-buttons" aria-label="Camera views">
           <button onClick={() => setCamera({ yawDeg: 0, pitchDeg: 78, zoom: 1 })} type="button">Top</button>
@@ -298,11 +298,9 @@ export function HybridSpatialViewport({
           <button onClick={() => setCamera(DEFAULT_VIEWPORT_CAMERA)} type="button">Reset view</button>
         </div>
       </header>
-      <p className="control-note" id="hybrid-viewport-help">
-        Amber is the listener, cyan objects are sources, coral handles edit the wall, and the cyan
-        doorway edits the Portal. Drag selects an object; normal drag moves X/Z, while Shift-drag
-        changes an object&apos;s Y height. The mouse wheel zooms without scrolling this page; north is
-        declared as +Z.
+      <p className="hybrid-viewport-help" id="hybrid-viewport-help">
+        <span>Amber · listener</span><span>Cyan · source / Portal</span><span>Coral · wall</span>
+        <span>Drag · X/Z</span><span>Shift-drag · Y</span><span>Wheel · zoom</span><span>North · +Z</span>
       </p>
       <svg
         aria-describedby="hybrid-viewport-help"

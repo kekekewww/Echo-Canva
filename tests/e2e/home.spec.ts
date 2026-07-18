@@ -42,6 +42,12 @@ test("keeps an explicit Classic route while the Hybrid lab isolates its beta sol
   await page.mouse.up();
   await expect(viewportRadio).not.toHaveAttribute("data-position", "9.0,1.3,4.0");
   await expect(page.getByTestId("hybrid-selection-card")).toContainText("Radio");
+  await page.getByRole("button", { name: "Listener", exact: true }).click();
+  await expect(page.getByTestId("hybrid-selection-card")).toContainText("Listener");
+  await expect(page.getByLabel("Listener plan X")).toBeVisible();
+  await expect(page.getByLabel("Radio plan X")).toBeHidden();
+  await page.getByRole("button", { name: "Radio", exact: true }).click();
+  await expect(page.getByTestId("hybrid-selection-card")).toContainText("Radio");
 
   await page.locator("summary", { hasText: "Open orthographic X/Z and Y reference maps" }).click();
   const plan = page.getByTestId("hybrid-plan-editor");
@@ -107,7 +113,9 @@ test("keeps an explicit Classic route while the Hybrid lab isolates its beta sol
   await expect(radio).toHaveAttribute("data-render-route", "blocked");
   await page.getByLabel("Radio plan Z").fill("1.5");
   await page.getByLabel("Radio elevation").fill("1.5");
+  await page.getByRole("button", { name: "Listener", exact: true }).click();
   await page.getByLabel("Listener plan Z").fill("1.5");
+  await page.getByRole("button", { name: "Radio", exact: true }).click();
   await page.getByRole("button", { name: "Open partition portal" }).click();
   await expect(radio).toHaveAttribute("data-route", "blocked");
   await expect(radio).toHaveAttribute("data-render-route", "portal");
@@ -132,7 +140,9 @@ test("keeps an explicit Classic route while the Hybrid lab isolates its beta sol
   const [, endpointAZ] = endpointAAfterDrag.split(",");
   await page.getByLabel("Partition endpoint A X").fill("5");
   await expect(page.getByTestId("hybrid-viewport-partition-a")).toHaveAttribute("data-position", `5.0,${endpointAZ}`);
+  await page.getByRole("button", { name: "Radio", exact: true }).click();
   await page.getByLabel("Radio plan Z").fill("4");
+  await page.getByRole("button", { name: "Listener", exact: true }).click();
   await page.getByLabel("Listener plan Z").fill("4");
   await expect(radio).toHaveAttribute("data-render-route", "blocked");
   const concreteGain = await radio.getAttribute("data-render-gain");
@@ -157,6 +167,7 @@ test("keeps an explicit Classic route while the Hybrid lab isolates its beta sol
   await expect(portalHandle).not.toHaveAttribute("data-position", portalPosition ?? "");
 
   const atmosphere = page.getByTestId("atmosphere-preview");
+  await atmosphere.locator("summary").click();
   const speed = atmosphere.locator("[data-speed-mps]");
   const initialSpeed = await speed.getAttribute("data-speed-mps");
   await page.getByLabel("Atmosphere temperature").fill("0");
@@ -168,7 +179,7 @@ test("keeps an explicit Classic route while the Hybrid lab isolates its beta sol
   await expect(highFrequencyLoss).not.toHaveAttribute("data-loss-4khz-db", initialHighFrequencyLoss ?? "");
   await page.getByLabel("Atmosphere pressure").fill("900");
   await expect(page.getByLabel("Atmosphere pressure")).toHaveValue("900");
-  await expect(atmosphere).toContainText("do not yet alter this Lab's HRTF");
+  await expect(atmosphere).toContainText("does not alter HRTF rendering");
 
   await page.getByRole("link", { name: "Open Classic 2.5D" }).click();
   await expect(page).toHaveURL(/\/classic$/);

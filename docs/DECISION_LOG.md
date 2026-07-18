@@ -309,3 +309,16 @@ Reason: The tester could move 3D objects but could not reliably tell which numer
 described the manipulated object. A visible selection bridge makes the 3D viewport teach the
 control rack while preserving keyboard access, testability, and the established direct-manipulation
 workflow.
+
+## D-040 ??Use a modelling-workbench hierarchy instead of a persistent control wall
+
+Decision: Add a compact scene Outliner and make the current scene selection determine which
+Transform or barrier controls remain visible. Convert repeated prose into short interaction cards,
+while retaining all selected precision controls, the direct-manipulation viewport, and an explicit
+collapsed environment-preview card.
+
+Reason: The prior selection bridge explained what was selected but still required scanning every
+unrelated slider. A game-engine-oriented workbench needs scene navigation, an active object, and a
+contextual inspector so object manipulation and exact values are one coherent operation. The
+environment card remains intentionally preview-only and states that it does not alter Browser HRTF
+rendering, preventing the more compact UI from obscuring a model boundary.

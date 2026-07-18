@@ -1,5 +1,29 @@
 # Status
 
+## Hybrid modelling-workbench UI - 2026-07-19
+
+- replaced the always-visible parameter wall with a compact Scene Outliner: Listener, Radio,
+  Rain, Wall, and Portal now act as explicit scene selections alongside direct viewport selection
+- made the selected object the sole focus of the Transform cards: Listener/source selection shows
+  only its X/Z and Y controls; Wall endpoints and Portal selection suppress unrelated pose cards
+  and expose only their relevant barrier controls
+- converted long interaction explanations to short functional cards: the viewport has a compact
+  colour/gesture legend, each selection has a one-purpose hint card, and the atmospheric preview
+  is a collapsed card that keeps its non-audible/HRTF limitation visible when opened
+- preserved the existing direct manipulation, keyboard-accessible range inputs, solver state,
+  diagnostics, and Classic route; this is a Hybrid-only workbench presentation change
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 47 files / 294 tests
+- `pnpm e2e` - PASS, 25 Chromium production-server tests
+
+Known limitation: this establishes an authoring-style interaction hierarchy for the one bounded
+Hybrid fixture. It does not yet create/delete arbitrary 3D room-shell walls or export a game-engine
+asset format.
+
+Current phase: ready for the Hybrid modelling-workbench usability gate. Next action: obtain a
+PASS/FAIL verdict before any further UI visual-polish or generalized 3D authoring work.
+
 ## Hybrid selected-object UI - 2026-07-18
 
 - made the 3D viewport and its precision controls legible as one interaction: dragging a Listener,

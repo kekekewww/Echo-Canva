@@ -42,35 +42,47 @@ const SELECTION_COPY: Readonly<Record<HybridViewportSelection, Readonly<{
 }>>> = {
   listener: {
     label: "Listener",
-    description: "The listener head sets the reference point for every Browser HRTF direction.",
-    controlHint: "Fine position and vertical pose controls are highlighted below.",
+    description: "Reference head for Browser HRTF direction.",
+    controlHint: "Drag in the view for X/Z · Shift-drag for Y.",
   },
   radio: {
     label: "Radio source",
-    description: "This point source is spatialized relative to the selected listener position.",
-    controlHint: "Fine position and vertical pose controls are highlighted below.",
+    description: "Looping point source, positioned relative to the listener.",
+    controlHint: "Drag in the view for X/Z · Shift-drag for Y.",
   },
   rain: {
     label: "Rain source",
-    description: "This point source is spatialized relative to the selected listener position.",
-    controlHint: "Fine position and vertical pose controls are highlighted below.",
+    description: "Looping point source, positioned relative to the listener.",
+    controlHint: "Drag in the view for X/Z · Shift-drag for Y.",
   },
   "partition-a": {
     label: "Wall A endpoint",
-    description: "This coral handle moves the first endpoint of the audible barrier in X/Z.",
-    controlHint: "Partition controls are highlighted below; the Portal remains attached.",
+    description: "First endpoint of the audible wall.",
+    controlHint: "Drag on the floor plane; the Portal stays attached.",
   },
   "partition-b": {
     label: "Wall B endpoint",
-    description: "This coral handle moves the second endpoint of the audible barrier in X/Z.",
-    controlHint: "Partition controls are highlighted below; the Portal remains attached.",
+    description: "Second endpoint of the audible wall.",
+    controlHint: "Drag on the floor plane; the Portal stays attached.",
   },
   portal: {
     label: "Portal opening",
-    description: "This cyan doorway moves along the partition and can route blocked sound around it.",
-    controlHint: "Portal width, height, and open state are highlighted below.",
+    description: "Doorway used for portal-aware sound propagation.",
+    controlHint: "Drag along the wall, then set opening and dimensions.",
   },
 };
+
+const OUTLINER_ITEMS: readonly Readonly<{
+  target: HybridViewportSelection;
+  label: string;
+  glyph: string;
+}>[] = [
+  { target: "listener", label: "Listener", glyph: "●" },
+  { target: "radio", label: "Radio", glyph: "◉" },
+  { target: "rain", label: "Rain", glyph: "◉" },
+  { target: "partition-a", label: "Wall", glyph: "▮" },
+  { target: "portal", label: "Portal", glyph: "▣" },
+];
 
 const PLAN_X_RANGE = { min: 0.2, max: 11.8 };
 const PLAN_Z_RANGE = { min: 0.2, max: 7.8 };
@@ -254,8 +266,8 @@ export function HybridDirectLab() {
       <div className="hybrid-workbench-grid">
         <div className="hybrid-spatial-zone">
           <div className="hybrid-zone-heading">
-            <p className="panel-kicker">01 / spatial pose</p>
-            <p>The viewport is the primary 3D control. Its cyan/amber markers are the actual inputs to the Hybrid HRTF pose.</p>
+            <p className="panel-kicker">Scene viewport</p>
+            <p>Drag a marker to edit it; select empty space to orbit.</p>
           </div>
 
           <HybridSpatialViewport
@@ -313,21 +325,37 @@ export function HybridDirectLab() {
           aria-label="Hybrid pose and medium controls"
           data-selected-target={selectedTarget}
         >
+      <section className="hybrid-outliner" data-testid="hybrid-scene-outliner">
+        <div className="hybrid-outliner-title">
+          <p className="panel-kicker">Scene</p>
+          <span>Outliner</span>
+        </div>
+        <div className="hybrid-outliner-items" role="toolbar" aria-label="Select a scene object">
+          {OUTLINER_ITEMS.map((item) => {
+            const active = selectedTarget === item.target || (item.target === "partition-a" && selectedTarget === "partition-b");
+            return (
+              <button
+                aria-pressed={active}
+                className={`hybrid-outliner-item ${item.target}`}
+                key={item.target}
+                onClick={() => setSelectedTarget(item.target)}
+                type="button"
+              >
+                <span aria-hidden="true">{item.glyph}</span>{item.label}
+              </button>
+            );
+          })}
+        </div>
+      </section>
       <section className="hybrid-selection-card" data-testid="hybrid-selection-card">
-        <p className="panel-kicker">Selected in scene</p>
-        <h3>{SELECTION_COPY[selectedTarget].label}</h3>
+        <p className="panel-kicker">Selected · {SELECTION_COPY[selectedTarget].label}</p>
         <p>{SELECTION_COPY[selectedTarget].description}</p>
         <p className="hybrid-selection-hint">{SELECTION_COPY[selectedTarget].controlHint}</p>
       </section>
 
-      <section className="control-section hybrid-control-card">
-        <p className="panel-kicker">02 / exact position</p>
-        <h3>Fine X/Z controls</h3>
-        <p className="control-note">
-          Listener and source positions use metres inside this 12 m × 8 m room. A source to the
-          listener&apos;s left or right should move to the corresponding ear; moving it in Z changes
-          front/back distance and angle.
-        </p>
+      <section className="control-section hybrid-control-card hybrid-pose-card">
+        <p className="panel-kicker">Transform</p>
+        <h3>Ground plane · X / Z</h3>
         <label className="field-label" htmlFor="listener-plan-x">
           {planAxisLabel("Listener", "X", listenerPlanPosition.x)}
         </label>
@@ -437,9 +465,9 @@ export function HybridDirectLab() {
         </button>
       </section>
 
-      <section className="control-section hybrid-control-card">
-        <p className="panel-kicker">03 / vertical pose</p>
-        <h3>Fine Y controls</h3>
+      <section className="control-section hybrid-control-card hybrid-height-card">
+        <p className="panel-kicker">Transform</p>
+        <h3>Elevation · Y</h3>
         <label className="field-label" htmlFor="listener-height">Listener elevation: {format(listenerHeightM)} m</label>
         <input
           id="listener-height"
@@ -473,23 +501,11 @@ export function HybridDirectLab() {
           type="range"
           value={rainHeightM}
         />
-        <button
-          aria-pressed={portal.open}
-          className="secondary-action"
-          onClick={() => updatePortal({ ...portal, open: !portal.open })}
-          type="button"
-        >
-          {portal.open ? "Close partition portal" : "Open partition portal"}
-        </button>
       </section>
 
-      <section className="control-section hybrid-control-card" data-testid="hybrid-partition-controls">
-        <p className="panel-kicker">04 / partition and Portal</p>
-        <h3>Edit the audible barrier</h3>
-        <p className="control-note">
-          Drag the coral Wall A/B handles or cyan Portal handle in the viewport. These controls are
-          the precise alternative; Portal remains attached to the partition automatically.
-        </p>
+      <section className="control-section hybrid-control-card hybrid-partition-card" data-testid="hybrid-partition-controls">
+        <p className="panel-kicker">Barrier</p>
+        <h3>Wall and Portal</h3>
         <label className="field-label" htmlFor="partition-a-x">Wall A X: {format(partition.a.x)} m</label>
         <input id="partition-a-x" aria-label="Partition endpoint A X" max="11.8" min="0.2" onChange={(event) => movePartitionEndpoint("a", { ...partition.a, x: Number(event.target.value) })} step="0.1" type="range" value={partition.a.x} />
         <label className="field-label" htmlFor="partition-a-z">Wall A Z: {format(partition.a.z)} m</label>
@@ -502,36 +518,40 @@ export function HybridDirectLab() {
         <select aria-label="Partition material" id="partition-material" onChange={(event) => setPartition((current) => ({ ...current, materialId: event.target.value }))} value={partition.materialId}>
           {MATERIALS.map((material) => <option key={material.id} value={material.id}>{material.displayName}</option>)}
         </select>
+        <button
+          aria-pressed={portal.open}
+          className="secondary-action hybrid-portal-state"
+          onClick={() => updatePortal({ ...portal, open: !portal.open })}
+          type="button"
+        >
+          {portal.open ? "Close partition portal" : "Open partition portal"}
+        </button>
         <label className="field-label" htmlFor="portal-width">Portal width: {format(portal.widthM)} m</label>
         <input id="portal-width" aria-label="Portal width" max="3" min="0.4" onChange={(event) => updatePortal({ ...portal, widthM: Number(event.target.value) })} step="0.1" type="range" value={portal.widthM} />
         <label className="field-label" htmlFor="portal-height">Portal height: {format(portal.heightM)} m</label>
         <input id="portal-height" aria-label="Portal height" max="2.8" min="0.4" onChange={(event) => updatePortal({ ...portal, heightM: Number(event.target.value) })} step="0.1" type="range" value={portal.heightM} />
       </section>
 
-      <section className="control-section hybrid-control-card" data-testid="atmosphere-preview">
-        <p className="panel-kicker">05 / medium model</p>
-        <h3>Atmospheric preview</h3>
-        <p className="control-note">
-          Adjust the bounded air model used for the P6 propagation preview. These controls update the
-          displayed medium calculations only; they do not yet alter this Lab&apos;s HRTF, direct delay,
-          reflections, or audible sound.
-        </p>
-        <label className="field-label" htmlFor="atmosphere-temperature">
-          Temperature: {format(atmosphere.temperatureC, 0)} °C
-        </label>
-        <input
-          aria-label="Atmosphere temperature"
-          id="atmosphere-temperature"
-          max="50"
-          min="-20"
-          onChange={(event) => setAtmosphere((current) => ({
-            ...current,
-            temperatureC: Number(event.target.value),
-          }))}
-          step="1"
-          type="range"
-          value={atmosphere.temperatureC}
-        />
+      <details className="hybrid-atmosphere-card" data-testid="atmosphere-preview">
+        <summary>Environment preview <span>not audible</span></summary>
+        <div className="hybrid-atmosphere-body">
+          <p className="hybrid-atmosphere-note">Preview only · does not alter HRTF rendering.</p>
+          <label className="field-label" htmlFor="atmosphere-temperature">
+            Temperature: {format(atmosphere.temperatureC, 0)} °C
+          </label>
+          <input
+            aria-label="Atmosphere temperature"
+            id="atmosphere-temperature"
+            max="50"
+            min="-20"
+            onChange={(event) => setAtmosphere((current) => ({
+              ...current,
+              temperatureC: Number(event.target.value),
+            }))}
+            step="1"
+            type="range"
+            value={atmosphere.temperatureC}
+          />
         <label className="field-label" htmlFor="atmosphere-humidity">
           Relative humidity: {format(atmosphere.relativeHumidity * 100, 0)}%
         </label>
@@ -589,7 +609,8 @@ export function HybridDirectLab() {
         >
           Reset atmospheric medium
         </button>
-      </section>
+        </div>
+      </details>
         </aside>
       </div>
 
