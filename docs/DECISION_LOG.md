@@ -161,3 +161,13 @@ Reason: Low-discrepancy deterministic samples make direction coverage, visibilit
 Decision: Run the production Playwright suite with one browser worker instead of sixteen concurrent browser processes.
 
 Reason: The 50 ms selection and keyboard-edit budget represents one judge-facing production session. A full-suite parallel run can saturate the host and delay a DOM mutation without changing the product implementation; the focused test passed immediately. One worker keeps the integration suite reproducible and preserves the original 50 ms threshold instead of weakening or skipping it.
+
+## D-027 ??Normalize P5 stationary energy by emitted directions
+
+Decision: The P5 stationary receiver-connection benchmark reports mid-band energy per emitted
+Fibonacci direction, as well as connection rate, CV, and p95 frame-to-frame energy delta.
+
+Reason: Averaging only accepted receiver connections hides missed rays and makes a narrow opening
+look artificially stable. Direction-normalized energy preserves that loss in the convergence
+signal. This is an instrumented deterministic baseline, not evidence that the planned late-field
+thresholds or a renderable diffuse tail have been achieved.

@@ -1,5 +1,26 @@
 # Status
 
+## Hybrid 3D P5-B stationary receiver-connection benchmark - 2026-07-18
+
+- added a deterministic P5 stationary-frame benchmark over progressively rotated Fibonacci
+  directions; it reports normalized mid energy, connection rate, CV, and p95 frame-to-frame
+  energy change without modifying the audio graph
+- added deterministic fixed-budget support for 128, 512, 2,048, and 8,192 samples, plus finite
+  empty-scene and invalid-input coverage
+- documented the deliberate boundary: this is not yet a random/Sobol comparison, EDC reference,
+  moving-listener study, CPU claim, or late-field renderer
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 42 files / 274 tests
+- `pnpm e2e` - PASS, 25 Chromium production-server tests
+
+Known limitation: P5's existing data-only boundary remains in force. The new benchmark measures
+one deterministic sampling family and does not authorize an audible diffuse/late-field path.
+
+Current phase: P5 has a deterministic stationary benchmark. Next action: preserve P5 as data-only
+until reference-energy and trajectory experiments exist; begin P6 six-band material and medium
+foundations separately.
+
 ## Hybrid 3D P5-A Fibonacci receiver connections - 2026-07-18
 
 - added deterministic Fibonacci sphere and progressive golden-angle frame rotation

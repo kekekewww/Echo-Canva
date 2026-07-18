@@ -35,9 +35,30 @@ from a previous geometry leaking into a new scene.
 - ray max distance remains correct for non-unit directions;
 - same-signature frames accumulate, while a new signature resets atomically.
 
+## P5-B stationary benchmark
+
+`benchmarkReceiverConnectionStationary` repeats progressive Fibonacci sets for a fixed source,
+listener, and geometry. It reports each frame's connection count and **mid energy per emitted
+direction**, then exposes:
+
+- total sample and connection counts;
+- connection rate;
+- mean normalized mid energy;
+- frame-energy coefficient of variation (CV);
+- p95 absolute frame-to-frame energy delta in dB.
+
+Normalizing by emitted directions is deliberate: missed rays remain part of the convergence
+signal, rather than disappearing when only accepted connections are averaged. The helper can also
+run the plan's fixed sample budgets of 128, 512, 2,048, and 8,192 with identical geometry.
+
+The current unit fixture proves deterministic output, finite metrics, empty-scene behavior, and
+budget accounting. It **does not** claim the plan's broader CV, EDC, CPU, random/Sobol, narrow
+portal, or moving-listener thresholds. Those require reference-energy and trajectory experiments
+before any late-field runtime feature can be enabled.
+
 ## Boundary
 
-P5-A has no user-visible control and does not feed audio. It is the deterministic data foundation
+P5 has no user-visible control and does not feed audio. It is the deterministic data foundation
 for later convergence comparisons and a possible directional late-field renderer. Random sampling,
-Sobol comparisons, receiver-radius heuristics, and any late-field audio remain out of scope for
-this slice.
+Sobol comparisons, receiver-radius heuristics, moving-listener trajectories, and any late-field
+audio remain out of scope for this slice.
