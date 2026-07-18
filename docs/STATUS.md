@@ -30,6 +30,12 @@ Final follow-up: bare-domain, protocol-relative, and `mailto:` URL-like model co
 
 Local credential status: `OPENAI_API_KEY` is absent from both the current process and `.env.local`. The candidate's no-key fallback is covered and remains available, but no live GPT-5.6 evaluation has been claimed or performed. Configure the key server-side before executing Human Gate D steps 1-4; Step 5 deliberately verifies the no-key behavior.
 
+## Gate D no-key manual validation - 2026-07-18
+
+The human manually confirmed that both **Generate scene** and **Explain selected acoustics** return their actionable unavailable messages while preserving the current scene. Preset changes, Listener/source movement, Portal and material edits, playback, and Raw/Simulated switching remained operational after the errors, with no observed white screen or editor lock-up.
+
+This validates Human Gate D Step 5 only. Steps 1-4, including live GPT-5.6 compilation and evidence-grounded explanation, remain pending a server-side API key.
+
 Current checklist state: Build Checklist items 5 (direct occlusion), 6 (explicit portal routing), 7 (first-order early reflections), 8 (room estimation and late reverberation), and 9 (GPT-5.6 scene compiler) are implemented and verified. Gate D now adds a server-only grounded explanation endpoint and matching-frame evidence UI; item 10 remains open for JSON import/export and its remaining polish scope.
 
 ## Gate D Task 3 verification - 2026-07-18
