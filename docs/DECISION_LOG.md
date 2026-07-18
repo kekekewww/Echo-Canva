@@ -192,3 +192,14 @@ separate elevation control and leave wall/portal editing in Classic.
 Reason: The Lab's original sliders made the coordinate contract testable but did not make spatial
 relationships immediately legible. A minimal map directly connects a drag direction to the
 resulting HRTF position while avoiding a second, divergent scene-editor implementation.
+
+## D-030 ??Make P7 directional late data histogram-first and renderer-free
+
+Decision: Bin validated P5 receiver connections into deterministic Fibonacci direction and delay
+cells, preserving energy/count accounting and an energy-weighted centroid before allocating any
+late-field virtual sources.
+
+Reason: A directional late renderer must be judged on energy, timing, source count, head-motion,
+and continuity. The histogram is a small deterministic contract that can be tested independently;
+feeding unmeasured connection samples into the current audio graph would make the late field
+audibly unstable without establishing whether its directional data are valid.

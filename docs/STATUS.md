@@ -1,5 +1,23 @@
 # Status
 
+## Hybrid 3D P7-A directional late-field histogram - 2026-07-18
+
+- added a deterministic 12/24-direction Fibonacci histogram for P5 receiver connections, binned
+  by listener-relative arrival direction and bounded delay cells
+- records retained/discarded counts, linear mid energy, and an energy-weighted directional
+  centroid; max delay is excluded to prevent a zero-width terminal time cell
+- no output is routed to the Web Audio graph and `directionalLateReverb` remains default-off
+- `pnpm lint` - PASS
+- `pnpm typecheck` - PASS
+- `pnpm test` - PASS, 44 files / 282 tests
+- `pnpm e2e` - PASS, 25 Chromium production-server tests
+
+Known limitation: there is no directional late renderer, multi-band decay field, moving-listener
+trajectory test, virtual-source allocator, or head-rotation continuity evidence yet.
+
+Current phase: P7-A data model is pending automated verification. Next action: verify this
+isolated histogram before considering a separately gated, non-default late-field audio experiment.
+
 ## Hybrid 3D Lab plan-position editor - 2026-07-18
 
 - added a visually constrained 12 m × 8 m X/Z plan map for Listener, Radio, and Rain; it shows
