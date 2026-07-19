@@ -1,5 +1,18 @@
 # Status
 
+## Unified workspace Task 2 — independent persistence and history — 2026-07-19
+
+- added separate versioned localStorage records for Classic 2.5D and Hybrid 3D projects
+- unreadable cache data now falls back safely without overwriting the original record
+- added bounded 50-step undo/redo histories; selection-only changes do not pollute history
+- current-mode reset is undoable and does not alter the other mode
+- added a shared project hook with 150 ms persistence debounce plus mode-switch/pagehide flush
+- `pnpm lint` — PASS
+- `pnpm typecheck` — PASS
+- `pnpm test` — PASS, 51 files / 309 tests
+
+Current phase: unified workspace implementation is in progress. Next action: build the shared modelling shell and exact numeric scrub controls.
+
 ## Unified workspace Task 1 — authoring project and engine projections — 2026-07-19
 
 - added independent versioned Classic 2.5D and Hybrid 3D authoring projects
