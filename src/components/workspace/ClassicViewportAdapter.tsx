@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 
 import { SceneEditor } from "@/components/workbench/SceneEditor";
+import { CLASSIC_VIEWPORT, frameClassicBounds } from "@/components/workspace/classic-viewport-math";
+import type { Rect } from "@/domain/editor/coordinates";
 import type { EditorAction } from "@/domain/editor/reducer";
 import type { EditorSelection } from "@/domain/editor/state";
 import { projectClassicScene } from "@/domain/workspace/projections";
@@ -43,6 +45,29 @@ export function ClassicViewportAdapter({ project, dispatch, audioEngine, wallPla
     : project.selection?.type === "source" || project.selection?.type === "wall" || project.selection?.type === "portal"
       ? { type: project.selection.type, id: project.selection.id }
       : null;
+
+  const onCameraChange = useCallback((camera: WorkspaceProject["view"]["camera"]) => {
+    dispatch({ type: "SET_VIEW_STATE", changes: { camera } });
+  }, [dispatch]);
+
+  function frameAll(): void {
+    const xs = scene.room.outerPolygon.map(({ x }) => x);
+    const ys = scene.room.outerPolygon.map(({ y }) => y);
+    const worldBounds: Rect = {
+      minX: Math.min(...xs),
+      minY: Math.min(...ys),
+      width: Math.max(...xs) - Math.min(...xs),
+      height: Math.max(...ys) - Math.min(...ys),
+    };
+    const points = [
+      ...scene.room.outerPolygon,
+      ...scene.walls.flatMap(({ a, b }) => [a, b]),
+      ...scene.portals.map(({ center }) => center),
+      ...scene.sources.map(({ position }) => position),
+      scene.listener.position,
+    ];
+    onCameraChange(frameClassicBounds(points, worldBounds, CLASSIC_VIEWPORT, project.view.camera));
+  }
 
   function adapt(action: EditorAction): void {
     switch (action.type) {
@@ -87,8 +112,10 @@ export function ClassicViewportAdapter({ project, dispatch, audioEngine, wallPla
       <header className="viewport-tools">
         <span>{scene.name}</span>
         <span>{acoustic.fallbackNotice ? "Stopped · Worker unavailable" : acceptedFrame ? "Worker" : "Starting"}</span>
+        <button onClick={() => onCameraChange({ ...project.view.camera, zoom: 1, panX: 0, panY: 0 })} type="button">Home</button>
+        <button onClick={frameAll} type="button">Frame All</button>
       </header>
-      <SceneEditor acousticFrame={acceptedFrame} dispatch={adapt} onWallPlacementPoint={onWallPlacementPoint} scene={scene} selection={selection} wallPlacementFirst={wallPlacementFirst} />
+      <SceneEditor acousticFrame={acceptedFrame} camera={project.view.camera} dispatch={adapt} onCameraChange={onCameraChange} onWallPlacementPoint={onWallPlacementPoint} scene={scene} selection={selection} wallPlacementFirst={wallPlacementFirst} />
     </section>
   );
 }

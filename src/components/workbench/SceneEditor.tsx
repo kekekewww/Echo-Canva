@@ -1,6 +1,8 @@
 "use client";
 
 import {
+  useEffect,
+  useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
@@ -9,31 +11,51 @@ import {
 
 import {
   clientPointToSvg,
-  svgToWorld,
-  worldToSvg,
   type Rect,
 } from "@/domain/editor/coordinates";
+import {
+  CLASSIC_SVG_VIEW_BOX,
+  CLASSIC_VIEWPORT,
+  projectClassicPoint,
+  unprojectClassicPoint,
+  zoomClassicCameraAtPoint,
+} from "@/components/workspace/classic-viewport-math";
 import type { EditorAction } from "@/domain/editor/reducer";
 import type { EditorSelection } from "@/domain/editor/state";
 import type { SceneSpec, Vec2 } from "@/domain/scene/types";
 import type { AcousticFrame } from "@/acoustics/compute-frame";
+import type { WorkspaceCamera } from "@/domain/workspace/types";
 
-const SVG_WIDTH = 900;
-const SVG_HEIGHT = 600;
-const SVG_VIEW_BOX: Rect = { minX: 0, minY: 0, width: SVG_WIDTH, height: SVG_HEIGHT };
-const VIEWPORT: Rect = { minX: 54, minY: 36, width: 792, height: 528 };
+const SVG_WIDTH = CLASSIC_SVG_VIEW_BOX.width;
+const SVG_HEIGHT = CLASSIC_SVG_VIEW_BOX.height;
 const KEYBOARD_STEP_M = 0.1;
+const FALLBACK_CLASSIC_CAMERA: WorkspaceCamera = Object.freeze({
+  yawDeg: 0,
+  pitchDeg: 90,
+  zoom: 1,
+  panX: 0,
+  panY: 0,
+});
+const IGNORE_CAMERA_CHANGE = () => undefined;
 
 type DragTarget =
   | { type: "listener" }
   | { type: "source"; id: string }
   | { type: "wall-endpoint"; id: string; endpoint: "a" | "b" };
 
+type ViewDrag = Readonly<{
+  pointerId: number;
+  pointer: Vec2;
+  camera: WorkspaceCamera;
+}>;
+
 type SceneEditorProps = Readonly<{
   scene: SceneSpec;
   selection: EditorSelection;
   acousticFrame: AcousticFrame | null;
+  camera?: WorkspaceCamera;
   dispatch: (action: EditorAction) => void;
+  onCameraChange?: (camera: WorkspaceCamera) => void;
   wallPlacementFirst?: Vec2 | null;
   onWallPlacementPoint?: (point: Vec2) => void;
 }>;
@@ -73,8 +95,11 @@ export function portalForRouteMarker(
   return portals.find(({ id }) => id === listenerFacingPortalId);
 }
 
-export function SceneEditor({ scene, selection, acousticFrame, dispatch, wallPlacementFirst = null, onWallPlacementPoint }: SceneEditorProps) {
+export function SceneEditor({ scene, selection, acousticFrame, camera = FALLBACK_CLASSIC_CAMERA, dispatch, onCameraChange = IGNORE_CAMERA_CHANGE, wallPlacementFirst = null, onWallPlacementPoint }: SceneEditorProps) {
   const [dragTarget, setDragTarget] = useState<DragTarget | null>(null);
+  const [viewDrag, setViewDrag] = useState<ViewDrag | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const suppressPlacementClickRef = useRef(false);
   const worldBounds = getWorldBounds(scene);
   const selectedSource =
     selection?.type === "source"
@@ -88,21 +113,74 @@ export function SceneEditor({ scene, selection, acousticFrame, dispatch, wallPla
     ? portalForRouteMarker(scene.portals, activeSourceFrame.portalIds)
     : undefined;
 
+  function clientToSvgPoint(event: Pick<PointerEvent | MouseEvent, "clientX" | "clientY">): Vec2 {
+    const svg = svgRef.current;
+    if (!svg) return { x: CLASSIC_SVG_VIEW_BOX.width / 2, y: CLASSIC_SVG_VIEW_BOX.height / 2 };
+    const bounds = svg.getBoundingClientRect();
+    return clientPointToSvg(
+      { x: event.clientX, y: event.clientY },
+      { minX: bounds.left, minY: bounds.top, width: bounds.width, height: bounds.height },
+      CLASSIC_SVG_VIEW_BOX,
+    );
+  }
+
   function eventToWorld(event: ReactPointerEvent<SVGElement> | ReactMouseEvent<SVGElement>): Vec2 {
     const svg = event.currentTarget.ownerSVGElement ?? (event.currentTarget as SVGSVGElement);
     const bounds = svg.getBoundingClientRect();
     const svgPoint = clientPointToSvg(
       { x: event.clientX, y: event.clientY },
       { minX: bounds.left, minY: bounds.top, width: bounds.width, height: bounds.height },
-      SVG_VIEW_BOX,
+      CLASSIC_SVG_VIEW_BOX,
     );
-    const point = svgToWorld(svgPoint, worldBounds, VIEWPORT);
+    const point = unprojectClassicPoint(svgPoint, worldBounds, CLASSIC_VIEWPORT, camera);
     const inset = 0.02;
     return {
       x: Math.min(worldBounds.minX + worldBounds.width - inset, Math.max(worldBounds.minX + inset, point.x)),
       y: Math.min(worldBounds.minY + worldBounds.height - inset, Math.max(worldBounds.minY + inset, point.y)),
     };
   }
+
+  function project(point: Readonly<Vec2>): Vec2 {
+    return projectClassicPoint(point, worldBounds, CLASSIC_VIEWPORT, camera);
+  }
+
+  function startPan(event: ReactPointerEvent<SVGSVGElement>): void {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    suppressPlacementClickRef.current = true;
+    setViewDrag({ pointerId: event.pointerId, pointer: clientToSvgPoint(event), camera });
+  }
+
+  function movePan(event: ReactPointerEvent<SVGSVGElement>): void {
+    if (!viewDrag || viewDrag.pointerId !== event.pointerId || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
+    const next = clientToSvgPoint(event);
+    onCameraChange({
+      ...viewDrag.camera,
+      panX: viewDrag.camera.panX + next.x - viewDrag.pointer.x,
+      panY: viewDrag.camera.panY + next.y - viewDrag.pointer.y,
+    });
+  }
+
+  function stopPan(event: ReactPointerEvent<SVGSVGElement>): void {
+    if (!viewDrag || viewDrag.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+    setViewDrag(null);
+    window.setTimeout(() => { suppressPlacementClickRef.current = false; }, 0);
+  }
+
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const handleWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const anchor = clientToSvgPoint(event);
+      const targetZoom = camera.zoom * Math.exp(-event.deltaY * 0.0015);
+      onCameraChange(zoomClassicCameraAtPoint(camera, anchor, CLASSIC_VIEWPORT, targetZoom));
+    };
+    svg.addEventListener("wheel", handleWheel, { passive: false });
+    return () => svg.removeEventListener("wheel", handleWheel);
+  }, [camera, onCameraChange]);
 
   function startDrag(event: ReactPointerEvent<SVGGElement>, target: DragTarget): void {
     event.preventDefault();
@@ -178,11 +256,28 @@ export function SceneEditor({ scene, selection, acousticFrame, dispatch, wallPla
     <div className="canvas-stage">
       <svg
         className="scene-canvas"
+        data-camera={`${camera.yawDeg.toFixed(1)},${camera.pitchDeg.toFixed(1)},${camera.zoom.toFixed(2)},${camera.panX.toFixed(1)},${camera.panY.toFixed(1)}`}
+        data-panning={viewDrag ? "true" : "false"}
         data-testid="scene-canvas"
+        ref={svgRef}
         preserveAspectRatio="xMidYMid meet"
         viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
         role="group"
         aria-label={`${scene.name} editable floor plan in meters`}
+        onPointerDownCapture={(event) => {
+          if (event.button === 1) startPan(event);
+        }}
+        onPointerDown={(event) => {
+          const target = event.target as Element;
+          const emptySpace = !target.closest('[role="button"]');
+          if (event.button === 0 && event.shiftKey && emptySpace) startPan(event);
+        }}
+        onPointerMove={movePan}
+        onPointerUp={stopPan}
+        onPointerCancel={stopPan}
+        onLostPointerCapture={(event) => {
+          if (viewDrag?.pointerId === event.pointerId) setViewDrag(null);
+        }}
       >
         <defs>
           <filter id="signal-glow" x="-100%" y="-100%" width="300%" height="300%">
@@ -193,43 +288,49 @@ export function SceneEditor({ scene, selection, acousticFrame, dispatch, wallPla
 
         <rect x="0" y="0" width={SVG_WIDTH} height={SVG_HEIGHT} className="canvas-bed" />
         <rect
-          x={VIEWPORT.minX}
-          y={VIEWPORT.minY}
-          width={VIEWPORT.width}
-          height={VIEWPORT.height}
+          x={CLASSIC_VIEWPORT.minX}
+          y={CLASSIC_VIEWPORT.minY}
+          width={CLASSIC_VIEWPORT.width}
+          height={CLASSIC_VIEWPORT.height}
           className={`room-field${onWallPlacementPoint ? " is-placement-active" : ""}`}
           data-testid="wall-placement-surface"
-          onClick={onWallPlacementPoint ? (event) => onWallPlacementPoint(eventToWorld(event)) : undefined}
+          onClick={onWallPlacementPoint ? (event) => {
+            if (suppressPlacementClickRef.current) {
+              suppressPlacementClickRef.current = false;
+              return;
+            }
+            onWallPlacementPoint(eventToWorld(event));
+          } : undefined}
         />
 
         {wallPlacementFirst ? (() => {
-          const point = worldToSvg(wallPlacementFirst, worldBounds, VIEWPORT);
+          const point = project(wallPlacementFirst);
           return <g aria-label="First wall point" className="wall-placement-point" transform={`translate(${point.x} ${point.y})`}><circle r="9" /><text y="-16">A</text></g>;
         })() : null}
 
         <g className="coordinate-grid" aria-hidden="true">
           {Array.from({ length: Math.floor(worldBounds.width * 2) + 1 }, (_, index) => {
             const value = worldBounds.minX + index / 2;
-            const x = worldToSvg({ x: value, y: worldBounds.minY }, worldBounds, VIEWPORT).x;
+            const x = project({ x: value, y: worldBounds.minY }).x;
             return (
               <line
                 key={`grid-x-${index}`}
                 x1={x}
                 x2={x}
-                y1={VIEWPORT.minY}
-                y2={VIEWPORT.minY + VIEWPORT.height}
+                y1={CLASSIC_VIEWPORT.minY}
+                y2={CLASSIC_VIEWPORT.minY + CLASSIC_VIEWPORT.height}
                 className={index % 2 === 0 ? "meter-grid-line" : "minor-grid-line"}
               />
             );
           })}
           {Array.from({ length: Math.floor(worldBounds.height * 2) + 1 }, (_, index) => {
             const value = worldBounds.minY + index / 2;
-            const y = worldToSvg({ x: worldBounds.minX, y: value }, worldBounds, VIEWPORT).y;
+            const y = project({ x: worldBounds.minX, y: value }).y;
             return (
               <line
                 key={`grid-y-${index}`}
-                x1={VIEWPORT.minX}
-                x2={VIEWPORT.minX + VIEWPORT.width}
+                x1={CLASSIC_VIEWPORT.minX}
+                x2={CLASSIC_VIEWPORT.minX + CLASSIC_VIEWPORT.width}
                 y1={y}
                 y2={y}
                 className={index % 2 === 0 ? "meter-grid-line" : "minor-grid-line"}
@@ -239,16 +340,16 @@ export function SceneEditor({ scene, selection, acousticFrame, dispatch, wallPla
         </g>
 
         {Array.from({ length: Math.floor(worldBounds.width) + 1 }, (_, index) => {
-          const point = worldToSvg({ x: worldBounds.minX + index, y: worldBounds.minY }, worldBounds, VIEWPORT);
+          const point = project({ x: worldBounds.minX + index, y: worldBounds.minY });
           return <text key={`x-${index}`} x={point.x} y="586" className="axis-label">{index} m</text>;
         })}
         {Array.from({ length: Math.floor(worldBounds.height) + 1 }, (_, index) => {
-          const point = worldToSvg({ x: worldBounds.minX, y: worldBounds.minY + index }, worldBounds, VIEWPORT);
+          const point = project({ x: worldBounds.minX, y: worldBounds.minY + index });
           return <text key={`y-${index}`} x="44" y={point.y + 3} className="axis-label axis-label-y">{index}</text>;
         })}
 
         {activeSource ? (() => {
-          const center = worldToSvg(activeSource.position, worldBounds, VIEWPORT);
+          const center = project(activeSource.position);
           return (
             <g className="wavefront-signature" aria-hidden="true">
               {[34, 74, 118].map((radius, index) => (
@@ -259,8 +360,8 @@ export function SceneEditor({ scene, selection, acousticFrame, dispatch, wallPla
         })() : null}
 
         {scene.walls.map((wall) => {
-          const a = worldToSvg(wall.a, worldBounds, VIEWPORT);
-          const b = worldToSvg(wall.b, worldBounds, VIEWPORT);
+          const a = project(wall.a);
+          const b = project(wall.b);
           const selected = selection?.type === "wall" && selection.id === wall.id;
           return (
             <g key={wall.id}>
@@ -326,7 +427,7 @@ export function SceneEditor({ scene, selection, acousticFrame, dispatch, wallPla
             data-source-id={activeSourceFrame.sourceId}
             points={activeSourceFrame.routePolyline
               .map((point) => {
-                const svgPoint = worldToSvg(point, worldBounds, VIEWPORT);
+                const svgPoint = project(point);
                 return `${svgPoint.x},${svgPoint.y}`;
               })
               .join(" ")}
@@ -336,9 +437,9 @@ export function SceneEditor({ scene, selection, acousticFrame, dispatch, wallPla
         ) : null}
 
         {activeSource && activeSourceFrame?.earlyReflections.map((reflection) => {
-          const sourcePoint = worldToSvg(activeSource.position, worldBounds, VIEWPORT);
-          const reflectionPoint = worldToSvg(reflection.reflectionPoint, worldBounds, VIEWPORT);
-          const listenerPoint = worldToSvg(scene.listener.position, worldBounds, VIEWPORT);
+          const sourcePoint = project(activeSource.position);
+          const reflectionPoint = project(reflection.reflectionPoint);
+          const listenerPoint = project(scene.listener.position);
           return (
             <polyline
               key={`${reflection.wallId}-${reflection.reflectionPoint.x}-${reflection.reflectionPoint.y}`}
@@ -352,7 +453,7 @@ export function SceneEditor({ scene, selection, acousticFrame, dispatch, wallPla
         })}
 
         {listenerFacingPortal ? (() => {
-          const point = worldToSvg(listenerFacingPortal.center, worldBounds, VIEWPORT);
+          const point = project(listenerFacingPortal.center);
           return (
             <circle
               data-testid="first-portal-route-marker"
@@ -369,8 +470,8 @@ export function SceneEditor({ scene, selection, acousticFrame, dispatch, wallPla
         {scene.portals.map((portal) => {
           const segment = portalSegment(scene, portal);
           if (!segment) return null;
-          const a = worldToSvg(segment[0], worldBounds, VIEWPORT);
-          const b = worldToSvg(segment[1], worldBounds, VIEWPORT);
+          const a = project(segment[0]);
+          const b = project(segment[1]);
           const centerX = (a.x + b.x) / 2;
           const centerY = (a.y + b.y) / 2;
           const length = Math.hypot(b.x - a.x, b.y - a.y);
@@ -404,7 +505,7 @@ export function SceneEditor({ scene, selection, acousticFrame, dispatch, wallPla
         })}
 
         {scene.sources.map((source, index) => {
-          const point = worldToSvg(source.position, worldBounds, VIEWPORT);
+          const point = project(source.position);
           const selected = selection?.type === "source" && selection.id === source.id;
           return (
             <g key={source.id} transform={`translate(${point.x} ${point.y})`}>
@@ -440,7 +541,7 @@ export function SceneEditor({ scene, selection, acousticFrame, dispatch, wallPla
         })}
 
         {(() => {
-          const point = worldToSvg(scene.listener.position, worldBounds, VIEWPORT);
+          const point = project(scene.listener.position);
           const selected = selection?.type === "listener";
           return (
             <g transform={`translate(${point.x} ${point.y})`}>

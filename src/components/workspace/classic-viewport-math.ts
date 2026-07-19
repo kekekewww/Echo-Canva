@@ -4,6 +4,8 @@ import type { WorkspaceCamera } from "@/domain/workspace/types";
 
 export const MIN_CLASSIC_ZOOM = 0.12;
 export const MAX_CLASSIC_ZOOM = 6;
+export const CLASSIC_SVG_VIEW_BOX: Rect = Object.freeze({ minX: 0, minY: 0, width: 900, height: 600 });
+export const CLASSIC_VIEWPORT: Rect = Object.freeze({ minX: 54, minY: 36, width: 792, height: 528 });
 
 function assertFiniteCamera(camera: WorkspaceCamera): void {
   if (

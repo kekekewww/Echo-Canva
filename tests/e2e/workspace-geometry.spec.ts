@@ -19,6 +19,32 @@ test("adds Walls with two viewport points and requires that Wall for a Portal", 
   }
 });
 
+test("Classic wall placement remains usable after viewport navigation", async ({ page }) => {
+  await page.goto("/classic");
+  const viewport = page.getByTestId("scene-canvas");
+  const surface = page.getByTestId("wall-placement-surface");
+  const outliner = page.getByRole("complementary", { name: "Scene Outliner" });
+  const before = await outliner.locator(".outliner-row.kind-wall").count();
+  await page.getByTestId("add-object").click();
+  await page.getByTestId("add-wall").click();
+  await expect(page.getByRole("status")).toContainText("endpoint A");
+
+  const box = await viewport.boundingBox();
+  if (!box) throw new Error("Classic viewport is not visible.");
+  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5);
+  await page.mouse.down({ button: "middle" });
+  await page.mouse.move(box.x + box.width * 0.58, box.y + box.height * 0.56, { steps: 4 });
+  await page.mouse.up({ button: "middle" });
+  await viewport.hover();
+  await page.mouse.wheel(0, -100);
+  await expect(page.getByRole("status")).toContainText("endpoint A");
+
+  await surface.click({ position: { x: 300, y: 260 } });
+  await expect(page.getByRole("status")).toContainText("endpoint B");
+  await surface.click({ position: { x: 480, y: 320 } });
+  await expect(outliner.locator(".outliner-row.kind-wall")).toHaveCount(before + 1);
+});
+
 test("disables and re-enables a wall without deleting its Outliner record", async ({ page }) => {
   await page.goto("/lab");
   await page.getByRole("button", { name: "partition center", exact: true }).click();

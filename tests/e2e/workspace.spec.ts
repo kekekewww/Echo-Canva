@@ -112,6 +112,47 @@ test("contains wheel zoom inside the 3D viewport and reports no page errors", as
   expect(errors).toEqual([]);
 });
 
+test("Classic viewport supports pan navigation, Home and Frame All", async ({ page }) => {
+  await page.goto("/classic");
+  const viewport = page.getByTestId("scene-canvas");
+  const source = viewport.locator('[data-testid^="source-"]').first();
+  const sourcePosition = await source.getAttribute("data-position");
+  const box = await viewport.boundingBox();
+  if (!box) throw new Error("Classic viewport is not visible.");
+
+  await expect(viewport).toHaveAttribute("data-camera", /.+/);
+  const initialCamera = await viewport.getAttribute("data-camera");
+  await page.mouse.move(box.x + box.width * 0.55, box.y + box.height * 0.5);
+  await page.mouse.down({ button: "middle" });
+  await page.mouse.move(box.x + box.width * 0.66, box.y + box.height * 0.58, { steps: 4 });
+  await page.mouse.up({ button: "middle" });
+  await expect(viewport).not.toHaveAttribute("data-camera", initialCamera ?? "");
+  await expect(source).toHaveAttribute("data-position", sourcePosition ?? "");
+
+  const middlePanCamera = await viewport.getAttribute("data-camera");
+  await page.keyboard.down("Shift");
+  await page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.28, box.y + box.height * 0.26, { steps: 4 });
+  await page.mouse.up();
+  await page.keyboard.up("Shift");
+  await expect(viewport).not.toHaveAttribute("data-camera", middlePanCamera ?? "");
+
+  const scroll = await page.evaluate(() => scrollY);
+  await viewport.hover();
+  await page.mouse.wheel(0, -120);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBe(scroll);
+
+  await page.getByRole("button", { name: "Home", exact: true }).click();
+  await expect(viewport).toHaveAttribute("data-camera", /,1\.00,0\.0,0\.0$/);
+  await page.getByRole("button", { name: "Frame All", exact: true }).click();
+  await expect(viewport).not.toHaveAttribute("data-camera", initialCamera ?? "");
+  const framedCamera = await viewport.getAttribute("data-camera");
+  await page.waitForTimeout(180);
+  await page.reload();
+  await expect(viewport).toHaveAttribute("data-camera", framedCamera ?? "");
+});
+
 test("restores each mode camera and overlay preferences after switching and refresh", async ({ page }) => {
   await page.goto("/lab");
   const viewport = page.getByTestId("hybrid-spatial-viewport");

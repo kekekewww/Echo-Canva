@@ -554,10 +554,16 @@ select {
 }
 
 .scene-canvas {
+  cursor: grab;
   display: block;
   touch-action: none;
   user-select: none;
   width: 100%;
+}
+
+.scene-canvas[data-panning="true"],
+.scene-canvas[data-panning="true"] * {
+  cursor: grabbing !important;
 }
 
 .canvas-bed {
@@ -566,7 +572,7 @@ select {
 
 .room-field {
   fill: var(--canvas);
-  pointer-events: none;
+  pointer-events: all;
   stroke: rgba(126, 161, 162, 0.25);
 }
 
