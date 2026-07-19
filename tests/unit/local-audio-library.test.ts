@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  FallbackAudioStore,
   LocalAudioLibrary,
+  type LocalAudioStore,
   validateLocalAudioFile,
 } from "@/domain/audio-assets/local-library";
 
@@ -46,5 +48,50 @@ describe("local audio library", () => {
 
     await expect(library.add("broken.wav", audioBlob(8))).rejects.toThrow("could not be decoded");
     expect(await library.list()).toEqual([]);
+  });
+
+  it("rejects decoded stereo before creating a local record", async () => {
+    const library = new LocalAudioLibrary({
+      decode: async () => ({ numberOfChannels: 2 }),
+      makeId: () => "local_stereo",
+    });
+
+    await expect(library.add("stereo.wav", audioBlob(8))).rejects.toThrow(/mono/i);
+    expect(await library.list()).toEqual([]);
+  });
+
+  it("relinks a missing asset under the same stable ID and revokes its old URL", async () => {
+    const revoke = vi.fn();
+    const library = new LocalAudioLibrary({
+      createObjectURL: (blob) => `blob:${blob.size}`,
+      revokeObjectURL: revoke,
+      makeId: () => "local_voice",
+    });
+    const record = await library.add("old.wav", audioBlob(8));
+    expect(await library.resolveObjectUrl(record.id)).toBe("blob:8");
+
+    const replacement = await library.relink(record.id, "new.wav", audioBlob(12));
+
+    expect(replacement.id).toBe("local_voice");
+    expect(replacement.name).toBe("new.wav");
+    expect(revoke).toHaveBeenCalledWith("blob:8");
+    expect(await library.resolveArrayBuffer(record.id)).toHaveProperty("byteLength", 12);
+  });
+
+  it("falls back to memory after an IndexedDB-style operation failure", async () => {
+    const primary: LocalAudioStore = {
+      list: async () => { throw new Error("blocked"); },
+      put: async () => { throw new Error("blocked"); },
+      delete: async () => { throw new Error("blocked"); },
+    };
+    const warning = vi.fn();
+    const store = new FallbackAudioStore(primary, undefined, warning);
+    const library = new LocalAudioLibrary({ store, makeId: () => "local_memory" });
+
+    await library.add("memory.wav", audioBlob(8));
+
+    expect((await library.list()).map(({ id }) => id)).toEqual(["local_memory"]);
+    expect(warning).toHaveBeenCalledOnce();
+    expect(store.persistent).toBe(false);
   });
 });

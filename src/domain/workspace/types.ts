@@ -55,6 +55,9 @@ export type Room3D = Readonly<{
   widthM: number;
   depthM: number;
   heightM: number;
+  floorMaterialId: string;
+  ceilingMaterialId: string;
+  ceilingEnabled: boolean;
 }>;
 
 export type Wall3DSettings = Readonly<{
@@ -67,6 +70,14 @@ export type Portal3DSettings = Readonly<{
   bottomM: number;
   topM: number;
   thicknessM: number;
+}>;
+
+export type LocalAudioAssetMetadata = Readonly<{
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+  createdAt: number;
 }>;
 
 export type WorkspaceProject = Readonly<{
@@ -83,6 +94,7 @@ export type WorkspaceProject = Readonly<{
   wall3dById: Readonly<Record<string, Wall3DSettings>>;
   portal3dById: Readonly<Record<string, Portal3DSettings>>;
   missingAudioAssetIds: readonly string[];
+  localAudioMetadata: Readonly<Record<string, LocalAudioAssetMetadata>>;
   view: WorkspaceViewState;
   notice: WorkspaceNotice | null;
 }>;
@@ -95,6 +107,10 @@ export type ProjectAction =
   | Readonly<{ type: "SET_ENTITY_ENABLED"; entity: EntityRef; enabled: boolean }>
   | Readonly<{ type: "UPDATE_LISTENER"; id: string; changes: Partial<Pick<AuthoringListener, "name" | "position" | "headingDeg">> }>
   | Readonly<{ type: "MOVE_SOURCE"; id: string; position: Vec3 }>
+  | Readonly<{ type: "UPDATE_SOURCE"; id: string; changes: Partial<Pick<Source, "name" | "gainDb" | "loop">> }>
+  | Readonly<{ type: "RELINK_SOURCE"; id: string; clipId: string }>
+  | Readonly<{ type: "SET_AUDIO_ASSET_MISSING"; clipId: string; missing: boolean }>
+  | Readonly<{ type: "SET_LOCAL_AUDIO_METADATA"; metadata: LocalAudioAssetMetadata }>
   | Readonly<{ type: "ADD_SOURCE"; source: Source; heightM: number }>
   | Readonly<{ type: "DELETE_SOURCE"; id: string }>
   | Readonly<{ type: "ADD_WALL"; wall: Wall; vertical?: Wall3DSettings }>
@@ -105,6 +121,7 @@ export type ProjectAction =
   | Readonly<{ type: "DELETE_PORTAL"; id: string }>
   | Readonly<{ type: "SET_ROOM_3D"; changes: Partial<Room3D> }>
   | Readonly<{ type: "SET_VIEW_STATE"; changes: Partial<WorkspaceViewState> }>
+  | Readonly<{ type: "SET_NOTICE"; notice: WorkspaceNotice }>
   | Readonly<{ type: "REPLACE_SCENE"; scene: SceneSpec }>
   | Readonly<{ type: "REPLACE_PROJECT"; project: WorkspaceProject }>
   | Readonly<{ type: "CLEAR_NOTICE" }>;

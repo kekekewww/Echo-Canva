@@ -59,8 +59,9 @@ describe("workspace persistence", () => {
       },
     };
     const history = reduceWithHistory(createHistory(project), {
-      type: "SET_ACTIVE_LISTENER",
+      type: "UPDATE_LISTENER",
       id: project.activeListenerId,
+      changes: { headingDeg: 45 },
     }, projectReducer);
 
     expect(saveWorkspaceCache(storage, "hybrid-3d", history).ok).toBe(true);
@@ -68,6 +69,31 @@ describe("workspace persistence", () => {
 
     expect(restored.history.present.view).toEqual(project.view);
     expect(restored.history.past.length).toBeLessThanOrEqual(50);
+    expect(JSON.parse(storage.getItem(HYBRID_PROJECT_KEY)!).cacheVersion).toBe("3.0");
+    expect(JSON.parse(storage.getItem(HYBRID_PROJECT_KEY)!).past[0]).toMatchObject({ operations: expect.any(Array) });
+  });
+
+  it("migrates legacy snapshot history into compact patches", () => {
+    const storage = new MemoryStorage();
+    const before = createDefaultClassicProject();
+    const after = projectReducer(before, {
+      type: "UPDATE_LISTENER",
+      id: before.activeListenerId,
+      changes: { position: { x: 4, y: 1.5, z: 2 } },
+    });
+    storage.setItem(CLASSIC_PROJECT_KEY, JSON.stringify({
+      cacheVersion: "2.0",
+      mode: "classic-2d5d",
+      present: after,
+      past: [before],
+      future: [],
+    }));
+
+    const restored = loadWorkspaceCache(storage, "classic-2d5d");
+
+    expect(restored.history.past).toHaveLength(1);
+    expect(restored.history.past[0]).toMatchObject({ operations: expect.any(Array) });
+    expect(restored.warning).toContain("migrated");
   });
 
   it("migrates a bare Classic SceneSpec into the authoring store", () => {

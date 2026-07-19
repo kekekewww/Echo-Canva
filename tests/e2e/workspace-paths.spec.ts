@@ -7,7 +7,11 @@ test("shows matched direct and first-order 3D paths with presentation controls",
   await expect(overlay.locator('[data-path-kind="reflection"]')).not.toHaveCount(0);
   await expect(overlay.locator('[data-source-id="radio"]')).not.toHaveCount(0);
   await expect(overlay.locator('[data-source-id="rain"]')).toHaveCount(0);
-  await page.getByRole("button", { name: "All paths" }).click();
+  await expect(overlay.locator(".hybrid-display-path.is-xray")).not.toHaveCount(0);
+  const reflection = overlay.getByRole("img", { name: /reflection;/ }).first();
+  await reflection.focus();
+  await expect(overlay.locator(".hybrid-reflection-card")).toContainText(/m.*ms.*dB/);
+  await page.getByRole("button", { name: "Show all paths" }).click();
   await expect(overlay.locator('[data-source-id="rain"]')).not.toHaveCount(0);
   await page.getByRole("button", { name: "Paths", exact: true }).click();
   await expect(overlay).toHaveCount(0);

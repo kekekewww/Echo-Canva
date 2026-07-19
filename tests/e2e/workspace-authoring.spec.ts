@@ -16,6 +16,32 @@ test("adds and activates listeners and enforces the source workflow", async ({ p
   await expect(page.locator('[data-testid^="hybrid-viewport-source-"]')).toHaveCount(3);
 });
 
+test("edits a local source and relinks missing audio without moving it", async ({ page }) => {
+  await page.goto("/lab");
+  await page.getByTestId("add-object").click();
+  await page.getByTestId("add-source").click();
+  await page.getByLabel("Import WAV / MP3 / Ogg").setInputFiles("public/audio/voice-loop.wav");
+  const sourceRow = page.getByRole("complementary", { name: "Scene Outliner" }).getByRole("button", { name: "voice-loop" });
+  await sourceRow.click();
+  const xBefore = await page.getByRole("textbox", { name: "X position" }).inputValue();
+  await page.getByRole("textbox", { name: "Source name" }).fill("Narration");
+  await page.getByRole("textbox", { name: "Source name" }).press("Enter");
+  await page.getByRole("textbox", { name: "Source gain" }).fill("-3 dB");
+  await page.getByRole("textbox", { name: "Source gain" }).press("Enter");
+  await page.getByRole("checkbox", { name: "Loop source" }).uncheck();
+
+  await page.getByRole("button", { name: "Remove local audio" }).click();
+  await page.getByRole("button", { name: "Remove audio", exact: true }).click();
+  await expect(page.getByText("Relink required", { exact: true })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "X position" })).toHaveValue(xBefore);
+
+  await page.getByLabel("Relink audio").setInputFiles("public/audio/water-loop.wav");
+  await expect(page.getByText("Relink required", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: "X position" })).toHaveValue(xBefore);
+  await page.reload();
+  await expect(page.getByRole("complementary", { name: "Scene Outliner" }).getByRole("button", { name: "Narration" })).toBeVisible();
+});
+
 test("exports, imports, and safely rejects complete authoring JSON", async ({ page }) => {
   await page.goto("/");
   await page.getByText("Import / export").click();
@@ -49,4 +75,25 @@ test("compiles and applies a validated AI candidate", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Apply AI Studio" })).toBeVisible();
   await page.getByRole("button", { name: "Apply AI Studio" }).click();
   await expect(page.getByTestId("classic-workspace-viewport")).toContainText("AI Studio");
+});
+
+test("confirms permanent deletes and clears all local project data in two steps", async ({ page }) => {
+  await page.goto("/lab");
+  const outliner = page.getByRole("complementary", { name: "Scene Outliner" });
+  await outliner.getByRole("button", { name: "partition center", exact: true }).click();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  const confirmation = page.getByRole("alertdialog", { name: "Confirm delete" });
+  await expect(confirmation).toBeVisible();
+  await confirmation.getByRole("button", { name: "Cancel" }).click();
+  await expect(outliner.getByRole("button", { name: "partition center", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await confirmation.getByRole("button", { name: "Delete wall" }).click();
+  await expect(outliner.getByRole("button", { name: "partition center", exact: true })).toHaveCount(0);
+  await expect(outliner.locator(".kind-portal")).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("button", { name: "Clear all local data" }).click();
+  await expect(page.getByRole("dialog", { name: "Workspace settings" })).toContainText("both local projects");
+  await page.getByRole("button", { name: "Confirm clear all" }).click();
+  await expect(outliner.getByRole("button", { name: "partition center", exact: true })).toBeVisible();
 });

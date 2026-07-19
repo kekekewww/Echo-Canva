@@ -8,15 +8,17 @@ The application now has a versioned authoring layer above both engine contracts:
 UnifiedWorkspace
   ├─ classic WorkspaceProject ─ projectClassicScene ─ Classic Worker / Web Audio
   ├─ hybrid WorkspaceProject  ─ projectHybridDocument ─ Hybrid Worker / Web Audio
-  ├─ per-mode bounded history and localStorage cache
+  ├─ per-mode 50-command reversible-diff history and localStorage cache
   └─ browser-only IndexedDB local-audio library
 ```
 
-`WorkspaceProject` owns the listener collection, active listener, authoring selection, disabled IDs, rectangular room dimensions, source heights, and finite wall/Portal vertical settings. Projectors produce the narrower validated `SceneSpec` or `SceneDocumentV2`, omit disabled geometry and dependent Portals, and expose exactly one active listener to deterministic computation.
+`WorkspaceProject` owns the listener collection, active listener, authoring selection, disabled IDs, rectangular room dimensions/materials, source heights, finite wall/Portal settings, local-audio metadata, and per-mode camera/overlay/panel state. Projectors produce the narrower validated `SceneSpec` or `SceneDocumentV2`, omit disabled geometry and dependent Portals, and expose exactly one active listener to deterministic computation.
 
 The 3D viewport receives every enabled listener, source, wall, and Portal. Its path overlay is derived from the accepted Hybrid Worker frame and rejects stale revisions. Camera orbit, ceiling presentation, and path visibility never change acoustic state. The persistent Web Audio graph receives smoothed parameters from the same accepted result.
 
-Project cache keys are `echo-canvas:project:classic:v1`, `echo-canvas:project:hybrid:v1`, and `echo-canvas:workspace-ui:v1`. Local audio uses `echo-canvas-audio/assets` in IndexedDB and never crosses a server route.
+Project cache keys are `echo-canvas:project:classic:v1`, `echo-canvas:project:hybrid:v1`, and `echo-canvas:workspace-ui:v1`. Cache document version `3.0` stores the current project plus at most 50 compact reversible patches in each history direction. Legacy SceneSpec, SceneDocumentV2, and snapshot-history caches migrate purely. A failed migration keeps the unread record available for download and opens a safe preset. Local audio uses `echo-canvas-audio/assets` in IndexedDB and never crosses a server route; unavailable IndexedDB falls back to a declared memory-only library.
+
+One `AudioEngine` belongs to `UnifiedWorkspace`, outside both mode adapters. A mode switch flushes the departing cache and updates the same graph; it does not construct another `AudioContext` or duplicate source graphs. Numeric pointer scrubbing begins a history transaction, updates the deterministic projection continuously, and commits one reversible patch on pointer release.
 
 ## Context diagram
 
@@ -209,11 +211,15 @@ Output:
 
 ### 6. Persistence
 
-MVP:
+Implemented:
 
-- localStorage for last valid scene and UI preferences;
-- URL-safe preset IDs;
-- JSON import/export.
+- independent versioned localStorage projects for 2.5D and 3D;
+- camera, overlay, panel, selection, active listener, missing-audio and finite-geometry state;
+- at most 50 compact reversible history commands per mode;
+- 150 ms debounced save plus mode-switch and pagehide flush;
+- authoring JSON transfer with local-asset metadata but no audio blobs;
+- IndexedDB audio with stable-ID relink and in-memory fallback;
+- safe-preset recovery with download of an unread cache record.
 
 No database.
 

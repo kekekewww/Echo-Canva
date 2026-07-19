@@ -9,17 +9,35 @@ import { projectClassicScene } from "@/domain/workspace/projections";
 import type { ProjectAction, WorkspaceProject } from "@/domain/workspace/types";
 import { useAcousticFrame } from "@/hooks/useAcousticFrame";
 import type { AudioEngine } from "@/audio/AudioEngine";
+import type { WorkspaceAcousticStatus } from "@/components/workspace/WorkspaceStatusBar";
 
-export function ClassicViewportAdapter({ project, dispatch, audioEngine }: Readonly<{
+export function ClassicViewportAdapter({ project, dispatch, audioEngine, wallPlacementFirst, onWallPlacementPoint, onAcousticStatus }: Readonly<{
   project: WorkspaceProject;
   dispatch: (action: ProjectAction) => void;
   audioEngine: AudioEngine;
+  wallPlacementFirst?: Readonly<{ x: number; y: number }> | null;
+  onWallPlacementPoint?: (point: Readonly<{ x: number; y: number }>) => void;
+  onAcousticStatus?: (status: WorkspaceAcousticStatus) => void;
 }>) {
   const scene = useMemo(() => projectClassicScene(project), [project]);
   const acoustic = useAcousticFrame(scene);
+  const acceptedFrame = acoustic.fallbackNotice ? null : acoustic.frame;
   useEffect(() => {
-    if (acoustic.frame) audioEngine.applyAcousticFrame(acoustic.frame);
-  }, [acoustic.frame, audioEngine]);
+    if (acceptedFrame) audioEngine.applyAcousticFrame(acceptedFrame);
+  }, [acceptedFrame, audioEngine]);
+  useEffect(() => {
+    const active = project.listeners.find(({ id }) => id === project.activeListenerId);
+    const sourceId = project.selection?.type === "source" ? project.selection.id : scene.sources[0]?.id;
+    const source = acceptedFrame?.sources.find(({ sourceId: id }) => id === sourceId);
+    onAcousticStatus?.({
+      listenerName: active?.name ?? "Listener",
+      route: source?.routeType ?? "none",
+      gainDb: source?.dryGainDb ?? null,
+      rt60MidS: acceptedFrame?.room.rt60S.mid ?? null,
+      worker: acceptedFrame ? "Worker" : "Stopped",
+      computeMs: acceptedFrame ? acoustic.metrics?.computeMs ?? null : null,
+    });
+  }, [acceptedFrame, acoustic.metrics?.computeMs, onAcousticStatus, project.activeListenerId, project.listeners, project.selection, scene.sources]);
   const selection: EditorSelection = project.selection?.type === "listener"
     ? { type: "listener" }
     : project.selection?.type === "source" || project.selection?.type === "wall" || project.selection?.type === "portal"
@@ -68,9 +86,9 @@ export function ClassicViewportAdapter({ project, dispatch, audioEngine }: Reado
     <section className="workspace-viewport-panel" data-testid="classic-workspace-viewport">
       <header className="viewport-tools">
         <span>{scene.name}</span>
-        <span>{acoustic.fallbackNotice ? "Fallback" : "Worker"}</span>
+        <span>{acoustic.fallbackNotice ? "Stopped · Worker unavailable" : acceptedFrame ? "Worker" : "Starting"}</span>
       </header>
-      <SceneEditor acousticFrame={acoustic.frame} dispatch={adapt} scene={scene} selection={selection} />
+      <SceneEditor acousticFrame={acceptedFrame} dispatch={adapt} onWallPlacementPoint={onWallPlacementPoint} scene={scene} selection={selection} wallPlacementFirst={wallPlacementFirst} />
     </section>
   );
 }

@@ -69,6 +69,8 @@ type Props = Readonly<{
   onToggleShowAllPaths?: () => void;
   onToggleCeiling?: () => void;
   onCameraChange: (camera: ViewportCamera) => void;
+  wallPlacementFirst?: PlanPosition | null;
+  onWallPlacementPoint?: (point: PlanPosition) => void;
 }>;
 
 type DragState =
@@ -202,6 +204,8 @@ export function HybridSpatialViewport({
   onToggleCeiling,
   camera,
   onCameraChange,
+  wallPlacementFirst = null,
+  onWallPlacementPoint,
 }: Props) {
   const [dragState, setDragState] = useState<DragState | null>(null);
   const viewportRef = useRef<HTMLElement>(null);
@@ -256,6 +260,15 @@ export function HybridSpatialViewport({
   }
 
   function beginOrbit(event: ReactPointerEvent<SVGRectElement>): void {
+    if (onWallPlacementPoint) {
+      event.preventDefault();
+      const point = unprojectViewportPointAtHeight(clientToViewport(event), 0, camera);
+      onWallPlacementPoint({
+        x: clamp(point.x, MIN_PLAN, Math.max(MIN_PLAN, room.widthM - MIN_PLAN)),
+        z: clamp(point.z, MIN_PLAN, Math.max(MIN_PLAN, room.depthM - MIN_PLAN)),
+      });
+      return;
+    }
     event.currentTarget.setPointerCapture(event.pointerId);
     setDragState({ kind: "orbit", pointer: clientToViewport(event), camera });
   }
@@ -301,7 +314,7 @@ export function HybridSpatialViewport({
         <div><p className="panel-kicker">3D viewport</p><h3>Orbit · select · place</h3></div>
         <div className="hybrid-view-buttons" aria-label="Camera views">
           {onTogglePaths ? <button aria-pressed={pathsVisible} onClick={onTogglePaths} type="button">Paths</button> : null}
-          {onToggleShowAllPaths ? <button aria-pressed={showAllPaths} onClick={onToggleShowAllPaths} type="button">All paths</button> : null}
+          {onToggleShowAllPaths ? <button aria-pressed={showAllPaths} onClick={onToggleShowAllPaths} type="button">Show all paths</button> : null}
           {onToggleCeiling ? <button aria-pressed={ceilingVisible} onClick={onToggleCeiling} type="button">Ceiling</button> : null}
           <button onClick={() => onCameraChange({ yawDeg: 0, pitchDeg: 78, zoom: 1 })} type="button">Top</button>
           <button onClick={() => onCameraChange({ yawDeg: 0, pitchDeg: 28, zoom: 1 })} type="button">Front</button>
@@ -317,14 +330,18 @@ export function HybridSpatialViewport({
           <linearGradient id="hybrid-viewport-floor" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stopColor="#173539" stopOpacity="0.56" /><stop offset="1" stopColor="#0b1417" stopOpacity="0.94" /></linearGradient>
           <filter id="hybrid-viewport-glow"><feGaussianBlur result="blur" stdDeviation="6" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
         </defs>
-        <rect className="hybrid-viewport-orbit-surface" height="720" onPointerCancel={endDrag} onPointerDown={beginOrbit} onPointerMove={orbit} onPointerUp={endDrag} width="1200" x="0" y="0" />
+        <rect className="hybrid-viewport-orbit-surface" data-testid="hybrid-wall-placement-surface" height="720" onPointerCancel={endDrag} onPointerDown={beginOrbit} onPointerMove={orbit} onPointerUp={endDrag} width="1200" x="0" y="0" />
         <polygon className="hybrid-viewport-floor" points={points(projected.floor)} />
+        {wallPlacementFirst ? (() => {
+          const point = projectViewportPoint({ x: wallPlacementFirst.x, y: 0, z: wallPlacementFirst.z }, camera);
+          return <g aria-label="First wall point" className="wall-placement-point" transform={`translate(${point.x} ${point.y})`}><circle r="10" /><text y="-16">A</text></g>;
+        })() : null}
         {ceilingVisible ? <polygon className="hybrid-viewport-ceiling" points={points(projected.ceiling)} /> : null}
         {projected.floor.map((point, index) => <line className="hybrid-viewport-room-edge" key={`edge-${index}`} x1={point.x} x2={projected.ceiling[index]!.x} y1={point.y} y2={projected.ceiling[index]!.y} />)}
         <polyline className="hybrid-viewport-room-edge" fill="none" points={points([...projected.floor, projected.floor[0]!])} />
         {ceilingVisible ? <polyline className="hybrid-viewport-ceiling-edge" fill="none" points={points([...projected.ceiling, projected.ceiling[0]!])} /> : null}
         {projected.walls.flatMap(({ wall, panels }) => panels.map((panel, index) => (
-          <polygon aria-label={`Select ${wall.label}`} className={`hybrid-viewport-wall-panel${wall.portals.some(({ open }) => open) ? "" : " is-closed"}`} key={`${wall.id}-panel-${index}`} onClick={(event) => { event.stopPropagation(); onSelectTarget({ type: "wall", id: wall.id }); }} points={points(panel)} role="button" tabIndex={0} />
+          <polygon aria-hidden="true" className={`hybrid-viewport-wall-panel${wall.portals.some(({ open }) => open) ? "" : " is-closed"}`} key={`${wall.id}-panel-${index}`} onClick={(event) => { event.stopPropagation(); onSelectTarget({ type: "wall", id: wall.id }); }} points={points(panel)} />
         )))}
         {projected.walls.flatMap(({ portalOutlines }) => portalOutlines.map(({ portal, points: outline, center }) => (
           <g key={portal.id}>
@@ -340,7 +357,7 @@ export function HybridSpatialViewport({
           const position = endpoint === "a" ? wall.a : wall.b;
           return <g aria-label={`Drag wall endpoint ${endpoint.toUpperCase()} in 3D scene`} className="hybrid-viewport-partition-handle is-selected" data-position={`${position.x.toFixed(1)},${position.z.toFixed(1)}`} data-testid={`hybrid-viewport-partition-${endpoint}`} key={`${wall.id}-${endpoint}`} onPointerCancel={endDrag} onPointerDown={(event) => { event.preventDefault(); event.stopPropagation(); onSelectTarget({ type: "wall", id: wall.id, endpoint }); event.currentTarget.setPointerCapture(event.pointerId); setDragState({ kind: "wall", id: wall.id, endpoint }); }} onPointerMove={dragGeometry} onPointerUp={endDrag} role="button" tabIndex={0} transform={`translate(${screen.x} ${screen.y})`}><circle className="hybrid-viewport-partition-handle-hit" r="28" /><rect className="hybrid-viewport-partition-handle-core" height="14" width="14" x="-7" y="-7" /><text className="hybrid-viewport-partition-handle-label" textAnchor="middle" x="0" y="-19">{endpoint.toUpperCase()}</text></g>;
         }))}
-        {pathsVisible ? <HybridPathOverlay camera={camera} paths={paths} /> : null}
+        {pathsVisible ? <HybridPathOverlay camera={camera} paths={paths} xRay={ceilingVisible} /> : null}
         {objects.map((object) => {
           const screen = projectViewportPoint(object.position, camera);
           const selected = selectedTarget?.type === "object" && selectedTarget.id === object.id;

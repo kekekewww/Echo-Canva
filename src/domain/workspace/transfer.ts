@@ -2,15 +2,9 @@ import { z } from "zod";
 
 import { AUDIO_ASSETS } from "@/domain/audio-assets/registry";
 import { migrateWorkspaceCache } from "@/domain/workspace/persistence";
-import type { WorkspaceMode, WorkspaceProject } from "@/domain/workspace/types";
+import type { LocalAudioAssetMetadata, WorkspaceMode, WorkspaceProject } from "@/domain/workspace/types";
 
-export type LocalAudioMetadata = Readonly<{
-  id: string;
-  name: string;
-  mimeType: string;
-  size: number;
-  createdAt: number;
-}>;
+export type LocalAudioMetadata = LocalAudioAssetMetadata;
 
 const metadataSchema = z.object({
   id: z.string().min(1),
@@ -64,7 +58,14 @@ export function parseWorkspaceProject(
     .map(({ clipId }) => clipId)
     .filter((clipId) => !builtIn.has(clipId) && !availableAudioIds.has(clipId));
   return {
-    project: { ...project, missingAudioAssetIds: [...new Set(missing)] },
+    project: {
+      ...project,
+      missingAudioAssetIds: [...new Set(missing)],
+      localAudioMetadata: {
+        ...project.localAudioMetadata,
+        ...Object.fromEntries(parsed.data.localAssets.map((metadata) => [metadata.id, metadata])),
+      },
+    },
     localAssets: parsed.data.localAssets,
   };
 }

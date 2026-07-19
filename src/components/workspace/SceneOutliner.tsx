@@ -3,9 +3,10 @@ import type { EntityRef, WorkspaceProject } from "@/domain/workspace/types";
 type Props = Readonly<{
   project: WorkspaceProject;
   onSelect: (selection: EntityRef) => void;
+  mobileOpen?: boolean;
 }>;
 
-export function SceneOutliner({ project, onSelect }: Props) {
+export function SceneOutliner({ project, onSelect, mobileOpen = false }: Props) {
   const disabled = new Set(project.disabledEntityIds);
   const row = (entity: EntityRef, label: string, kind: string, active = false, enabled = true) => (
     <button
@@ -22,7 +23,7 @@ export function SceneOutliner({ project, onSelect }: Props) {
     </button>
   );
   return (
-    <aside className="workspace-outliner" aria-label="Scene Outliner">
+    <aside aria-label="Scene Outliner" aria-modal={mobileOpen || undefined} className={`workspace-outliner${mobileOpen ? " is-mobile-open" : ""}`} role={mobileOpen ? "dialog" : undefined}>
       <header><span>Scene</span><small>{project.mode === "hybrid-3d" ? "3D" : "2.5D"}</small></header>
       <nav>
         <p>Listeners</p>
@@ -44,6 +45,8 @@ export function SceneOutliner({ project, onSelect }: Props) {
         {project.scene.portals.map((portal) => row(
           { type: "portal", id: portal.id }, portal.id.replaceAll("_", " "), "portal", false, !disabled.has(portal.id),
         ))}
+        <p>Room</p>
+        {row({ type: "surface", id: "room" }, "Room dimensions", "surface")}
         {project.mode === "hybrid-3d" ? (
           <>
             <p>Surfaces</p>

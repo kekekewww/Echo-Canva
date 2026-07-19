@@ -156,6 +156,9 @@ export function projectReducer(
         ...project,
         revision: nextRevision(project),
         disabledEntityIds: [...disabled],
+        room3d: entity.type === "surface" && entity.id === "ceiling"
+          ? { ...project.room3d, ceilingEnabled: enabled }
+          : project.room3d,
         notice: null,
       };
     }
@@ -186,6 +189,48 @@ export function projectReducer(
       };
     }
 
+    case "UPDATE_SOURCE":
+      return commitScene(project, (scene) => {
+        const source = scene.sources.find(({ id }) => id === action.id);
+        if (!source) return false;
+        Object.assign(source, action.changes);
+      });
+
+    case "RELINK_SOURCE": {
+      const previousClip = project.scene.sources.find(({ id }) => id === action.id)?.clipId;
+      const next = commitScene(project, (scene) => {
+        const source = scene.sources.find(({ id }) => id === action.id);
+        if (!source) return false;
+        source.clipId = action.clipId;
+      });
+      if (next.scene === project.scene) return next;
+      return {
+        ...next,
+        missingAudioAssetIds: project.missingAudioAssetIds.filter((id) => id !== previousClip && id !== action.clipId),
+      };
+    }
+
+    case "SET_AUDIO_ASSET_MISSING": {
+      const missing = new Set(project.missingAudioAssetIds);
+      if (action.missing) missing.add(action.clipId);
+      else missing.delete(action.clipId);
+      return {
+        ...project,
+        revision: nextRevision(project),
+        missingAudioAssetIds: [...missing],
+        notice: null,
+      };
+    }
+
+    case "SET_LOCAL_AUDIO_METADATA":
+      return {
+        ...project,
+        localAudioMetadata: {
+          ...project.localAudioMetadata,
+          [action.metadata.id]: action.metadata,
+        },
+      };
+
     case "ADD_SOURCE": {
       if (project.scene.sources.length >= 4) return withNotice(project, {
         code: "limit_reached",
@@ -213,6 +258,7 @@ export function projectReducer(
     }
 
     case "ADD_WALL": {
+      if (project.scene.walls.length >= 100) return withNotice(project, { code: "limit_reached", message: "A project can contain at most 100 Walls." });
       const next = commitScene(project, (scene) => { scene.walls.push(structuredClone(action.wall)); });
       if (next.scene === project.scene) return next;
       return {
@@ -246,16 +292,32 @@ export function projectReducer(
     }
 
     case "DELETE_WALL": {
+      const hostedPortalIds = project.scene.portals.filter(({ wallId }) => wallId === action.id).map(({ id }) => id);
       const next = commitScene(project, (scene) => {
         const index = scene.walls.findIndex(({ id }) => id === action.id);
         if (index < 0) return false;
         scene.walls.splice(index, 1);
         scene.portals = scene.portals.filter(({ wallId }) => wallId !== action.id);
       });
-      return next.scene === project.scene ? next : { ...next, selection: null };
+      if (next.scene === project.scene) return next;
+      const wall3dById = { ...project.wall3dById };
+      delete wall3dById[action.id];
+      const portal3dById = { ...project.portal3dById };
+      for (const id of hostedPortalIds) delete portal3dById[id];
+      return {
+        ...next,
+        wall3dById,
+        portal3dById,
+        disabledEntityIds: project.disabledEntityIds.filter((id) => id !== action.id && !hostedPortalIds.includes(id)),
+        selection: null,
+      };
     }
 
     case "ADD_PORTAL": {
+      if (project.scene.portals.length >= 8) return withNotice(project, { code: "limit_reached", message: "A project can contain at most eight Portals." });
+      if (!project.scene.walls.some(({ id }) => id === action.portal.wallId) || project.disabledEntityIds.includes(action.portal.wallId)) {
+        return withNotice(project, { code: "host_wall_required", message: "Select an enabled Wall before adding a Portal." });
+      }
       const next = commitScene(project, (scene) => { scene.portals.push(structuredClone(action.portal)); });
       if (next.scene === project.scene) return next;
       return {
@@ -290,7 +352,10 @@ export function projectReducer(
         if (index < 0) return false;
         scene.portals.splice(index, 1);
       });
-      return next.scene === project.scene ? next : { ...next, selection: null };
+      if (next.scene === project.scene) return next;
+      const portal3dById = { ...project.portal3dById };
+      delete portal3dById[action.id];
+      return { ...next, portal3dById, disabledEntityIds: project.disabledEntityIds.filter((id) => id !== action.id), selection: null };
     }
 
     case "SET_ROOM_3D": {
@@ -299,7 +364,15 @@ export function projectReducer(
         ...project,
         revision: nextRevision(project),
         room3d,
-        scene: { ...project.scene, revision: nextRevision(project), room: { ...project.scene.room, heightM: room3d.heightM } },
+        scene: { ...project.scene, revision: nextRevision(project), room: {
+          ...project.scene.room,
+          heightM: room3d.heightM,
+          floorMaterialId: room3d.floorMaterialId,
+          ceilingMaterialId: room3d.ceilingMaterialId,
+        } },
+        disabledEntityIds: room3d.ceilingEnabled
+          ? project.disabledEntityIds.filter((id) => id !== "ceiling")
+          : [...new Set([...project.disabledEntityIds, "ceiling"])],
         notice: null,
       };
     }
@@ -315,6 +388,9 @@ export function projectReducer(
           panels: { ...project.view.panels, ...action.changes.panels },
         },
       };
+
+    case "SET_NOTICE":
+      return { ...project, notice: action.notice };
 
     case "REPLACE_SCENE": {
       const validation = validateScene(action.scene);

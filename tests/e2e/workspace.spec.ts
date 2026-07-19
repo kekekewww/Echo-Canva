@@ -28,6 +28,46 @@ test("preserves independent mode state across switches and refresh", async ({ pa
   await expect(x).toHaveValue("4.5");
 });
 
+test("persists compact Undo history across refresh", async ({ page }) => {
+  await page.goto("/classic");
+  const x = page.getByRole("textbox", { name: "X position" });
+  const original = await x.inputValue();
+  await x.fill("4.25");
+  await x.press("Enter");
+  await page.waitForTimeout(200);
+  await page.reload();
+  await expect(x).toHaveValue("4.25");
+  await page.getByTitle("Undo (Ctrl+Z)").click();
+  await expect(x).toHaveValue(original);
+});
+
+test("coalesces continuous numeric scrubbing into one Undo command", async ({ page }) => {
+  await page.goto("/classic");
+  const x = page.getByRole("textbox", { name: "X position" });
+  const original = await x.inputValue();
+  const scrub = page.getByRole("button", { name: "Drag to adjust X position" });
+  const box = await scrub.boundingBox();
+  if (!box) throw new Error("Numeric scrub control is not visible.");
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2 + 25, box.y + box.height / 2, { steps: 5 });
+  await page.mouse.up();
+  await expect(x).not.toHaveValue(original);
+  await page.waitForTimeout(200);
+  expect(await page.evaluate(() => {
+    const raw = localStorage.getItem("echo-canvas:project:classic:v1");
+    return raw ? (JSON.parse(raw) as { past: unknown[] }).past.length : -1;
+  })).toBe(1);
+  await page.getByTitle("Undo (Ctrl+Z)").click();
+  await expect(x).toHaveValue(original);
+  await page.waitForTimeout(200);
+  const persistedCommands = await page.evaluate(() => {
+    const raw = localStorage.getItem("echo-canvas:project:classic:v1");
+    return raw ? (JSON.parse(raw) as { past: unknown[] }).past.length : -1;
+  });
+  expect(persistedCommands).toBe(0);
+});
+
 test("keeps one AudioContext and toolbar audition state while switching modes", async ({ page }) => {
   await page.goto("/");
   const workspace = page.getByTestId("unified-workspace");
@@ -50,8 +90,9 @@ test("resets only the active mode and can undo reset", async ({ page }) => {
   const x = page.getByRole("textbox", { name: "X position" });
   await x.fill("5");
   await x.press("Enter");
-  page.once("dialog", (dialog) => dialog.accept());
   await page.getByRole("button", { name: "Reset", exact: true }).click();
+  await expect(page.getByRole("alertdialog", { name: "Reset active project" })).toBeVisible();
+  await page.getByRole("button", { name: "Reset project" }).click();
   await expect(x).toHaveValue("3");
   await page.getByTitle("Undo (Ctrl+Z)").click();
   await expect(x).toHaveValue("5");
@@ -117,4 +158,147 @@ test("restores the 100-wall project and keeps Outliner selection within the inte
 
   await page.reload();
   await expect(outliner.locator(".outliner-row.kind-wall")).toHaveCount(100);
+});
+
+test("keeps the viewport primary and exposes modal drawers on narrow screens", async ({ page }) => {
+  await page.setViewportSize({ width: 720, height: 800 });
+  await page.goto("/lab");
+  await expect(page.getByTestId("hybrid-spatial-viewport")).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Scene Outliner" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Scene", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Scene Outliner" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "Scene Outliner" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Inspector", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Inspector" })).toBeVisible();
+});
+
+test("survives the full entity-limit project within Worker and interaction budgets", async ({ page }) => {
+  await page.goto("/lab");
+  await page.getByLabel("Scene preset").selectOption("stress-100-walls");
+  await page.waitForTimeout(250);
+  const stressCache = await page.evaluate(() => {
+    type Point = { x: number; y: number };
+    type Wall = { id: string; a: Point; b: Point; thicknessM: number };
+    type Source = { id: string; name: string; clipId: string; sourceType: "point"; position: Point; gainDb: number; loop: boolean };
+    type Listener = { id: string; name: string; position: { x: number; y: number; z: number }; headingDeg: number; enabled: boolean };
+    type Present = {
+      revision: number;
+      scene: { revision: number; walls: Wall[]; portals: unknown[]; sources: Source[] };
+      listeners: Listener[];
+      activeListenerId: string;
+      selection: { type: string; id: string };
+      sourceHeightsM: Record<string, number>;
+      portal3dById: Record<string, { bottomM: number; topM: number; thicknessM: number }>;
+    };
+    const key = "echo-canvas:project:hybrid:v1";
+    const raw = localStorage.getItem(key);
+    if (!raw) throw new Error("Hybrid cache was not created.");
+    const cache = JSON.parse(raw) as { present: Present; past: unknown[]; future: unknown[] };
+    const project = cache.present;
+    const host = project.scene.walls.find(({ id }) => id === "stress_boundary_north");
+    const baseSource = project.scene.sources[0];
+    if (!host || !baseSource) throw new Error("Stress fixture is incomplete.");
+    project.listeners = Array.from({ length: 8 }, (_, index) => ({
+      id: `stress_listener_${index}`,
+      name: `Stress Listener ${index + 1}`,
+      position: { x: 1 + index, y: 1.5, z: 1 + (index % 4) },
+      headingDeg: index * 15,
+      enabled: true,
+    }));
+    project.activeListenerId = project.listeners[0]!.id;
+    project.selection = { type: "listener", id: project.activeListenerId };
+    project.scene.sources = Array.from({ length: 4 }, (_, index) => ({
+      ...baseSource,
+      id: `stress_source_${index}`,
+      name: `Stress Source ${index + 1}`,
+      position: { x: 8 + index * 0.7, y: 6 + index * 0.35 },
+    }));
+    project.sourceHeightsM = Object.fromEntries(project.scene.sources.map(({ id }, index) => [id, 1 + index * 0.4]));
+    project.scene.portals = Array.from({ length: 8 }, (_, index) => ({
+      id: `stress_portal_${index}`,
+      wallId: host.id,
+      center: { x: 0.8 + index * 1.45, y: 0 },
+      widthM: 0.6,
+      heightM: 2,
+      open: index % 2 === 0,
+      lossDb: 3,
+    }));
+    project.portal3dById = Object.fromEntries(project.scene.portals.map((portal, index) => [`stress_portal_${index}`, {
+      bottomM: 0,
+      topM: 2,
+      thicknessM: 0.12,
+    }]));
+    project.revision += 1;
+    project.scene.revision = project.revision;
+    cache.past = [];
+    cache.future = [];
+    return JSON.stringify(cache);
+  });
+  await page.addInitScript(({ cache }) => {
+    const marker = "echo-canvas:stress-cache-installed";
+    if (sessionStorage.getItem(marker)) return;
+    localStorage.setItem("echo-canvas:project:hybrid:v1", cache);
+    sessionStorage.setItem(marker, "1");
+  }, { cache: stressCache });
+  await page.reload();
+
+  const outliner = page.getByRole("complementary", { name: "Scene Outliner" });
+  await expect(outliner.locator(".kind-wall")).toHaveCount(100);
+  await expect(outliner.locator(".kind-portal")).toHaveCount(8);
+  await expect(outliner.locator(".kind-source")).toHaveCount(4);
+  await expect(outliner.locator(".kind-listener")).toHaveCount(8);
+  await page.getByTestId("add-object").click();
+  await expect(page.getByTestId("add-listener")).toBeDisabled();
+  await expect(page.getByTestId("add-source")).toBeDisabled();
+  await expect(page.getByTestId("add-wall")).toBeDisabled();
+  await expect(page.getByTestId("add-portal")).toBeDisabled();
+  await expect(page.getByRole("dialog", { name: "Add object" })).toContainText("Limit: 100 walls");
+  await page.getByRole("dialog", { name: "Add object" }).getByRole("button", { name: "Close" }).click();
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  await expect(page.getByTestId("unified-workspace")).toHaveAttribute("data-audio-contexts", "1");
+  await expect(page.getByTestId("unified-workspace")).toHaveAttribute("data-audio-graphs", "4");
+  await expect.poll(async () => page.locator(".workspace-statusbar").getAttribute("data-worker-compute-ms"))
+    .not.toBe("");
+
+  for (let index = 0; index < 3; index += 1) {
+    await outliner.locator(".kind-listener").nth(index).click();
+    await page.waitForTimeout(120);
+  }
+  await page.evaluate(() => {
+    const state = window as Window & { __echoLongTasks?: number[]; __echoLongTaskObserver?: PerformanceObserver };
+    state.__echoLongTasks = [];
+    state.__echoLongTaskObserver = new PerformanceObserver((list) => {
+      state.__echoLongTasks?.push(...list.getEntries().map(({ duration }) => duration));
+    });
+    state.__echoLongTaskObserver.observe({ type: "longtask", buffered: false });
+  });
+  const timings: number[] = [];
+  for (let index = 0; index < 24; index += 1) {
+    await outliner.locator(".kind-listener").nth(index % 8).click();
+    await page.waitForTimeout(120);
+    const value = Number(await page.locator(".workspace-statusbar").getAttribute("data-worker-compute-ms"));
+    if (Number.isFinite(value)) timings.push(value);
+    if (index === 7) await page.evaluate(() => {
+      const state = window as Window & { __echoLongTasks?: number[]; __echoLongTaskObserver?: PerformanceObserver };
+      state.__echoLongTasks?.push(...(state.__echoLongTaskObserver?.takeRecords().map(({ duration }) => duration) ?? []));
+      state.__echoLongTaskObserver?.disconnect();
+    });
+  }
+  const sorted = timings.toSorted((a, b) => a - b);
+  expect(sorted.length).toBeGreaterThan(0);
+  expect(sorted[Math.ceil(sorted.length * 0.95) - 1]).toBeLessThan(12);
+  expect(await page.evaluate(() => (window as Window & { __echoLongTasks?: number[] }).__echoLongTasks ?? [])).toEqual([]);
+
+  await page.getByRole("button", { name: "2.5D", exact: true }).click();
+  await page.getByRole("button", { name: "3D", exact: true }).click();
+  await expect(page.getByTestId("unified-workspace")).toHaveAttribute("data-audio-contexts", "1");
+  await expect(page.getByTestId("unified-workspace")).toHaveAttribute("data-audio-graphs", "4");
+  for (let refresh = 0; refresh < 2; refresh += 1) {
+    await page.reload();
+    await expect(outliner.locator(".kind-wall")).toHaveCount(100);
+    await expect(outliner.locator(".kind-portal")).toHaveCount(8);
+    await expect(outliner.locator(".kind-source")).toHaveCount(4);
+    await expect(outliner.locator(".kind-listener")).toHaveCount(8);
+  }
 });

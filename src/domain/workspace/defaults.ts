@@ -28,6 +28,9 @@ function createDefaultProject(mode: WorkspaceMode): WorkspaceProject {
       widthM: 12,
       depthM: 8,
       heightM: scene.room.heightM,
+      floorMaterialId: scene.room.floorMaterialId,
+      ceilingMaterialId: scene.room.ceilingMaterialId,
+      ceilingEnabled: true,
     },
     sourceHeightsM: Object.fromEntries(scene.sources.map(({ id }) => [id, 1.5])),
     wall3dById: Object.fromEntries(scene.walls.map(({ id, thicknessM }) => [id, {
@@ -41,6 +44,7 @@ function createDefaultProject(mode: WorkspaceMode): WorkspaceProject {
       thicknessM: 0.12,
     }])),
     missingAudioAssetIds: [],
+    localAudioMetadata: {},
     view: {
       camera: { yawDeg: 38, pitchDeg: 34, zoom: 1 },
       overlays: { pathsVisible: true, showAllPaths: false, ceilingVisible: true },

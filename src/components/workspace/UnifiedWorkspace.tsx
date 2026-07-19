@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import { AddObjectMenu } from "@/components/workspace/AddObjectMenu";
 import { AudioAssetPicker } from "@/components/workspace/AudioAssetPicker";
@@ -8,7 +8,7 @@ import { ClassicViewportAdapter } from "@/components/workspace/ClassicViewportAd
 import { ContextInspector } from "@/components/workspace/ContextInspector";
 import { HybridViewportAdapter } from "@/components/workspace/HybridViewportAdapter";
 import { SceneOutliner } from "@/components/workspace/SceneOutliner";
-import { WorkspaceStatusBar } from "@/components/workspace/WorkspaceStatusBar";
+import { WorkspaceStatusBar, type WorkspaceAcousticStatus } from "@/components/workspace/WorkspaceStatusBar";
 import { WorkspaceToolbar } from "@/components/workspace/WorkspaceToolbar";
 import type { WorkspaceMode } from "@/domain/workspace/types";
 import { useWorkspaceProjects } from "@/hooks/useWorkspaceProjects";
@@ -29,11 +29,25 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
   const audioLibrary = useLocalAudioLibrary();
   const [addOpen, setAddOpen] = useState(false);
   const [audioPickerOpen, setAudioPickerOpen] = useState(false);
+  const [wallPlacement, setWallPlacement] = useState<Readonly<{
+    mode: WorkspaceMode;
+    first: Readonly<{ x: number; z: number }> | null;
+  }> | null>(null);
   const [previewMode, setPreviewMode] = useState<PreviewMode>("simulated");
   const [playing, setPlaying] = useState(false);
   const [audioError, setAudioError] = useState<string | null>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
+  const [mobilePanel, setMobilePanel] = useState<"outliner" | "inspector" | null>(null);
+  const [acousticStatus, setAcousticStatus] = useState<WorkspaceAcousticStatus | null>(null);
+  const reportAcousticStatus = useCallback((status: WorkspaceAcousticStatus) => setAcousticStatus(status), []);
   const [audioEngine] = useState(() => new AudioEngine({ resolveAudioAsset: audioLibrary.resolveAudioAsset }));
-  const activeScene = useMemo(() => projectClassicScene(workspace.activeProject), [workspace.activeProject]);
+  const activeScene = useMemo(() => {
+    const scene = projectClassicScene(workspace.activeProject);
+    const missing = new Set(workspace.activeProject.missingAudioAssetIds);
+    return { ...scene, sources: scene.sources.filter(({ clipId }) => !missing.has(clipId)) };
+  }, [workspace.activeProject]);
   const audio = useAudioEngine(
     activeScene,
     previewMode,
@@ -48,6 +62,22 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
 
   useEffect(() => {
     function shortcuts(event: KeyboardEvent): void {
+      if (event.key === "Escape" && addOpen) { setAddOpen(false); return; }
+      if (event.key === "Escape" && audioPickerOpen) { setAudioPickerOpen(false); return; }
+      if (event.key === "Escape" && (settingsOpen || confirmReset)) {
+        setSettingsOpen(false);
+        setConfirmClearAll(false);
+        setConfirmReset(false);
+        return;
+      }
+      if (event.key === "Escape" && wallPlacement) {
+        setWallPlacement(null);
+        return;
+      }
+      if (event.key === "Escape" && mobilePanel) {
+        setMobilePanel(null);
+        return;
+      }
       if (!(event.ctrlKey || event.metaKey)) return;
       if (event.key.toLowerCase() === "z") {
         event.preventDefault();
@@ -57,7 +87,18 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
     }
     window.addEventListener("keydown", shortcuts);
     return () => window.removeEventListener("keydown", shortcuts);
-  }, [workspace]);
+  }, [addOpen, audioPickerOpen, confirmReset, mobilePanel, settingsOpen, wallPlacement, workspace]);
+
+  function downloadRecoveryRecord(): void {
+    if (!workspace.recoveryRaw) return;
+    const blob = new Blob([workspace.recoveryRaw], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `echo-canvas-${workspace.activeMode}-unread-cache.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
   function addObject(kind: "listener" | "source" | "wall" | "portal"): void {
     const project = workspace.activeProject;
@@ -80,23 +121,16 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
       return;
     }
     if (kind === "wall") {
-      workspace.dispatch({
-        type: "ADD_WALL",
-        wall: {
-          id: `wall_${suffix}`,
-          a: { x: project.room3d.widthM * 0.4, y: project.room3d.depthM * 0.3 },
-          b: { x: project.room3d.widthM * 0.4, y: project.room3d.depthM * 0.7 },
-          thicknessM: 0.15,
-          materialId: "concrete_hard",
-          kind: "partition",
-        },
-      });
+      setWallPlacement({ mode: project.mode, first: null });
       return;
     }
     const selectedWall = project.selection?.type === "wall"
       ? project.scene.walls.find(({ id }) => id === project.selection?.id)
-      : project.scene.walls.find(({ kind: wallKind }) => wallKind === "partition");
-    if (!selectedWall) return;
+      : null;
+    if (!selectedWall || project.disabledEntityIds.includes(selectedWall.id)) {
+      workspace.dispatch({ type: "SET_NOTICE", notice: { code: "host_wall_required", message: "Select an enabled Wall before adding a Portal." } });
+      return;
+    }
     workspace.dispatch({
       type: "ADD_PORTAL",
       portal: {
@@ -109,6 +143,32 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
         lossDb: 3,
       },
     });
+  }
+
+  function placeWallPoint(point: Readonly<{ x: number; z: number }>): void {
+    const placement = wallPlacement;
+    if (!placement || placement.mode !== workspace.activeMode) return;
+    if (!placement.first) {
+      setWallPlacement({ ...placement, first: point });
+      return;
+    }
+    if (Math.hypot(point.x - placement.first.x, point.z - placement.first.z) < 0.1) {
+      workspace.dispatch({ type: "SET_NOTICE", notice: { code: "entity_missing", message: "Wall endpoints must be at least 0.1 m apart." } });
+      return;
+    }
+    const project = workspace.activeProject;
+    workspace.dispatch({
+      type: "ADD_WALL",
+      wall: {
+        id: `wall_${project.revision + 1}`,
+        a: { x: placement.first.x, y: placement.first.z },
+        b: { x: point.x, y: point.z },
+        thicknessM: 0.15,
+        materialId: "concrete_hard",
+        kind: "partition",
+      },
+    });
+    setWallPlacement(null);
   }
 
   function addSource(clipId: string, assetName: string): void {
@@ -126,13 +186,15 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
         loop: true,
       },
     });
+    const metadata = audioLibrary.records.find(({ id }) => id === clipId);
+    if (metadata) workspace.dispatch({ type: "SET_LOCAL_AUDIO_METADATA", metadata: {
+      id: metadata.id,
+      name: metadata.name,
+      mimeType: metadata.mimeType,
+      size: metadata.size,
+      createdAt: metadata.createdAt,
+    } });
     setAudioPickerOpen(false);
-  }
-
-  function reset(): void {
-    if (window.confirm(`Reset only the ${workspace.activeMode === "hybrid-3d" ? "3D" : "2.5D"} project?`)) {
-      workspace.resetActiveProject();
-    }
   }
 
   async function togglePlaying(): Promise<void> {
@@ -155,6 +217,15 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
       data-audio-graphs={audio.diagnostics.graphCount}
       data-testid="unified-workspace"
       data-mode={workspace.activeMode}
+      onPointerCancelCapture={(event) => {
+        if ((event.target as Element).closest?.(".numeric-scrub-label")) workspace.endHistoryTransaction();
+      }}
+      onPointerDownCapture={(event) => {
+        if ((event.target as Element).closest?.(".numeric-scrub-label")) workspace.beginHistoryTransaction();
+      }}
+      onPointerUpCapture={(event) => {
+        if ((event.target as Element).closest?.(".numeric-scrub-label")) workspace.endHistoryTransaction();
+      }}
     >
       <WorkspaceToolbar
         canRedo={workspace.canRedo}
@@ -163,15 +234,39 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
         onAdd={() => setAddOpen(true)}
         onModeChange={workspace.setActiveMode}
         onRedo={workspace.redo}
-        onReset={reset}
+        onReset={() => setConfirmReset(true)}
         onUndo={workspace.undo}
         onTogglePlaying={() => void togglePlaying()}
         onTogglePreviewMode={() => setPreviewMode((mode) => mode === "raw" ? "simulated" : "raw")}
         playing={playing}
         previewMode={previewMode}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onShowInspector={() => setMobilePanel("inspector")}
+        onShowOutliner={() => setMobilePanel("outliner")}
       />
+      {(workspace.persistenceStatus !== "saved" || audioLibrary.warning) ? <div className="workspace-persistence-warning" role="status"><strong>Memory-only warning</strong><span>{audioLibrary.warning ?? workspace.persistenceStatus}</span></div> : null}
+      {workspace.recoveryRaw ? <div className="workspace-confirm-card workspace-recovery-card" role="status"><strong>Project cache recovery</strong><p>A safe preset is loaded. Download the unread record before replacing it.</p><button onClick={downloadRecoveryRecord} type="button">Download unread cache</button></div> : null}
+      {confirmReset ? <div className="workspace-confirm-card workspace-floating-card" role="alertdialog" aria-label="Reset active project"><strong>Reset {workspace.activeMode === "hybrid-3d" ? "3D" : "2.5D"} project?</strong><p>The other mode and local audio stay unchanged.</p><button autoFocus onClick={() => { workspace.resetActiveProject(); setConfirmReset(false); }} type="button">Reset project</button><button onClick={() => setConfirmReset(false)} type="button">Cancel</button></div> : null}
+      {settingsOpen ? <div className="workspace-confirm-card workspace-floating-card" role="dialog" aria-modal="true" aria-label="Workspace settings"><strong>Workspace settings</strong>{confirmClearAll ? <><p>This removes both local projects and every local audio file.</p><button autoFocus onClick={() => void audioLibrary.clear().then(() => { workspace.clearAllProjects(); setConfirmClearAll(false); setSettingsOpen(false); })} type="button">Confirm clear all</button><button onClick={() => setConfirmClearAll(false)} type="button">Cancel</button></> : <><button autoFocus onClick={() => setConfirmClearAll(true)} type="button">Clear all local data</button><button onClick={() => setSettingsOpen(false)} type="button">Close</button></>}</div> : null}
       {audioError ? <div className="workspace-error" role="alert">{audioError} <button onClick={() => void togglePlaying()} type="button">Retry</button></div> : null}
-      {addOpen ? <AddObjectMenu onAdd={addObject} onClose={() => setAddOpen(false)} /> : null}
+      {addOpen ? <AddObjectMenu
+        availability={{
+          listener: { enabled: workspace.activeProject.listeners.length < 8, reason: workspace.activeProject.listeners.length >= 8 ? "Limit: 8 listeners" : undefined },
+          source: { enabled: workspace.activeProject.scene.sources.length < 4, reason: workspace.activeProject.scene.sources.length >= 4 ? "Limit: 4 sources" : undefined },
+          wall: { enabled: workspace.activeProject.scene.walls.length < 100, reason: workspace.activeProject.scene.walls.length >= 100 ? "Limit: 100 walls" : undefined },
+          portal: {
+            enabled: workspace.activeProject.scene.portals.length < 8 && workspace.activeProject.selection?.type === "wall" && !workspace.activeProject.disabledEntityIds.includes(workspace.activeProject.selection.id),
+            reason: workspace.activeProject.scene.portals.length >= 8
+              ? "Limit: 8 Portals"
+              : workspace.activeProject.selection?.type === "wall" && !workspace.activeProject.disabledEntityIds.includes(workspace.activeProject.selection.id)
+                ? undefined
+                : "Select an enabled Wall first",
+          },
+        }}
+        onAdd={addObject}
+        onClose={() => setAddOpen(false)}
+      /> : null}
+      {wallPlacement ? <div className="workspace-placement-card" role="status"><strong>Add Wall</strong><span>{wallPlacement.first ? "Choose endpoint B" : "Choose endpoint A"}</span><button onClick={() => setWallPlacement(null)} type="button">Cancel</button></div> : null}
       {audioPickerOpen ? <AudioAssetPicker
         onChoose={addSource}
         onClose={() => setAudioPickerOpen(false)}
@@ -180,19 +275,58 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
         warning={audioLibrary.warning}
       /> : null}
       <div className="workspace-grid">
-        <SceneOutliner project={workspace.activeProject} onSelect={(selection) => workspace.dispatch({ type: "SELECT_ENTITY", selection })} />
+        <SceneOutliner mobileOpen={mobilePanel === "outliner"} project={workspace.activeProject} onSelect={(selection) => { workspace.dispatch({ type: "SELECT_ENTITY", selection }); setMobilePanel(null); }} />
         {workspace.activeMode === "classic-2d5d"
-          ? <ClassicViewportAdapter audioEngine={audioEngine} dispatch={workspace.dispatch} project={workspace.activeProject} />
-          : <HybridViewportAdapter audioEngine={audioEngine} dispatch={workspace.dispatch} project={workspace.activeProject} />}
-        <ContextInspector dispatch={workspace.dispatch} localAssets={audioLibrary.records.map((record) => ({
-          id: record.id,
-          name: record.name,
-          mimeType: record.mimeType,
-          size: record.size,
-          createdAt: record.createdAt,
-        }))} project={workspace.activeProject} />
+          ? <ClassicViewportAdapter
+            audioEngine={audioEngine}
+            dispatch={workspace.dispatch}
+            onWallPlacementPoint={wallPlacement?.mode === "classic-2d5d" ? (point) => placeWallPoint({ x: point.x, z: point.y }) : undefined}
+            onAcousticStatus={reportAcousticStatus}
+            project={workspace.activeProject}
+            wallPlacementFirst={wallPlacement?.mode === "classic-2d5d" && wallPlacement.first ? { x: wallPlacement.first.x, y: wallPlacement.first.z } : null}
+          />
+          : <HybridViewportAdapter
+            audioEngine={audioEngine}
+            dispatch={workspace.dispatch}
+            onWallPlacementPoint={wallPlacement?.mode === "hybrid-3d" ? placeWallPoint : undefined}
+            onAcousticStatus={reportAcousticStatus}
+            project={workspace.activeProject}
+            wallPlacementFirst={wallPlacement?.mode === "hybrid-3d" ? wallPlacement.first : null}
+          />}
+        <ContextInspector
+          dispatch={workspace.dispatch}
+          localAssets={Object.values({
+            ...workspace.activeProject.localAudioMetadata,
+            ...Object.fromEntries(audioLibrary.records.map((record) => [record.id, {
+              id: record.id,
+              name: record.name,
+              mimeType: record.mimeType,
+              size: record.size,
+              createdAt: record.createdAt,
+            }])),
+          })}
+          onRelinkAudio={async (clipId, file) => {
+            const record = await audioLibrary.relink(clipId, file);
+            workspace.dispatch({ type: "SET_LOCAL_AUDIO_METADATA", metadata: {
+              id: record.id,
+              name: record.name,
+              mimeType: record.mimeType,
+              size: record.size,
+              createdAt: record.createdAt,
+            } });
+            workspace.dispatch({ type: "SET_AUDIO_ASSET_MISSING", clipId, missing: false });
+            return record.id;
+          }}
+          onRemoveLocalAudio={async (clipId) => {
+            await audioLibrary.remove(clipId);
+            workspace.dispatch({ type: "SET_AUDIO_ASSET_MISSING", clipId, missing: true });
+          }}
+          mobileOpen={mobilePanel === "inspector"}
+          project={workspace.activeProject}
+        />
       </div>
-      <WorkspaceStatusBar mode={workspace.activeMode} persistence={workspace.persistenceStatus} revision={workspace.activeProject.revision} />
+      {mobilePanel ? <button aria-label="Close panel" className="workspace-drawer-backdrop" onClick={() => setMobilePanel(null)} type="button" /> : null}
+      <WorkspaceStatusBar acoustic={acousticStatus} mode={workspace.activeMode} persistence={workspace.persistenceStatus} revision={workspace.activeProject.revision} />
     </main>
   );
 }

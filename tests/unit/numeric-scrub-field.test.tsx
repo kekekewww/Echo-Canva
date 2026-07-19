@@ -12,9 +12,9 @@ describe("NumericScrubField", () => {
     expect(parseNumericInput("noise", "m")).toBeNull();
   });
 
-  it("clamps typed values to the configured range", () => {
-    expect(parseNumericInput("80 m", "m", 0, 50)).toBe(50);
-    expect(parseNumericInput("-3 m", "m", 0, 50)).toBe(0);
+  it("rejects typed values outside the configured range", () => {
+    expect(parseNumericInput("80 m", "m", 0, 50)).toBeNull();
+    expect(parseNumericInput("-3 m", "m", 0, 50)).toBeNull();
   });
 
   it("supports normal, Shift-fine, and Ctrl-snapped scrubbing", () => {

@@ -7,6 +7,7 @@ import {
   createHistory,
   redoHistory,
   reduceWithHistory,
+  recordHistoryTransition,
   resetActiveMode,
   shouldRecordProjectAction,
   undoHistory,
@@ -16,6 +17,8 @@ import {
   loadWorkspaceCache,
   saveWorkspaceCache,
   WORKSPACE_UI_KEY,
+  CLASSIC_PROJECT_KEY,
+  HYBRID_PROJECT_KEY,
 } from "@/domain/workspace/persistence";
 import { projectReducer } from "@/domain/workspace/project-reducer";
 import type { ProjectAction, WorkspaceMode } from "@/domain/workspace/types";
@@ -25,10 +28,15 @@ const initialHistories = (): WorkspaceHistories => ({
   hybrid: createHistory(createDefaultHybridProject()),
 });
 
+function browserStorage(): Storage | null {
+  if (typeof window === "undefined") return null;
+  if ((window as Window & { __echoCanvasSimulateStorageFailure?: boolean }).__echoCanvasSimulateStorageFailure) return null;
+  try { return window.localStorage; } catch { return null; }
+}
+
 function restoredHistories(): WorkspaceHistories {
   if (typeof window === "undefined") return initialHistories();
-  let storage: Storage | null = null;
-  try { storage = window.localStorage; } catch { /* Private/sandboxed contexts may deny storage. */ }
+  const storage = browserStorage();
   const classic = loadWorkspaceCache(storage, "classic-2d5d");
   const hybrid = loadWorkspaceCache(storage, "hybrid-3d");
   return { classic: classic.history, hybrid: hybrid.history };
@@ -36,6 +44,7 @@ function restoredHistories(): WorkspaceHistories {
 
 function restoredMode(fallback: WorkspaceMode): WorkspaceMode {
   if (typeof window === "undefined") return fallback;
+  if (!browserStorage()) return fallback;
   let stored: string | null = null;
   try { stored = window.localStorage.getItem(WORKSPACE_UI_KEY); } catch { return fallback; }
   return stored === "classic-2d5d" || stored === "hybrid-3d" ? stored : fallback;
@@ -46,8 +55,7 @@ function restorationReport(): Readonly<{
   recoveryRaw: Partial<Record<WorkspaceMode, string>>;
 }> {
   if (typeof window === "undefined") return { status: "saved", recoveryRaw: {} };
-  let storage: Storage | null = null;
-  try { storage = window.localStorage; } catch { /* Keep memory-only defaults. */ }
+  const storage = browserStorage();
   const classic = loadWorkspaceCache(storage, "classic-2d5d");
   const hybrid = loadWorkspaceCache(storage, "hybrid-3d");
   const warnings = [classic.warning, hybrid.warning].filter(Boolean);
@@ -66,6 +74,7 @@ export function useWorkspaceProjects(initialMode?: WorkspaceMode) {
   const [restoration] = useState(restorationReport);
   const [persistenceStatus, setPersistenceStatus] = useState(restoration.status);
   const historiesRef = useRef(histories);
+  const transactionRef = useRef<Readonly<{ mode: WorkspaceMode; before: (typeof histories)["classic"]["present"] }> | null>(null);
   useEffect(() => {
     historiesRef.current = histories;
   }, [histories]);
@@ -73,8 +82,7 @@ export function useWorkspaceProjects(initialMode?: WorkspaceMode) {
   const keyFor = useCallback((mode: WorkspaceMode) => mode === "classic-2d5d" ? "classic" : "hybrid", []);
 
   const flushMode = useCallback((mode: WorkspaceMode) => {
-    let storage: Storage | null = null;
-    try { storage = window.localStorage; } catch { /* save function reports unavailable */ }
+    const storage = browserStorage();
     const result = saveWorkspaceCache(storage, mode, historiesRef.current[keyFor(mode)]);
     setPersistenceStatus(result.ok ? "saved" : result.warning ?? "unavailable");
   }, [keyFor]);
@@ -106,9 +114,27 @@ export function useWorkspaceProjects(initialMode?: WorkspaceMode) {
           current[key],
           action,
           projectReducer,
-          shouldRecordProjectAction(action),
+          shouldRecordProjectAction(action) && transactionRef.current?.mode !== activeMode,
         ),
       };
+    });
+  }, [activeMode, keyFor]);
+
+  const beginHistoryTransaction = useCallback(() => {
+    if (transactionRef.current) return;
+    transactionRef.current = {
+      mode: activeMode,
+      before: historiesRef.current[keyFor(activeMode)].present,
+    };
+  }, [activeMode, keyFor]);
+
+  const endHistoryTransaction = useCallback(() => {
+    const transaction = transactionRef.current;
+    transactionRef.current = null;
+    if (!transaction || transaction.mode !== activeMode) return;
+    setHistories((current) => {
+      const key = keyFor(activeMode);
+      return { ...current, [key]: recordHistoryTransition(current[key], transaction.before) };
     });
   }, [activeMode, keyFor]);
 
@@ -126,18 +152,33 @@ export function useWorkspaceProjects(initialMode?: WorkspaceMode) {
     setHistories((current) => resetActiveMode(current, activeMode));
   }, [activeMode]);
 
+  const clearAllProjects = useCallback(() => {
+    setHistories(initialHistories());
+    try {
+      window.localStorage.removeItem(CLASSIC_PROJECT_KEY);
+      window.localStorage.removeItem(HYBRID_PROJECT_KEY);
+      window.localStorage.removeItem(WORKSPACE_UI_KEY);
+      setPersistenceStatus("saved");
+    } catch {
+      setPersistenceStatus("Local persistence is unavailable.");
+    }
+  }, []);
+
   const activeHistory = histories[keyFor(activeMode)];
   return useMemo(() => ({
     activeMode,
     setActiveMode,
     activeProject: activeHistory.present,
     dispatch,
+    beginHistoryTransaction,
+    endHistoryTransaction,
     undo,
     redo,
     canUndo: activeHistory.past.length > 0,
     canRedo: activeHistory.future.length > 0,
     resetActiveProject,
+    clearAllProjects,
     persistenceStatus,
     recoveryRaw: restoration.recoveryRaw[activeMode] ?? null,
-  }), [activeHistory, activeMode, dispatch, persistenceStatus, redo, resetActiveProject, restoration.recoveryRaw, setActiveMode, undo]);
+  }), [activeHistory, activeMode, beginHistoryTransaction, clearAllProjects, dispatch, endHistoryTransaction, persistenceStatus, redo, resetActiveProject, restoration.recoveryRaw, setActiveMode, undo]);
 }

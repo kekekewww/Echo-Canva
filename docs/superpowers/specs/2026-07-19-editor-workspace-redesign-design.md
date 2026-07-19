@@ -2,7 +2,7 @@
 
 Date: 2026-07-19
 
-Status: drafted from approved design; written-spec review pending
+Status: approved and implemented; final command evidence recorded in `docs/STATUS.md`
 
 Audience: game-audio designers, interactive-media creators, and judges
 

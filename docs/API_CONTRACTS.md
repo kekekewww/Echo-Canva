@@ -2,11 +2,15 @@
 
 ## Workspace authoring contract
 
-The browser-only `WorkspaceProject` schema is versioned independently from API-facing `SceneSpec`. It stores mode, revision, listener collection and active listener, authoring selection, reversible disabled IDs, rectangular room dimensions, source heights, and finite wall/Portal settings.
+The browser-only `WorkspaceProject` schema is versioned independently from API-facing `SceneSpec`. It stores mode, revision, listener collection and active listener, authoring selection, reversible disabled IDs, rectangular room dimensions and materials, source heights, finite wall/Portal settings, missing/local-audio metadata, and per-mode view state.
 
 Limits are eight listeners, four sources, one hundred walls, eight Portals, 50 m room width/depth, and 12 m room height. At least one enabled listener and the floor are mandatory. Disabled host walls suspend attached Portals. Projectors filter disabled entities before either deterministic worker runs.
 
-Local audio IDs use the `local_` prefix and resolve only from browser IndexedDB. WAV/MP3/Ogg files are limited to 25 MB each and 100 MB total, decoded before source creation, and never accepted as arbitrary remote URLs. Scene JSON does not embed blobs.
+Local audio IDs use the `local_` prefix and resolve only from browser IndexedDB. WAV/MP3/Ogg files are limited to 25 MB each and 100 MB total, decoded as mono before source creation, and never accepted as arbitrary remote URLs. Authoring JSON records `{id,name,mimeType,size,createdAt}` but never embeds blobs. Missing imported assets remain silent and retain their Source transform until a same-ID relink succeeds.
+
+The local cache envelope is version `3.0` and contains `present`, `past`, and `future`. History arrays contain at most 50 reversible value/splice patches, not repeated full-scene snapshots. View-only selection, camera, overlay, and panel changes do not enter history; active-listener changes do. Cache migration failure does not overwrite the unread input.
+
+`Portal3DSettings` stores bottom/top/thickness while the planar Portal center is the authoritative projection of its along-host `offsetM`. Inspector edits convert offset to center through the finite host-wall unit vector. Wall endpoint edits preserve the Portal's normalized attachment when possible. Open Portals carve the complete wall depth; closed Portals compile a finite slab using authored thickness.
 
 ## `SceneSpec`
 

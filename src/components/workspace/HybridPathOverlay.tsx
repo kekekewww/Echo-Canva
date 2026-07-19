@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 import type { HybridAudiblePath } from "@/acoustics/hybrid3d/audible-direct";
 import type { HybridGeometry } from "@/acoustics/hybrid3d/compile";
 import type { HybridDirectFrame } from "@/acoustics/hybrid3d/direct";
@@ -70,10 +74,12 @@ export function deriveHybridPathDisplay(
   return display;
 }
 
-export function HybridPathOverlay({ paths, camera }: Readonly<{
+export function HybridPathOverlay({ paths, camera, xRay = false }: Readonly<{
   paths: readonly HybridDisplayPath[];
   camera: ViewportCamera;
+  xRay?: boolean;
 }>) {
+  const [activePathId, setActivePathId] = useState<string | null>(null);
   return (
     <g className="hybrid-path-overlay" data-testid="hybrid-path-overlay">
       {paths.map((path) => {
@@ -82,14 +88,29 @@ export function HybridPathOverlay({ paths, camera }: Readonly<{
         return (
           <g key={`${path.sourceId}:${path.id}`}>
             <polyline
-              className={`hybrid-display-path kind-${path.kind}`}
+              className={`hybrid-display-path kind-${path.kind}${xRay ? " is-xray" : ""}`}
               data-path-kind={path.kind}
               data-source-id={path.sourceId}
               points={projected.map(({ x, y }) => `${x},${y}`).join(" ")}
             />
-            {reflected ? <circle className="hybrid-reflection-node" cx={reflected.x} cy={reflected.y} r="7" tabIndex={0}>
-              <title>{`${path.surfaceName}: ${path.pathLengthM.toFixed(2)} m, ${path.delayMs.toFixed(2)} ms, ${path.gainDb.toFixed(1)} dB`}</title>
-            </circle> : null}
+            {reflected ? <>
+              <circle
+                aria-label={`${path.surfaceName} reflection; ${path.pathLengthM.toFixed(2)} metres; ${path.delayMs.toFixed(2)} milliseconds; ${path.gainDb.toFixed(1)} decibels`}
+                className="hybrid-reflection-node"
+                cx={reflected.x}
+                cy={reflected.y}
+                onBlur={() => setActivePathId(null)}
+                onFocus={() => setActivePathId(path.id)}
+                onMouseEnter={() => setActivePathId(path.id)}
+                onMouseLeave={() => setActivePathId(null)}
+                r="7"
+                role="img"
+                tabIndex={0}
+              />
+              {activePathId === path.id ? <foreignObject height="76" width="250" x={reflected.x + 12} y={reflected.y - 38}>
+                <div className="hybrid-reflection-card" role="status"><strong>{path.surfaceName}</strong><span>{path.pathLengthM.toFixed(2)} m · {path.delayMs.toFixed(2)} ms · {path.gainDb.toFixed(1)} dB</span></div>
+              </foreignObject> : null}
+            </> : null}
           </g>
         );
       })}

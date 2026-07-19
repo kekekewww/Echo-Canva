@@ -1,46 +1,33 @@
-# Unified Workspace Requirement Evidence
+# Unified workspace requirement evidence
 
-This file is the release evidence matrix for
-`docs/superpowers/specs/2026-07-19-editor-workspace-redesign-design.md`.
-A row may be marked complete only when both implementation and automated evidence exist.
+Date: 2026-07-19
+
+Every row below is backed by committed source plus an automated unit/integration or production-Chromium case. Human headphone perception and public deployment remain separate external gates.
 
 | Requirement | Implementation evidence | Automated evidence | Status |
-| --- | --- | --- | --- |
-| Independent 2.5D and 3D authoring projects | `src/hooks/useWorkspaceProjects.ts` | `workspace-persistence.test.ts`, `workspace.spec.ts` | Partial: scene state exists; view/UI/history persistence pending |
-| Persistent AudioContext across mode switches | Shared workspace audio engine | Browser regression asserting one context/graph | Missing |
-| Versioned authoring migration and recovery | `src/domain/workspace/persistence.ts` | v1 SceneSpec, v2 Hybrid and corrupt-cache cases | Partial |
-| Camera, overlays and UI state stored per mode | Authoring view state | persistence and mode-switch tests | Missing |
-| Bounded, persisted undo/redo including active listener | `src/domain/workspace/history.ts` | history reload and listener activation tests | Partial |
-| Toolbar Add, Play, Raw/Simulated, Undo/Redo, Reset | `WorkspaceToolbar.tsx` | keyboard and browser flows | Partial |
-| Active Listener / Route / Gain / RT60 / Worker status | `WorkspaceStatusBar.tsx` | accessible status assertions | Missing |
-| Local mono audio, memory fallback, missing/relink/remove | local audio library and picker | library and browser recovery tests | Partial |
-| Authoring JSON export/import including local metadata | authoring transfer module | round-trip and missing-asset tests | Missing |
-| Source name, transform, gain, loop and asset editing | contextual inspector | source authoring browser flow | Partial |
-| Limits disable Add items with an explanation | `AddObjectMenu.tsx` | limit browser tests | Missing |
-| Two-click Wall placement in both modes | viewport adapters | geometry browser tests | Missing |
-| Portal requires an enabled selected Wall | Add command validation | reducer and browser tests | Missing |
-| Finite Wall/Portal constraints and attachment preservation | geometry constraints | pure geometry tests | Partial |
-| Wall extrusion, full-depth opening and closed Portal slab | Hybrid compiler | ray/compile tests | Partial |
-| Disable removes visual/acoustic object; exterior openings leak energy | projections/compiler/room estimate | disable and RT60 tests | Partial |
-| Compact in-app confirmation for Reset/Delete/Clear all | workspace cards | browser tests | Missing |
-| Numeric input/scrub/keyboard semantics | `NumericScrubField.tsx` | component and browser tests | Partial |
-| Matched-frame 3D paths, X-ray style and reflection detail card | Hybrid path overlay | unit and browser tests | Partial |
-| Responsive modal Outliner/Inspector drawers | workspace shell/CSS | narrow viewport tests | Missing |
-| Accessible focus, status announcements and reduced motion | workspace primitives | accessibility browser checks | Partial |
-| Storage/worker/audio failures preserve authoring and expose recovery | hooks and error cards | failure injection tests | Partial |
-| 100 Wall / 8 Portal / 4 Source / 8 Listener stress | fixture and instrumentation | performance browser test | Missing |
-| Classic and Hybrid regression behavior remains covered | compatibility browser suites | legacy-equivalent flows | Partial |
-| Truthful README, contracts, status and acceptance docs | project documentation | final audit | Missing |
-
-## Release rule
-
-The redesign is complete only when every row above is `Complete`, all references are current,
-and the following fresh commands pass without skipped tests:
-
-```bash
-pnpm lint
-pnpm typecheck
-pnpm test
-pnpm build
-pnpm e2e
-```
+|---|---|---|---|
+| Independent 2.5D and 3D projects | `useWorkspaceProjects`, per-mode reducers/adapters | `workspace-persistence.test.ts`, `workspace.spec.ts` | Complete |
+| One AudioContext/graph across mode switches | root-owned `AudioEngine` | `workspace.spec.ts` graph/context assertions | Complete |
+| Versioned migration and unread-cache recovery | cache v3 migrations and recovery download | `workspace-persistence.test.ts`, `workspace-failures.spec.ts` | Complete |
+| Per-mode camera, overlays and panels | `WorkspaceProject.view` | persistence unit and switch/refresh browser cases | Complete |
+| Bounded persisted Undo/Redo | 50 reversible patches; scrub transaction coalescing | history/persistence units; refresh/scrub browser cases | Complete |
+| Toolbar Add/Play/A-B/Undo/Redo/Reset/Settings | shared workspace toolbar/cards | `workspace.spec.ts`, `workspace-authoring.spec.ts` | Complete |
+| Listener/route/gain/RT60/Worker status | accessible `WorkspaceStatusBar` | workspace, legacy and failure browser cases | Complete |
+| Local mono audio, fallback, missing/relink/remove | IndexedDB + memory store + stable ID | local-audio units and authoring browser case | Complete |
+| Authoring transfer including local metadata | `transfer.ts` | transfer units and authoring download/import case | Complete |
+| Source name/transform/gain/loop/asset editing | contextual Inspector | local-source browser case | Complete |
+| Add limits and explanations | disabled popover items with reasons | maximum-entity browser case | Complete |
+| Two-click Wall placement in both modes | viewport placement adapters | geometry browser case | Complete |
+| Portal requires enabled selected Wall | Add availability + reducer invariant | project units and geometry browser case | Complete |
+| Finite Wall/Portal constraints and attachment | pure constraints and offset editor | constraint units and precision geometry browser case | Complete |
+| Full Wall extrusion/opening/closed slab | Hybrid compiler caps/jambs/slab | `hybrid3d-compile.test.ts` | Complete |
+| Disable removes visual/acoustic entity; openings leak | projectors/compiler/room estimate | projection/room units and wall/ceiling browser cases | Complete |
+| Reset/Delete/Clear-all confirmations | in-app modal cards | workspace and authoring browser cases | Complete |
+| Typed/scrubbed/keyboard numeric semantics | `NumericScrubField` | numeric units; geometry/workspace browser cases | Complete |
+| Matched-frame 3D paths and detail cards | accepted-frame overlay with X-ray presentation | path unit and browser cases | Complete |
+| Responsive modal drawers | viewport-first CSS/drawers | narrow-screen browser case | Complete |
+| Focus/status/reduced motion | focus-visible CSS, aria-live, modal focus | workspace/path/legacy browser cases | Complete |
+| Storage/Worker/audio failure containment | memory/recovery/stopped/Retry paths | `workspace-failures.spec.ts` | Complete |
+| 100 Wall / 8 Portal / 4 Source / 8 Listener stress | limit fixture and timing attributes | maximum-entity production browser case | Complete |
+| Classic and Hybrid regression behaviour | mode adapters plus compatibility suite | baseline unit suite and `legacy-regressions.spec.ts` | Complete |
+| Truthful contracts/status/acceptance docs | README and `docs/` audit | final verification record in `STATUS.md` | Complete after final command record |

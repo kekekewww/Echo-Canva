@@ -25,7 +25,9 @@ export function WorkspaceProjectTools({ project, dispatch, localAssets = [] }: R
   const scene = projectClassicScene(project);
 
   function exportAuthoring(): void {
-    const blob = new Blob([serializeWorkspaceProject(project, localAssets)], { type: "application/json" });
+    const metadata = new Map(Object.entries(project.localAudioMetadata));
+    for (const asset of localAssets) metadata.set(asset.id, asset);
+    const blob = new Blob([serializeWorkspaceProject(project, [...metadata.values()])], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;

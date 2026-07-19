@@ -13,7 +13,8 @@ The product is an **interactive acoustic approximation**. It is not an architect
 - In 3D, edit room size plus finite wall and Portal thickness, bottom, and top. Walls and objects are directly selectable in the viewport; source/listener positions and wall endpoints are draggable.
 - **Disable** is reversible and removes an entity from rendering and acoustic compilation while retaining it in the Outliner. **Delete** removes it. The floor and final enabled listener are protected.
 - 3D path overlays use the same accepted Worker revision as audio and show direct, blocked, Portal-aware, and first-order floor/ceiling/wall reflection paths.
-- Undo/Redo is bounded to 50 scene changes. Reset affects only the active mode and is undoable during the current session.
+- Undo/Redo is persisted as at most 50 compact reversible commands per mode. Continuous scrubbing is coalesced into one command. Reset affects only the active mode and is undoable.
+- Authoring JSON preserves listeners, finite geometry, disabled state, camera/overlay preferences, and local-audio metadata without embedding blobs. Missing files remain silent and can be relinked in place.
 
 ## Run locally
 
@@ -29,7 +30,7 @@ pnpm install
 pnpm dev
 ```
 
-Open `http://127.0.0.1:3000`. No account, API key, or network audio asset is required for presets and manual editing. Audio begins only after **Start Audio** is pressed.
+Open `http://127.0.0.1:3000`. No account, API key, or network audio asset is required for presets and manual editing. Audio begins only after **Play** is pressed.
 
 ### Optional AI configuration
 
@@ -46,7 +47,7 @@ This explicitly selects `openai/gpt-5.6-luna` for both scene compilation and aco
 
 ### Scene transfer
 
-Use **Import / export** in the Inspector to download or restore the current validated scene. Import accepts only a supported, versioned Echo Canvas scene smaller than 1 MB; invalid or unsupported JSON is rejected without changing the current project.
+Use **Import / export** in the Inspector to download or restore the active mode's complete authoring project. Invalid, unsupported, or wrong-mode JSON is rejected atomically. Local-audio metadata is exported, but blobs remain private in IndexedDB; another browser reports those Sources as **Relink required**.
 
 ## Verify
 
@@ -114,7 +115,7 @@ GPT-5.6 is a server-only control-plane component. It compiles bounded natural-la
 - Demo audio is generated locally by [`scripts/generate-audio-assets.mjs`](scripts/generate-audio-assets.mjs) and stored as mono WAV files under `public/audio/`.
 - Application code is licensed under the [MIT License](LICENSE).
 - Primary browser targets are current desktop Chrome and Edge.
-- External device changes and browser-initiated `AudioContext` interruption observation remain a documented follow-up; explicit Start, Stop, resume, and error lifecycle are covered.
-- First-order reflections and late reverberation are perceptually tuned approximations, not architectural-acoustics measurement or certification. The live UI uses continuous-loop assets rather than a separate one-shot impulse audition; automated Chromium validation nevertheless renders the production Schroeder network through `OfflineAudioContext` to check finite/non-clipping output on each stereo channel, an equal-band RT60 target from summed stereo energy, and a relative Raw/Simulated transition-continuity limit. The editor does not expose outer-room scale editing; room-scale math is covered by deterministic unit tests.
+- External device changes and browser-initiated `AudioContext` interruption observation remain a documented follow-up; explicit Play, Stop, resume, and Retry lifecycle are covered.
+- First-order reflections and late reverberation are perceptually tuned approximations, not architectural-acoustics measurement or certification. The live UI uses continuous-loop assets rather than a separate one-shot impulse audition; automated Chromium validation nevertheless renders the production Schroeder network through `OfflineAudioContext` to check finite/non-clipping output, decay, and Raw/Simulated transition continuity. Room width/depth are editable in both modes; 3D also exposes room height and floor/ceiling materials.
 - Local-audio blobs are intentionally not embedded in scene JSON; another browser must relink a missing local asset.
 - The 3D room is rectangular and acoustic paths remain first-order deterministic approximations. True diffraction, arbitrary room meshes, and simultaneous rendering for multiple listeners are outside this release.

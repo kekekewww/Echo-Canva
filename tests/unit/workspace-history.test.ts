@@ -28,6 +28,7 @@ describe("workspace history", () => {
     expect(next.past).toHaveLength(1);
     expect(undoHistory(next).present).toEqual(history.present);
     expect(redoHistory(undoHistory(next)).present).toEqual(next.present);
+    expect(JSON.stringify(next.past[0]).length).toBeLessThan(JSON.stringify(next.present).length / 2);
   });
 
   it("does not record selection-only commands", () => {

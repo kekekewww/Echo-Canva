@@ -1,5 +1,29 @@
 # Decision Log
 
+## D-043 — Persist compact reversible authoring patches
+
+Decision: Cache the current project plus at most 50 reversible value/splice patches in each history direction. Coalesce a continuous numeric pointer scrub into one transaction. Migrate the earlier snapshot-history envelope to patches without overwriting the original record on failure.
+
+Reason: Fifty complete 100-Wall scene snapshots can exhaust localStorage. Structural patches keep ordinary transforms, material changes, enable state, and listener activation small while retaining Undo/Redo across refresh.
+
+## D-044 — Preserve missing local-audio identity and metadata
+
+Decision: Authoring JSON contains local asset ID, name, MIME type, size, and creation time, but never the blob. An unavailable asset leaves its Source silent and fixed in place; relink replaces the IndexedDB record under the same ID. IndexedDB failure declares memory-only operation.
+
+Reason: Scene sharing must not upload private audio or silently delete authoring intent. Stable IDs let the audio graph and Source transform survive removal, transfer, and recovery.
+
+## D-045 — Compile complete finite Wall and Portal solids
+
+Decision: Hybrid walls compile front/back panels plus top, bottom, and end caps. An open Portal carves a passage through the full wall depth and adds jamb/header/sill surfaces; a closed Portal adds a finite barrier slab using authored thickness. Inspector offset is converted to the planar center along the finite host wall.
+
+Reason: A front-face-only opening looked and behaved like a column rather than a wall. Closed/open states and first-order surface candidates must describe the same finite authoring geometry.
+
+## D-046 — Stop active simulation when its Worker is unavailable
+
+Decision: The deterministic hook may compute an internal main-thread diagnostic fallback, but the workspace adapter does not send fallback frames to audio or path overlays. It reports `Stopped · Worker unavailable`; authoring and the other mode remain usable.
+
+Reason: A failure must not present an unscheduled main-thread approximation as the accepted Worker frame. This preserves project access and makes the degraded state explicit without blocking manual edits.
+
 ## D-041 — Introduce a versioned authoring layer above both deterministic engines
 
 Decision: Keep independent 2.5D and 3D `WorkspaceProject` documents above the existing `SceneSpec` and `SceneDocumentV2` contracts. Projectors select the active listener, filter disabled entities, apply finite 3D wall/Portal bounds, and then invoke the existing deterministic workers. A single modelling-style shell owns selection, Inspector edits, local caches, history, and Reset.

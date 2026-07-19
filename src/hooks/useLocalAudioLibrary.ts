@@ -15,6 +15,7 @@ export function useLocalAudioLibrary() {
   const refresh = useCallback(async () => {
     try {
       setRecords(await entry.library.list());
+      if (!entry.library.persistent) setWarning("IndexedDB is unavailable. Local audio will last only for this tab.");
     } catch {
       setWarning("Local audio storage is unavailable.");
     }
@@ -39,7 +40,18 @@ export function useLocalAudioLibrary() {
     await refresh();
   }, [entry, refresh]);
 
+  const relink = useCallback(async (id: string, file: File) => {
+    const record = await entry.library.relink(id, file.name, file);
+    await refresh();
+    return record;
+  }, [entry, refresh]);
+
+  const clear = useCallback(async () => {
+    await entry.library.clear();
+    await refresh();
+  }, [entry, refresh]);
+
   const resolveAudioAsset = useCallback((id: string) => entry.library.resolveArrayBuffer(id), [entry]);
 
-  return { records, warning, add, remove, resolveAudioAsset };
+  return { records, warning, add, remove, relink, clear, resolveAudioAsset };
 }

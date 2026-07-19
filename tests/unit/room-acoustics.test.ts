@@ -66,7 +66,8 @@ describe("estimateRoomAcoustics", () => {
     expect(open.rt60S.high).toBeLessThan(sealed.rt60S.high);
   });
 
-  it("derives exterior surface from the outer polygon instead of arbitrary boundary lengths", () => {
+  it("treats a missing exterior boundary as full energy escape", () => {
+    const sealed = estimateRoomAcoustics(roomScene());
     const estimate = estimateRoomAcoustics(roomScene({
       walls: [
         { id: "mismatched", a: { x: 100, y: 100 }, b: { x: 200, y: 100 }, thicknessM: 0.2, materialId: "acoustic_treatment", kind: "boundary" },
@@ -74,7 +75,16 @@ describe("estimateRoomAcoustics", () => {
     }));
 
     expect(estimate.totalSurfaceM2).toBe(268);
-    expect(estimate.rt60S.mid).toBeCloseTo(0.161 * 240 / (-268 * Math.log(1 - 0.04)));
+    expect(estimate.rt60S.mid).toBeLessThan(sealed.rt60S.mid);
+  });
+
+  it("treats a disabled ceiling as energy escape without changing room volume", () => {
+    const sealed = estimateRoomAcoustics(roomScene());
+    const open = estimateRoomAcoustics(roomScene(), { ceilingEnabled: false });
+
+    expect(open.volumeM3).toBe(sealed.volumeM3);
+    expect(open.totalSurfaceM2).toBe(sealed.totalSurfaceM2);
+    expect(open.rt60S.mid).toBeLessThan(sealed.rt60S.mid);
   });
 
   it("clamps the numerical RT60 and pre-delay ranges", () => {

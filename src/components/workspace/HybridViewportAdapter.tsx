@@ -17,17 +17,23 @@ import { projectClassicScene, projectHybridDocument } from "@/domain/workspace/p
 import type { ProjectAction, Vec3, WorkspaceProject } from "@/domain/workspace/types";
 import { useHybridDirectPaths } from "@/hooks/useHybridDirectPaths";
 import type { AudioEngine } from "@/audio/AudioEngine";
+import type { WorkspaceAcousticStatus } from "@/components/workspace/WorkspaceStatusBar";
+import { estimateRoomAcoustics } from "@/acoustics/room-acoustics";
 
-export function HybridViewportAdapter({ project, dispatch, audioEngine }: Readonly<{
+export function HybridViewportAdapter({ project, dispatch, audioEngine, wallPlacementFirst, onWallPlacementPoint, onAcousticStatus }: Readonly<{
   project: WorkspaceProject;
   dispatch: (action: ProjectAction) => void;
   audioEngine: AudioEngine;
+  wallPlacementFirst?: Readonly<{ x: number; z: number }> | null;
+  onWallPlacementPoint?: (point: Readonly<{ x: number; z: number }>) => void;
+  onAcousticStatus?: (status: WorkspaceAcousticStatus) => void;
 }>) {
   const { pathsVisible, showAllPaths, ceilingVisible } = project.view.overlays;
   const scene = useMemo(() => projectClassicScene(project), [project]);
   const document = useMemo(() => projectHybridDocument(project), [project]);
   const geometry = useMemo(() => compileHybridGeometry(document), [document]);
   const direct = useHybridDirectPaths(document, geometry);
+  const workerAccepted = direct.source === "worker";
   const audible = useMemo(() => resolveHybridAudibleDirectState(geometry, direct.frame), [direct.frame, geometry]);
   const reflectionState = useMemo(() => ({
     listenerPosition: geometry.listenerPosition,
@@ -103,8 +109,25 @@ export function HybridViewportAdapter({ project, dispatch, audioEngine }: Readon
     return null;
   }, [project.selection]);
 
-  useEffect(() => audioEngine.applyHybridDirectState(audible.audioState), [audioEngine, audible]);
-  useEffect(() => audioEngine.applyHybridReflectionState(reflectionState), [audioEngine, reflectionState]);
+  useEffect(() => {
+    if (workerAccepted) audioEngine.applyHybridDirectState(audible.audioState);
+  }, [audioEngine, audible, workerAccepted]);
+  useEffect(() => {
+    if (workerAccepted) audioEngine.applyHybridReflectionState(reflectionState);
+  }, [audioEngine, reflectionState, workerAccepted]);
+  useEffect(() => {
+    const active = project.listeners.find(({ id }) => id === project.activeListenerId);
+    const path = audible.paths.find(({ sourceId }) => sourceId === selectedSourceId) ?? audible.paths[0];
+    const room = estimateRoomAcoustics(scene, { ceilingEnabled: !disabled.has("ceiling") });
+    onAcousticStatus?.({
+      listenerName: active?.name ?? "Listener",
+      route: workerAccepted ? path?.routeType ?? "none" : "none",
+      gainDb: workerAccepted ? path?.dryGainDb ?? null : null,
+      rt60MidS: workerAccepted ? room.rt60S.mid : null,
+      worker: workerAccepted ? "Worker" : "Stopped",
+      computeMs: workerAccepted ? direct.computeMs : null,
+    });
+  }, [audible.paths, direct.computeMs, disabled, onAcousticStatus, project.activeListenerId, project.listeners, scene, selectedSourceId, workerAccepted]);
 
   function moveObject(id: string, position: Vec3): void {
     const listener = project.listeners.find((candidate) => candidate.id === id);
@@ -143,7 +166,7 @@ export function HybridViewportAdapter({ project, dispatch, audioEngine }: Readon
   return (
     <section className="workspace-viewport-panel" data-testid="hybrid-workspace-viewport">
       <header className="viewport-tools">
-        <span>{project.scene.name}</span><span>{direct.source === "worker" ? "Worker" : "Fallback"}</span>
+        <span>{project.scene.name}</span><span>{workerAccepted ? "Worker" : "Stopped · Worker unavailable"}</span>
       </header>
       <HybridSpatialViewport
         camera={project.view.camera}
@@ -162,11 +185,13 @@ export function HybridViewportAdapter({ project, dispatch, audioEngine }: Readon
         onToggleCeiling={() => dispatch({ type: "SET_VIEW_STATE", changes: { overlays: { ...project.view.overlays, ceilingVisible: !ceilingVisible } } })}
         onTogglePaths={() => dispatch({ type: "SET_VIEW_STATE", changes: { overlays: { ...project.view.overlays, pathsVisible: !pathsVisible } } })}
         onToggleShowAllPaths={() => dispatch({ type: "SET_VIEW_STATE", changes: { overlays: { ...project.view.overlays, showAllPaths: !showAllPaths } } })}
-        paths={displayPaths}
+        paths={workerAccepted ? displayPaths : []}
         pathsVisible={pathsVisible}
         roomDimensions={project.room3d}
         selectedTarget={selectedTarget}
         showAllPaths={showAllPaths}
+        wallPlacementFirst={wallPlacementFirst}
+        onWallPlacementPoint={onWallPlacementPoint}
         walls={walls}
       />
     </section>

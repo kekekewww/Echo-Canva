@@ -7,13 +7,13 @@ import {
   createDefaultClassicProject,
   createDefaultHybridProject,
 } from "@/domain/workspace/defaults";
-import { createHistory, type HistoryState } from "@/domain/workspace/history";
+import { applyHistoryPatch, createHistory, createHistoryPatch, type HistoryPatch, type HistoryState } from "@/domain/workspace/history";
 import type { WorkspaceMode, WorkspaceProject, WorkspaceViewState } from "@/domain/workspace/types";
 
 export const CLASSIC_PROJECT_KEY = "echo-canvas:project:classic:v1";
 export const HYBRID_PROJECT_KEY = "echo-canvas:project:hybrid:v1";
 export const WORKSPACE_UI_KEY = "echo-canvas:workspace-ui:v1";
-export const WORKSPACE_CACHE_VERSION = "2.0";
+export const WORKSPACE_CACHE_VERSION = "3.0";
 
 const vec3Schema = z.object({ x: z.number().finite(), y: z.number().finite(), z: z.number().finite() }).strict();
 const listenerSchema = z.object({
@@ -56,6 +56,9 @@ const projectEnvelopeSchema = z.object({
     widthM: z.number().min(0.1).max(50),
     depthM: z.number().min(0.1).max(50),
     heightM: z.number().min(0.1).max(12),
+    floorMaterialId: z.string().optional(),
+    ceilingMaterialId: z.string().optional(),
+    ceilingEnabled: z.boolean().optional(),
   }).strict(),
   sourceHeightsM: z.record(z.string(), z.number().finite()),
   wall3dById: z.record(z.string(), z.object({
@@ -69,11 +72,44 @@ const projectEnvelopeSchema = z.object({
     thicknessM: z.number().finite(),
   }).strict()),
   missingAudioAssetIds: z.array(z.string()).optional(),
+  localAudioMetadata: z.record(z.string(), z.object({
+    id: z.string().min(1),
+    name: z.string().min(1).max(120),
+    mimeType: z.string().min(1),
+    size: z.number().int().nonnegative(),
+    createdAt: z.number().finite(),
+  }).strict()).optional(),
   view: viewSchema.optional(),
   notice: z.object({ code: z.string(), message: z.string() }).nullable(),
 }).strict();
+const pathSchema = z.array(z.union([z.string(), z.number().int().nonnegative()]));
+const historyOperationSchema = z.discriminatedUnion("kind", [
+  z.object({
+    kind: z.literal("value"),
+    path: pathSchema,
+    beforeExists: z.boolean(),
+    before: z.unknown(),
+    afterExists: z.boolean(),
+    after: z.unknown(),
+  }).strict(),
+  z.object({
+    kind: z.literal("splice"),
+    path: pathSchema,
+    index: z.number().int().nonnegative(),
+    beforeItems: z.array(z.unknown()),
+    afterItems: z.array(z.unknown()),
+  }).strict(),
+]);
+const historyPatchSchema = z.object({ operations: z.array(historyOperationSchema).min(1) }).strict();
 const cacheDocumentSchema = z.object({
   cacheVersion: z.literal(WORKSPACE_CACHE_VERSION),
+  mode: z.enum(["classic-2d5d", "hybrid-3d"]),
+  present: z.unknown(),
+  past: z.array(historyPatchSchema).max(50),
+  future: z.array(historyPatchSchema).max(50),
+}).strict();
+const legacyCacheDocumentSchema = z.object({
+  cacheVersion: z.literal("2.0"),
   mode: z.enum(["classic-2d5d", "hybrid-3d"]),
   present: z.unknown(),
   past: z.array(z.unknown()).max(50),
@@ -131,7 +167,10 @@ function projectFromScene(scene: SceneSpec, mode: WorkspaceMode): WorkspaceProje
 }
 
 function migrateProjectCandidate(input: unknown, mode: WorkspaceMode): WorkspaceProject | null {
-  const parsedProject = projectEnvelopeSchema.safeParse(input);
+  const currentCache = cacheDocumentSchema.safeParse(input);
+  const legacyCache = legacyCacheDocumentSchema.safeParse(input);
+  const candidate = currentCache.success ? currentCache.data.present : legacyCache.success ? legacyCache.data.present : input;
+  const parsedProject = projectEnvelopeSchema.safeParse(candidate);
   if (parsedProject.success && parsedProject.data.mode === mode) {
     const scene = validateScene(parsedProject.data.scene);
     if (!scene.ok) return null;
@@ -140,16 +179,23 @@ function migrateProjectCandidate(input: unknown, mode: WorkspaceMode): Workspace
     );
     if (!active) return null;
     return {
-      ...(parsedProject.data as Omit<WorkspaceProject, "schemaVersion" | "scene" | "notice" | "view" | "missingAudioAssetIds">),
+      ...(parsedProject.data as Omit<WorkspaceProject, "schemaVersion" | "scene" | "notice" | "view" | "missingAudioAssetIds" | "localAudioMetadata" | "room3d">),
       schemaVersion: "2.0",
       scene: scene.scene,
+      room3d: {
+        ...parsedProject.data.room3d,
+        floorMaterialId: parsedProject.data.room3d.floorMaterialId ?? scene.scene.room.floorMaterialId,
+        ceilingMaterialId: parsedProject.data.room3d.ceilingMaterialId ?? scene.scene.room.ceilingMaterialId,
+        ceilingEnabled: parsedProject.data.room3d.ceilingEnabled ?? !parsedProject.data.disabledEntityIds.includes("ceiling"),
+      },
       view: parsedProject.data.view ?? defaultView(mode),
       missingAudioAssetIds: parsedProject.data.missingAudioAssetIds ?? [],
+      localAudioMetadata: parsedProject.data.localAudioMetadata ?? {},
       notice: null,
     };
   }
 
-  const document = validateSceneDocument(input);
+  const document = validateSceneDocument(candidate);
   if (!document.ok) return null;
   if (isSceneDocumentV2(document.document)) {
     if (mode !== "hybrid-3d") return null;
@@ -187,23 +233,46 @@ function migrateProjectCandidate(input: unknown, mode: WorkspaceMode): Workspace
 }
 
 export function migrateWorkspaceCache(input: unknown, mode: WorkspaceMode): WorkspaceProject | null {
-  const cache = cacheDocumentSchema.safeParse(input);
-  return migrateProjectCandidate(cache.success ? cache.data.present : input, mode);
+  return migrateProjectCandidate(input, mode);
 }
 
 function migrateHistory(input: unknown, mode: WorkspaceMode): HistoryState<WorkspaceProject> | null {
   const cache = cacheDocumentSchema.safeParse(input);
-  if (!cache.success || cache.data.mode !== mode) {
+  if (cache.success && cache.data.mode === mode) {
+    const present = migrateProjectCandidate(cache.data.present, mode);
+    if (!present) return null;
+    try {
+      let cursor = present;
+      for (const patch of [...cache.data.past].reverse()) cursor = applyHistoryPatch(cursor, patch as HistoryPatch, "backward");
+      cursor = present;
+      for (const patch of cache.data.future) cursor = applyHistoryPatch(cursor, patch as HistoryPatch, "forward");
+      return { present, past: cache.data.past as readonly HistoryPatch[], future: cache.data.future as readonly HistoryPatch[] };
+    } catch {
+      return null;
+    }
+  }
+  const legacy = legacyCacheDocumentSchema.safeParse(input);
+  if (!legacy.success || legacy.data.mode !== mode) {
     const project = migrateProjectCandidate(input, mode);
     return project ? createHistory(project) : null;
   }
-  const present = migrateProjectCandidate(cache.data.present, mode);
+  const present = migrateProjectCandidate(legacy.data.present, mode);
   if (!present) return null;
   const migrateList = (items: readonly unknown[]) => items
     .map((item) => migrateProjectCandidate(item, mode))
     .filter((item): item is WorkspaceProject => item !== null)
     .slice(-50);
-  return { present, past: migrateList(cache.data.past), future: migrateList(cache.data.future) };
+  const pastStates = migrateList(legacy.data.past);
+  const futureStates = migrateList(legacy.data.future);
+  const chronological = [...pastStates, present];
+  const past = chronological.slice(0, -1).map((state, index) => createHistoryPatch(state, chronological[index + 1]!));
+  const future: HistoryPatch[] = [];
+  let cursor = present;
+  for (const state of futureStates) {
+    future.push(createHistoryPatch(cursor, state));
+    cursor = state;
+  }
+  return { present, past, future };
 }
 
 export function loadWorkspaceCache(storage: StorageLike | null | undefined, mode: WorkspaceMode): CacheLoadResult {

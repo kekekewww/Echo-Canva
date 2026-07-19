@@ -3,6 +3,7 @@
 import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 
@@ -33,6 +34,8 @@ type SceneEditorProps = Readonly<{
   selection: EditorSelection;
   acousticFrame: AcousticFrame | null;
   dispatch: (action: EditorAction) => void;
+  wallPlacementFirst?: Vec2 | null;
+  onWallPlacementPoint?: (point: Vec2) => void;
 }>;
 
 function getWorldBounds(scene: SceneSpec): Rect {
@@ -70,7 +73,7 @@ export function portalForRouteMarker(
   return portals.find(({ id }) => id === listenerFacingPortalId);
 }
 
-export function SceneEditor({ scene, selection, acousticFrame, dispatch }: SceneEditorProps) {
+export function SceneEditor({ scene, selection, acousticFrame, dispatch, wallPlacementFirst = null, onWallPlacementPoint }: SceneEditorProps) {
   const [dragTarget, setDragTarget] = useState<DragTarget | null>(null);
   const worldBounds = getWorldBounds(scene);
   const selectedSource =
@@ -85,7 +88,7 @@ export function SceneEditor({ scene, selection, acousticFrame, dispatch }: Scene
     ? portalForRouteMarker(scene.portals, activeSourceFrame.portalIds)
     : undefined;
 
-  function eventToWorld(event: ReactPointerEvent<SVGElement>): Vec2 {
+  function eventToWorld(event: ReactPointerEvent<SVGElement> | ReactMouseEvent<SVGElement>): Vec2 {
     const svg = event.currentTarget.ownerSVGElement ?? (event.currentTarget as SVGSVGElement);
     const bounds = svg.getBoundingClientRect();
     const svgPoint = clientPointToSvg(
@@ -194,8 +197,15 @@ export function SceneEditor({ scene, selection, acousticFrame, dispatch }: Scene
           y={VIEWPORT.minY}
           width={VIEWPORT.width}
           height={VIEWPORT.height}
-          className="room-field"
+          className={`room-field${onWallPlacementPoint ? " is-placement-active" : ""}`}
+          data-testid="wall-placement-surface"
+          onClick={onWallPlacementPoint ? (event) => onWallPlacementPoint(eventToWorld(event)) : undefined}
         />
+
+        {wallPlacementFirst ? (() => {
+          const point = worldToSvg(wallPlacementFirst, worldBounds, VIEWPORT);
+          return <g aria-label="First wall point" className="wall-placement-point" transform={`translate(${point.x} ${point.y})`}><circle r="9" /><text y="-16">A</text></g>;
+        })() : null}
 
         <g className="coordinate-grid" aria-hidden="true">
           {Array.from({ length: Math.floor(worldBounds.width * 2) + 1 }, (_, index) => {

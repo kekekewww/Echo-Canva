@@ -12,7 +12,7 @@ const BANDS = ["low", "mid", "high"] as const;
 
 type Surface = Readonly<{
   areaM2: number;
-  material: AcousticMaterial;
+  material: AcousticMaterial | null;
   wallId?: string;
 }>;
 
@@ -62,7 +62,7 @@ function boundaryWallForEdge(
     .sort((left, right) => left.id.localeCompare(right.id))[0];
 }
 
-function exteriorSurfaces(scene: SceneSpec, fallbackMaterial: AcousticMaterial): readonly Surface[] {
+function exteriorSurfaces(scene: SceneSpec): readonly Surface[] {
   const { outerPolygon, heightM } = scene.room;
   return outerPolygon.flatMap((point, index): Surface[] => {
     const next = outerPolygon[(index + 1) % outerPolygon.length]!;
@@ -74,7 +74,7 @@ function exteriorSurfaces(scene: SceneSpec, fallbackMaterial: AcousticMaterial):
     const wall = boundaryWallForEdge(point, next, scene);
     return [{
       areaM2,
-      material: wall === undefined ? fallbackMaterial : materialFor(wall.materialId),
+      material: wall === undefined ? null : materialFor(wall.materialId),
       wallId: wall?.id,
     }];
   });
@@ -110,7 +110,10 @@ function eyringRt60(volumeM3: number, surfaceM2: number, meanAbsorption: number)
 }
 
 /** Estimates room-scale Eyring decay values for the interactive approximation. */
-export function estimateRoomAcoustics(scene: SceneSpec): RoomAcousticFrame {
+export function estimateRoomAcoustics(
+  scene: SceneSpec,
+  options: Readonly<{ ceilingEnabled?: boolean }> = {},
+): RoomAcousticFrame {
   const areaM2 = polygonArea(scene.room.outerPolygon);
   const heightM = Math.max(0, scene.room.heightM);
   const volumeM3 = areaM2 * heightM;
@@ -118,8 +121,8 @@ export function estimateRoomAcoustics(scene: SceneSpec): RoomAcousticFrame {
   const ceiling = materialFor(scene.room.ceilingMaterialId);
   const surfaces: Surface[] = [
     { areaM2, material: floor },
-    { areaM2, material: ceiling },
-    ...exteriorSurfaces({ ...scene, room: { ...scene.room, heightM } }, floor),
+    { areaM2, material: options.ceilingEnabled === false ? null : ceiling },
+    ...exteriorSurfaces({ ...scene, room: { ...scene.room, heightM } }),
   ];
 
   for (const wall of scene.walls.filter((candidate) => candidate.kind === "partition")) {
@@ -138,8 +141,9 @@ export function estimateRoomAcoustics(scene: SceneSpec): RoomAcousticFrame {
       : scene.walls.find((candidate) => candidate.id === surface.wallId);
     const openingAreaM2 = wall === undefined ? 0 : portalOpeningArea(wall, scene, surface.areaM2);
     for (const band of BANDS) {
-      absorptionArea[band] +=
-        (surface.areaM2 - openingAreaM2) * surface.material.absorption[band] + openingAreaM2;
+      absorptionArea[band] += surface.material === null
+        ? surface.areaM2
+        : (surface.areaM2 - openingAreaM2) * surface.material.absorption[band] + openingAreaM2;
     }
   }
 

@@ -5,13 +5,15 @@
 1. Edit Listener X/Z in 2.5D, switch to 3D and edit X/Y/Z, switch back, refresh, and confirm both independent values restore.
 2. Add another Listener; confirm it becomes Active. Select the first Listener and confirm exactly one Active badge remains. The final enabled Listener must not disable/delete.
 3. Add a built-in source and a valid local WAV/MP3/Ogg source. Confirm invalid/undecodable or oversized files do not create a source and no local blob is sent to an API route.
-4. In 3D, add a Wall, select its finite panel, drag either endpoint, edit thickness/bottom/top, then add a hosted Portal and edit width/bottom/top/thickness.
+4. In both modes, add a Wall with two viewport clicks. In 3D, select its finite panel, drag either endpoint, edit exact A/B coordinates plus thickness/bottom/top, then add a hosted Portal and edit offset/width/bottom/top/thickness.
 5. Disable and re-enable a Wall, Portal, source, Listener, ceiling, and a 2.5D wall. Disabled objects stay in the Outliner but disappear from viewport and deterministic compilation. Floor remains protected.
 6. Select a source and verify direct/blocked/Portal-aware and first-order floor/ceiling/wall paths. Toggle Paths, All paths, and presentation-only Ceiling without changing the accepted acoustic revision.
 7. Exercise exact numeric input with units, label scrubbing, Shift fine adjustment, Ctrl snapping, arrows, Enter, and Escape. Verify invalid input preserves the last accepted value.
 8. Undo/Redo scene changes. Reset 3D, Undo it, and verify 2.5D is unchanged.
-9. Import/export a valid scene and reject malformed JSON without changing the current project. Simulate unavailable AI and confirm manual authoring/audio remain available.
-10. Run the complete static/browser verification, then perform the headphone-only localization/occlusion/Portal/reverb comparison before deployment.
+9. Export/import a complete authoring project. Confirm missing local audio retains its filename/Source position and reports `Relink required`; relink it without changing the Source transform. Reject malformed/wrong-mode JSON atomically.
+10. Corrupt a cache, deny local storage/IndexedDB, deny Worker creation, and deny AudioContext startup. Confirm recovery download, memory-only warning, stopped simulation, and Retry respectively while authoring remains available.
+11. Load the maximum 100 Wall / 8 Portal / 4 Source / 8 Listener project, switch modes, refresh twice, and confirm no data or duplicate audio graphs. Automated Chromium must measure Worker p95 below 12 ms and no >50 ms long task in the tested edit sequence.
+12. Run the complete static/browser verification, then perform the headphone-only localization/occlusion/Portal/reverb comparison before deployment.
 
 ## Tester role
 
@@ -25,7 +27,7 @@ Use headphones for all perceptual tests.
 
 1. Open the candidate URL in a fresh browser profile.
 2. Confirm a preset scene is visible before starting audio.
-3. Press Start Audio.
+3. Press Play.
 4. Switch Raw and Simulated.
 
 Pass when:
@@ -50,7 +52,7 @@ Pass when:
 
 ## Gate B — Occlusion and portal perception
 
-1. Open the canonical **Concrete Partition** preset, press **Start Audio**, and select **Simulated**.
+1. Open the canonical **Concrete Partition** preset, press **Play**, and select **Simulated**.
 2. Select the listener and move it down to approximately `(3, 2)` with the arrow keys, keeping it on the opposite side of the center partition and below the doorway.
 3. With the designated portal open, confirm **Portal route**, `partition_center`, Effective distance, Direct gain, Low-pass, and the cyan route/listener-facing portal marker are visible; listen for direction toward the doorway.
 4. Select the designated portal and close it. Confirm **Blocked fallback**, `partition_center` as an occluder, the red wall highlight, and lower direct gain/low-pass values.
@@ -62,7 +64,7 @@ Automated evidence: the repository production wrapper passed the focused portal 
 
 ## Gate C — Reflections and reverb
 
-1. Load **Hard Room**, press **Start Audio**, choose **Simulated**, and record the Low/Mid/High `Estimated Eyring RT60`, pre-delay, tap count, and amber dashed first-order paths.
+1. Load **Hard Room**, press **Play**, choose **Simulated**, and record the Low/Mid/High `Estimated Eyring RT60`, pre-delay, tap count, and amber dashed first-order paths.
 2. Load **Treated Room** while the source continues playing. Confirm that Mid/High RT60 are lower than Hard Room and listen for the less sustained / less bright room character. The curated sources are continuous loops, so a standalone impulse-tail audition is not exposed.
 3. Compare the displayed Volume, Surface, and Pre-delay in the two fixed-size presets. Outer-room scaling is not an editor control; deterministic scale behavior is instead covered by room-acoustics unit tests.
 4. Return to **Hard Room**, click a wall to select it, then drag one of that wall's revealed endpoint handles; move the source and listener continuously for 20 seconds during playback. Confirm there is no repeated click, burst, silence, or runaway feedback and that the UI remains responsive.
@@ -89,7 +91,7 @@ Pass when all five steps behave as described. This remains spatial-audio prototy
 ### E1. Clean-session test
 
 1. Open deployed URL in incognito.
-2. Complete: Start Audio → load preset → move listener behind wall → open portal → change material → generate AI scene → export JSON.
+2. Complete: Play → load preset → move listener behind wall → open portal → change material → generate AI scene → export JSON.
 3. Refresh and re-import JSON.
 
 Pass when the entire flow succeeds without developer intervention.
@@ -129,7 +131,7 @@ Unit tests:
 
 Integration/e2e:
 
-- first load and Start Audio;
+- first load and Play;
 - preset switch;
 - drag source/listener;
 - open/close portal;

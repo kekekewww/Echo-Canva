@@ -3,21 +3,23 @@
 ## Unified modelling workspace complete — static release candidate — 2026-07-19
 
 - replaced the separate page control walls with one modelling-style toolbar / Outliner / viewport / Inspector / status shell on `/`, `/classic`, and `/lab`
-- added independent versioned 2.5D and 3D project caches, bounded per-mode undo/redo, and undoable active-mode-only Reset
+- added independent versioned 2.5D and 3D project caches, at most 50 compact reversible commands per mode, persisted Undo/Redo, scrub coalescing, and undoable active-mode-only Reset
 - added exact numeric typing, unit parsing, pointer scrubbing, Shift fine adjustment, Ctrl snapping, arrow editing, and Escape cancel
-- added up to eight selectable listeners, four built-in/local point sources, browser-only IndexedDB audio, decode rejection, and persistent audio-asset resolution
-- added editable rectangular 3D room dimensions, arbitrary finite walls, hosted finite Portals, thickness and vertical bounds, and reversible Disable semantics
+- added up to eight selectable listeners, four built-in/local mono point sources, IndexedDB plus declared memory fallback, stable-ID missing/relink/remove, and metadata-only authoring transfer
+- added editable room width/depth in both modes; 3D height/materials; arbitrary finite walls; precise endpoints; Portal offset/width/vertical/thickness; and reversible acoustic Disable semantics
 - generalized the 3D viewport to render and select every enabled listener/source/wall/Portal, including finite wall thickness and Portal bottom/top openings
-- added matched-revision direct, blocked, Portal-aware, floor, ceiling, and wall first-order path overlays with compact presentation controls
+- added matched-revision direct, blocked, Portal-aware, floor, ceiling, and wall first-order path overlays with X-ray presentation and focus/hover detail cards
+- added compact Reset/Delete/Clear-all confirmation cards, responsive modal drawers, storage recovery download, stopped-Worker state, and audio Retry
+- added a production maximum-entity case (100 Walls / 8 Portals / 4 Sources / 8 Listeners), repeated mode/refresh checks, Worker p95 <12 ms assertion, and an edit sequence with no long task above 50 ms
 - migrated the production browser suite to the unified workspace flows and retained the offline audio render gate
 
 Final static verification:
 
 - `pnpm lint` — PASS, zero warnings
 - `pnpm typecheck` — PASS
-- `pnpm test` — PASS, 56 files / 325 tests
+- `pnpm test` — PASS, 58 files / 343 tests
 - `pnpm build` — PASS, all application and API routes compiled
-- `pnpm e2e` — PASS, 15/15 production Chromium tests including the offline audio-render probe and 100-wall interaction budget
+- `pnpm e2e` — PASS, 33/33 production Chromium tests including legacy adapter regressions, failure injection, offline audio rendering, and full entity-limit budgets
 - `git diff --check` — PASS; Windows line-ending notices are informational
 
 Deployment and the human headphone/release acceptance remain external gates, not static claims.

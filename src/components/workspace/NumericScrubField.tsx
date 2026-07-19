@@ -28,10 +28,10 @@ function clamp(value: number, minimum = -Infinity, maximum = Infinity): number {
 }
 
 export function parseNumericInput(input: string, unit: string, minimum = -Infinity, maximum = Infinity): number | null {
-  const normalized = input.trim().replace(unit, "").trim();
+  const normalized = input.trim().toLowerCase().replace(unit.trim().toLowerCase(), "").trim();
   if (normalized.length === 0) return null;
   const value = Number(normalized);
-  return Number.isFinite(value) ? clamp(value, minimum, maximum) : null;
+  return Number.isFinite(value) && value >= minimum && value <= maximum ? value : null;
 }
 
 export function scrubbedNumericValue(initial: number, deltaPixels: number, options: ScrubOptions): number {
@@ -55,6 +55,8 @@ export function NumericScrubField({ label, axis, value, unit, min, max, step, fi
     const parsed = parseNumericInput(draft, unit, min, max);
     if (parsed === null) {
       setInvalid(true);
+      setDraft(displayValue(value));
+      setEditing(false);
       return;
     }
     onCommit(parsed);
@@ -72,6 +74,7 @@ export function NumericScrubField({ label, axis, value, unit, min, max, step, fi
       event.preventDefault();
       setEditing(false);
       setInvalid(false);
+      setDraft(displayValue(value));
       return;
     }
     if (event.key === "ArrowUp" || event.key === "ArrowDown") {

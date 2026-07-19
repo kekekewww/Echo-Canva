@@ -26,7 +26,12 @@ describe("workspace authoring transfer", () => {
     }]);
     const parsed = parseWorkspaceProject(json, "hybrid-3d", new Set(["local_voice"]));
 
-    expect(parsed.project).toEqual(project);
+    expect(parsed.project).toEqual({
+      ...project,
+      localAudioMetadata: {
+        local_voice: expect.objectContaining({ id: "local_voice", name: "voice.wav" }),
+      },
+    });
     expect(parsed.localAssets).toEqual([expect.objectContaining({ id: "local_voice", name: "voice.wav" })]);
   });
 

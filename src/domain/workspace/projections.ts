@@ -65,7 +65,7 @@ export function projectHybridDocument(project: WorkspaceProject): SceneDocumentV
         topM: project.portal3dById[id]?.topM ?? baseScene.portals.find((portal) => portal.id === id)!.heightM,
         thicknessM: project.portal3dById[id]?.thicknessM ?? 0.12,
       }])),
-      disabledSurfaceIds: project.disabledEntityIds.filter((id) => id === "ceiling"),
+      disabledSurfaceIds: project.room3d.ceilingEnabled ? [] : ["ceiling"],
     },
     propagation3d: {
       maxReflectionOrder: 1,

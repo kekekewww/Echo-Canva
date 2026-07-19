@@ -40,7 +40,7 @@ function portalOpening(
   wall: SceneDocumentV2["baseScene"]["walls"][number],
   portal: SceneDocumentV2["baseScene"]["portals"][number],
 ): PortalOpening3 | null {
-  if (!portal.open || portal.wallId !== wall.id) return null;
+  if (portal.wallId !== wall.id) return null;
   const spatial = requireSpatialDocument(document);
   const vertical = spatial.portalVerticalBoundsM?.[portal.id];
   const along = normalize3({ x: wall.b.x - wall.a.x, y: 0, z: wall.b.y - wall.a.y });
@@ -55,6 +55,55 @@ function portalOpening(
     floorElevationM: spatial.floorElevationM + bottomM,
     heightM: topM - bottomM,
   };
+}
+
+function portalFramePatches(
+  document: SceneDocumentV2,
+  wall: SceneDocumentV2["baseScene"]["walls"][number],
+  portal: SceneDocumentV2["baseScene"]["portals"][number],
+  normal: Vec3,
+): readonly AcousticPatch3[] {
+  const spatial = requireSpatialDocument(document);
+  const vertical = spatial.portalVerticalBoundsM?.[portal.id];
+  const bottomY = spatial.floorElevationM + (vertical?.bottomM ?? 0);
+  const topY = spatial.floorElevationM + (vertical?.topM ?? portal.heightM);
+  const along = normalize3({ x: wall.b.x - wall.a.x, y: 0, z: wall.b.y - wall.a.y });
+  const center = planPointToWorld(portal.center, bottomY);
+  const halfWidth = portal.widthM * 0.5;
+  const wallHalf = wall.thicknessM * 0.5;
+  const left = add3(center, scale3(along, -halfWidth));
+  const right = add3(center, scale3(along, halfWidth));
+  const frontOffset = scale3(normal, wallHalf);
+  const backOffset = scale3(normal, -wallHalf);
+  const lift = { x: 0, y: topY - bottomY, z: 0 };
+  const leftFront = add3(left, frontOffset);
+  const leftBack = add3(left, backOffset);
+  const rightFront = add3(right, frontOffset);
+  const rightBack = add3(right, backOffset);
+  const patches: AcousticPatch3[] = [
+    makePatch3(`${portal.id}:jamb-left`, "wall", wall.materialId, [leftBack, leftFront, add3(leftFront, lift), add3(leftBack, lift)], { wallId: wall.id }),
+    makePatch3(`${portal.id}:jamb-right`, "wall", wall.materialId, [rightFront, rightBack, add3(rightBack, lift), add3(rightFront, lift)], { wallId: wall.id }),
+    makePatch3(`${portal.id}:sill`, "wall", wall.materialId, [leftBack, rightBack, rightFront, leftFront], { wallId: wall.id }),
+    makePatch3(`${portal.id}:header`, "wall", wall.materialId, [add3(leftFront, lift), add3(rightFront, lift), add3(rightBack, lift), add3(leftBack, lift)], { wallId: wall.id }),
+  ];
+  if (portal.open) return patches;
+
+  const slabHalf = (vertical?.thicknessM ?? wall.thicknessM) * 0.5;
+  const slabFrontOffset = scale3(normal, slabHalf);
+  const slabBackOffset = scale3(normal, -slabHalf);
+  const slabLeftFront = add3(left, slabFrontOffset);
+  const slabLeftBack = add3(left, slabBackOffset);
+  const slabRightFront = add3(right, slabFrontOffset);
+  const slabRightBack = add3(right, slabBackOffset);
+  patches.push(
+    makePatch3(`${portal.id}:slab-face-front`, "wall", wall.materialId, [slabLeftFront, slabRightFront, add3(slabRightFront, lift), add3(slabLeftFront, lift)], { wallId: wall.id }),
+    makePatch3(`${portal.id}:slab-face-back`, "wall", wall.materialId, [slabRightBack, slabLeftBack, add3(slabLeftBack, lift), add3(slabRightBack, lift)], { wallId: wall.id }),
+    makePatch3(`${portal.id}:slab-side-left`, "wall", wall.materialId, [slabLeftBack, slabLeftFront, add3(slabLeftFront, lift), add3(slabLeftBack, lift)], { wallId: wall.id }),
+    makePatch3(`${portal.id}:slab-side-right`, "wall", wall.materialId, [slabRightFront, slabRightBack, add3(slabRightBack, lift), add3(slabRightFront, lift)], { wallId: wall.id }),
+    makePatch3(`${portal.id}:slab-bottom`, "wall", wall.materialId, [slabLeftBack, slabRightBack, slabRightFront, slabLeftFront], { wallId: wall.id }),
+    makePatch3(`${portal.id}:slab-top`, "wall", wall.materialId, [add3(slabLeftFront, lift), add3(slabRightFront, lift), add3(slabRightBack, lift), add3(slabLeftBack, lift)], { wallId: wall.id }),
+  );
+  return patches;
 }
 
 function wallPatches(document: SceneDocumentV2): readonly AcousticPatch3[] {
@@ -87,7 +136,14 @@ function wallPatches(document: SceneDocumentV2): readonly AcousticPatch3[] {
         wallId: wall.id,
         openings,
       }),
+      makePatch3(`${wall.id}:end-a`, "wall", wall.materialId, [backA, frontA, add3(frontA, lift), add3(backA, lift)], { wallId: wall.id }),
+      makePatch3(`${wall.id}:end-b`, "wall", wall.materialId, [frontB, backB, add3(backB, lift), add3(frontB, lift)], { wallId: wall.id }),
+      makePatch3(`${wall.id}:bottom`, "wall", wall.materialId, [backA, backB, frontB, frontA], { wallId: wall.id }),
+      makePatch3(`${wall.id}:top`, "wall", wall.materialId, [add3(frontA, lift), add3(frontB, lift), add3(backB, lift), add3(backA, lift)], { wallId: wall.id }),
     );
+    for (const portal of scene.portals.filter(({ wallId }) => wallId === wall.id)) {
+      patches.push(...portalFramePatches(document, wall, portal, normal));
+    }
   }
   return patches;
 }

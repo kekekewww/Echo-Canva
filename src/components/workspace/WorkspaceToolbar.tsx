@@ -14,6 +14,9 @@ type Props = Readonly<{
   onAdd: () => void;
   onTogglePlaying: () => void;
   onTogglePreviewMode: () => void;
+  onOpenSettings: () => void;
+  onShowOutliner: () => void;
+  onShowInspector: () => void;
 }>;
 
 export function WorkspaceToolbar(props: Props) {
@@ -25,12 +28,15 @@ export function WorkspaceToolbar(props: Props) {
         <button aria-pressed={props.mode === "hybrid-3d"} onClick={() => props.onModeChange("hybrid-3d")} type="button">3D</button>
       </div>
       <div className="workspace-toolbar-actions">
+        <button className="mobile-panel-toggle" onClick={props.onShowOutliner} type="button">Scene</button>
+        <button className="mobile-panel-toggle" onClick={props.onShowInspector} type="button">Inspector</button>
         <button data-testid="add-object" onClick={props.onAdd} type="button">＋ Add</button>
         <button aria-pressed={props.playing} onClick={props.onTogglePlaying} type="button">{props.playing ? "Stop" : "Play"}</button>
         <button onClick={props.onTogglePreviewMode} type="button">{props.previewMode === "simulated" ? "Raw" : "Simulated"}</button>
         <button aria-label="Undo" disabled={!props.canUndo} onClick={props.onUndo} type="button" title="Undo (Ctrl+Z)">↶</button>
         <button aria-label="Redo" disabled={!props.canRedo} onClick={props.onRedo} type="button" title="Redo (Ctrl+Shift+Z)">↷</button>
         <button className="danger-quiet" onClick={props.onReset} type="button">Reset</button>
+        <button aria-label="Settings" onClick={props.onOpenSettings} type="button">⚙</button>
       </div>
     </header>
   );

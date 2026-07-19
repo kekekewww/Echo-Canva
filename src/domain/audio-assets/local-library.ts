@@ -32,11 +32,66 @@ export type LocalAudioStore = Readonly<{
   delete: (id: string) => Promise<void>;
 }>;
 
-class MemoryAudioStore implements LocalAudioStore {
+export class MemoryAudioStore implements LocalAudioStore {
   private readonly records = new Map<string, LocalAudioRecord>();
   async list() { return [...this.records.values()]; }
   async put(record: LocalAudioRecord) { this.records.set(record.id, record); }
   async delete(id: string) { this.records.delete(id); }
+}
+
+export class FallbackAudioStore implements LocalAudioStore {
+  private usingFallback = false;
+  private notified = false;
+
+  constructor(
+    private readonly primary: LocalAudioStore,
+    private readonly fallback: LocalAudioStore = new MemoryAudioStore(),
+    private readonly onFallback: () => void = () => undefined,
+  ) {}
+
+  get persistent(): boolean { return !this.usingFallback; }
+
+  private activateFallback(): void {
+    this.usingFallback = true;
+    if (!this.notified) {
+      this.notified = true;
+      this.onFallback();
+    }
+  }
+
+  async list(): Promise<readonly LocalAudioRecord[]> {
+    if (this.usingFallback) return this.fallback.list();
+    try {
+      const records = await this.primary.list();
+      await Promise.all(records.map((record) => this.fallback.put(record)));
+      return records;
+    } catch {
+      this.activateFallback();
+      return this.fallback.list();
+    }
+  }
+
+  async put(record: LocalAudioRecord): Promise<void> {
+    if (this.usingFallback) return this.fallback.put(record);
+    try {
+      await this.primary.put(record);
+      await this.fallback.put(record);
+    } catch {
+      this.activateFallback();
+      await this.fallback.put(record);
+    }
+  }
+
+  async delete(id: string): Promise<void> {
+    if (this.usingFallback) return this.fallback.delete(id);
+    try {
+      await this.primary.delete(id);
+      await this.fallback.delete(id);
+    } catch {
+      this.activateFallback();
+      await this.fallback.delete(id);
+    }
+  }
 }
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
@@ -80,7 +135,7 @@ export class IndexedDbAudioStore implements LocalAudioStore {
 
 type LibraryDependencies = Readonly<{
   store?: LocalAudioStore;
-  decode?: (blob: Blob) => Promise<void>;
+  decode?: (blob: Blob) => Promise<void | Readonly<{ numberOfChannels: number }>>;
   createObjectURL?: (blob: Blob) => string;
   revokeObjectURL?: (url: string) => void;
   now?: () => number;
@@ -89,7 +144,7 @@ type LibraryDependencies = Readonly<{
 
 export class LocalAudioLibrary {
   private readonly store: LocalAudioStore;
-  private readonly decode?: (blob: Blob) => Promise<void>;
+  private readonly decode?: (blob: Blob) => Promise<void | Readonly<{ numberOfChannels: number }>>;
   private readonly createObjectURL: (blob: Blob) => string;
   private readonly revokeObjectURL: (url: string) => void;
   private readonly now: () => number;
@@ -113,13 +168,7 @@ export class LocalAudioLibrary {
     const records = await this.store.list();
     const validation = validateLocalAudioFile(blob, records.reduce((total, record) => total + record.size, 0));
     if (!validation.ok) throw new Error(validation.message);
-    if (this.decode) {
-      try {
-        await this.decode(blob);
-      } catch {
-        throw new Error("This audio file could not be decoded by the browser.");
-      }
-    }
+    await this.assertDecodableMono(blob);
     const record: LocalAudioRecord = {
       id: this.makeId(),
       name: name.slice(0, 120),
@@ -127,6 +176,30 @@ export class LocalAudioLibrary {
       size: blob.size,
       blob,
       createdAt: this.now(),
+    };
+    await this.store.put(record);
+    return record;
+  }
+
+  async relink(id: string, name: string, blob: Blob): Promise<LocalAudioRecord> {
+    const records = await this.store.list();
+    const existing = records.find((record) => record.id === id);
+    const currentBytes = records.reduce((total, record) => total + record.size, 0) - (existing?.size ?? 0);
+    const validation = validateLocalAudioFile(blob, currentBytes);
+    if (!validation.ok) throw new Error(validation.message);
+    await this.assertDecodableMono(blob);
+    const url = this.urls.get(id);
+    if (url) {
+      this.revokeObjectURL(url);
+      this.urls.delete(id);
+    }
+    const record: LocalAudioRecord = {
+      id,
+      name: name.slice(0, 120),
+      mimeType: blob.type,
+      size: blob.size,
+      blob,
+      createdAt: existing?.createdAt ?? this.now(),
     };
     await this.store.put(record);
     return record;
@@ -156,6 +229,27 @@ export class LocalAudioLibrary {
     return url;
   }
 
+  async clear(): Promise<void> {
+    for (const record of await this.store.list()) await this.remove(record.id);
+  }
+
+  get persistent(): boolean {
+    return !(this.store instanceof FallbackAudioStore) || this.store.persistent;
+  }
+
+  private async assertDecodableMono(blob: Blob): Promise<void> {
+    if (!this.decode) return;
+    let decoded: void | Readonly<{ numberOfChannels: number }>;
+    try {
+      decoded = await this.decode(blob);
+    } catch {
+      throw new Error("This audio file could not be decoded by the browser.");
+    }
+    if (decoded && decoded.numberOfChannels !== 1) {
+      throw new Error("Local point-source audio must be mono.");
+    }
+  }
+
   dispose(): void {
     for (const url of this.urls.values()) this.revokeObjectURL(url);
     this.urls.clear();
@@ -166,14 +260,24 @@ export function createBrowserLocalAudioLibrary(): Readonly<{
   library: LocalAudioLibrary;
   persistent: boolean;
 }> {
-  const decode = async (blob: Blob): Promise<void> => {
+  const decode = async (blob: Blob): Promise<Readonly<{ numberOfChannels: number }>> => {
     const context = new AudioContext();
     try {
-      await context.decodeAudioData(await blob.arrayBuffer());
+      const buffer = await context.decodeAudioData(await blob.arrayBuffer());
+      return { numberOfChannels: buffer.numberOfChannels };
     } finally {
       await context.close();
     }
   };
-  if (typeof indexedDB === "undefined") return { library: new LocalAudioLibrary({ decode }), persistent: false };
-  return { library: new LocalAudioLibrary({ store: new IndexedDbAudioStore(indexedDB), decode }), persistent: true };
+  let databaseFactory: IDBFactory | null = null;
+  try {
+    databaseFactory = typeof indexedDB === "undefined" ? null : indexedDB;
+  } catch {
+    databaseFactory = null;
+  }
+  if (!databaseFactory) return { library: new LocalAudioLibrary({ decode }), persistent: false };
+  return {
+    library: new LocalAudioLibrary({ store: new FallbackAudioStore(new IndexedDbAudioStore(databaseFactory)), decode }),
+    persistent: true,
+  };
 }

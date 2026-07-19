@@ -98,4 +98,25 @@ describe("workspace authoring projects", () => {
     expect(next.activeListenerId).toBe(next.listeners[0]!.id);
     expect(next.selection).toEqual({ type: "listener", id: next.listeners[0]!.id });
   });
+
+  it("updates source properties and clears a missing asset after relinking", () => {
+    const initial = createDefaultClassicProject();
+    const source = initial.scene.sources[0]!;
+    const missing = { ...initial, missingAudioAssetIds: [source.clipId] };
+
+    const updated = projectReducer(missing, {
+      type: "UPDATE_SOURCE",
+      id: source.id,
+      changes: { name: "New radio", gainDb: -3, loop: false },
+    });
+    const relinked = projectReducer(updated, {
+      type: "RELINK_SOURCE",
+      id: source.id,
+      clipId: "local_replacement",
+    });
+
+    expect(updated.scene.sources[0]).toMatchObject({ name: "New radio", gainDb: -3, loop: false });
+    expect(relinked.scene.sources[0]?.clipId).toBe("local_replacement");
+    expect(relinked.missingAudioAssetIds).not.toContain(source.clipId);
+  });
 });
