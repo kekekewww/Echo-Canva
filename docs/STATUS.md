@@ -1,5 +1,22 @@
 # Status
 
+## Build Week static release preparation — 2026-07-20
+
+- reconciled the supplied legacy 2D-only submission snapshot with the owner-accepted unified 2.5D / bounded Hybrid 3D release candidate; no verified 3D feature was rolled back
+- updated release scope, Gate matrix, Devpost copy, README checklist, risk/rollback plan, and sub-three-minute demo script to match observable behavior and current product-language limits
+- created traceable Codex/GPT runtime evidence, a milestone commit timeline, repository submission metadata, and a release acceptance report
+- completed a credential, AI-boundary, local-audio, claim, dependency, license, and asset audit without reading or printing `.env.local`
+- dependency result: 0 critical, 0 high, 1 documented moderate transitive PostCSS advisory; application code does not accept or stringify user CSS
+- baseline `pnpm lint`, `pnpm typecheck`, and `pnpm test` passed (61 files / 357 tests)
+- first final-suite attempt exposed a real 100-wall performance blocker: Worker p95 reached 16 ms because active-listener pose changes invalidated the full-projection BVH cache; the main-thread fallback also repeated clone/validation/static compilation and produced 50–206 ms tasks
+- added a pose-independent static-geometry fingerprint and reused patches/BVH in both Worker and main-thread Hybrid compilation; trusted internal workspace projection now avoids repeating external-boundary validation while all external/AI/import boundaries remain strict
+- the new cache regression failed on the former implementation (`compileCount` 2 instead of 1) and passes after the repair; unchanged wall surfaces and Outliner rows are memoized so Listener selection does not reconcile hundreds of static nodes
+- final `pnpm verify` — PASS: lint, typecheck, 61 unit files / 359 tests, production build, and 38/38 production Chromium tests
+- focused 100-wall stress verification — PASS five consecutive repair-verification runs in total; final full suite also passed the `<12 ms` Worker p95 and no-`>50 ms` interaction long-task gate
+- client static bundle, current tracked files, and reachable Git history credential-shaped scans — PASS with zero matches
+
+Current action: internal static release candidate is complete. Public deployment, clean-profile/headphone acceptance, screenshots/video, principal `/feedback`, and Devpost submission remain external owner gates.
+
 ## Modelling-style viewport navigation — 2026-07-19
 
 - added persistent, independent pan/zoom cameras to Classic 2.5D and Hybrid 3D, including zero-pan migration for existing caches

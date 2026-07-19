@@ -370,3 +370,15 @@ rendering, preventing the more compact UI from obscuring a model boundary.
 Decision: Add finite virtual-pixel `panX` / `panY` to each mode's cached camera. Both viewports use middle-button drag and Shift-left on empty space for panning, cursor-anchored wheel zoom, Home, and deterministic Frame All. Hybrid keeps ordinary empty-space orbit and Shift-object Y editing; middle-button panning takes priority even when initiated over an authored object. Legacy camera caches receive zero pan.
 
 Reason: Large generated or manually resized scenes can exceed the fixed viewport and become difficult to edit. A reversible projection/inverse-projection pair keeps visible geometry, pointer coordinates, and Wall placement aligned while treating navigation as presentation-only state outside acoustic revisions and Undo/Redo.
+
+## D-042 — Reconcile the legacy MVP submission package with the accepted release candidate
+
+Decision: Use `echo-canvas-mvp-submission/` as a release-process checklist and evidence template, but update its 2D-only scope, Devpost copy, demo script, and limitations to describe the currently verified unified 2.5D/Hybrid 3D workbench. Do not remove accepted 3D authoring, vertical geometry, listener/source management, or first-order floor/ceiling/wall path overlays. Keep deployment, public video upload, Devpost submission, and the final `/feedback` identifier as explicit external owner gates.
+
+Reason: The supplied package is a snapshot from before the owner explicitly approved the 3D extension and unified modelling-workspace work. Following its old exclusion list literally would roll back tested product functionality and make the submission copy disagree with the executable application. Treating it as a bounded release checklist preserves its useful security, evidence, and acceptance structure while keeping all public claims aligned with observable behavior.
+
+## D-043 — Cache Hybrid static geometry independently from receiver/source poses
+
+Decision: Fingerprint Hybrid static geometry from room surfaces, enabled wall/Portal geometry, materials, and vertical bounds rather than the full Classic projection hash. Reuse that patch/BVH structure in both the Worker and the main-thread fallback compiler when only Listener/source poses change. Build the hot `projectHybridDocument` directly from the already-invariant-preserving workspace state, while retaining complete Schema/domain validation at all external import, AI candidate, persistence migration, and scene-replacement boundaries.
+
+Reason: Final 100-wall verification exposed a 16 ms Worker p95 sample and 50–206 ms main-thread tasks while switching active listeners. The full compatibility hash includes Listener/source poses and revision, so it invalidated a cache whose contents do not depend on those fields; the React fallback path also cloned and validated the same 100-wall document repeatedly. A pose-independent static fingerprint preserves geometry correctness, keeps external data validation unchanged, and removes redundant BVH construction and hot-render validation rather than weakening the established 12 ms / 50 ms budgets.

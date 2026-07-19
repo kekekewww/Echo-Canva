@@ -10,6 +10,7 @@
 - [x] Matched-Worker-revision 3D direct, blocked, Portal-aware, floor, ceiling, and wall reflection overlays.
 - [x] Unified-workspace unit and production Chromium suites.
 - [ ] External-only: production deployment, clean-device headphone acceptance, submission video/screenshots, and Devpost `/feedback` record.
+- [x] Internal release scope, security/license audit, Codex/GPT evidence, Devpost copy, demo script, and static acceptance report.
 
 ## Operating mode
 
@@ -142,6 +143,7 @@ Each item is complete only when its Acceptance and Verify sections pass.
   pnpm e2e
   pnpm build
   ```
+  Internal status: performance budgets, failure handling, input limits, server-only key boundary, asset/license audit, production build, and local production Chromium coverage are complete. Public deployment and its clean-profile browser smoke remain external, so the parent item intentionally stays unchecked.
 
 - [ ] **12. Prepare submission-ready evidence**
   Spec ref: `PRD.md > Track and judging alignment`
@@ -149,3 +151,4 @@ Each item is complete only when its Acceptance and Verify sections pass.
   Acceptance: A clean-machine tester can access the deployed demo; README states limitations; demo covers the wow moment and Codex/GPT-5.6; principal Codex session remains available for `/feedback`.
   Verify: Execute every case in `ACCEPTANCE_TESTS.md`, record results, and request Human Gate E.
   **Human Gate E:** final release candidate.
+  Internal status: final README, architecture/test/setup/platform/license sections, three-minute 2.5D/3D script, Devpost copy, Codex/GPT contribution evidence, commit timeline, security audit, and acceptance report are prepared. Screenshots, public Demo/YouTube URLs, principal `/feedback`, and final clean-device Gate E remain external, so the parent item intentionally stays unchecked.

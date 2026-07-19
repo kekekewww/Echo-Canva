@@ -1,0 +1,26 @@
+{
+  "package": "echo-canvas-mvp-submission",
+  "generatedAt": "2026-07-20",
+  "fileCount": 19,
+  "files": [
+    { "path": "01_RELEASE_SCOPE.md", "bytes": 3958, "sha256": "8443ad232ca4730bad25886ddc76b662964da6edef668f58f6aecead789ef992" },
+    { "path": "02_RELEASE_RUNBOOK.md", "bytes": 2568, "sha256": "ce1d87784bd7fd9deec7d063f1a6ead774f7028b7771c891b65ae4cc052a5f00" },
+    { "path": "03_FINAL_ACCEPTANCE_MATRIX.md", "bytes": 3508, "sha256": "229bb2ec077139d4c05073ab3ae1bf9b8ec070cd62ec0f70c6575be0fada6669" },
+    { "path": "04_DEMO_VIDEO_SCRIPT.md", "bytes": 4104, "sha256": "116db063f4d8b9fd432c9c161657af90adb4a11eeb110c996e4f0f9a325610ab" },
+    { "path": "05_DEVPOST_SUBMISSION_COPY.md", "bytes": 6297, "sha256": "fee32ab0837a82901fed0e32c7ddf734d011939c24784bab9fdc6b52322a9e7c" },
+    { "path": "06_REPOSITORY_README_TEMPLATE.md", "bytes": 1967, "sha256": "9c7bd81a42bf093e37fcbee3f32e2ac11f5ae6259d6cf5ce30c9d4f613df66ff" },
+    { "path": "07_CODEX_AND_GPT_EVIDENCE.md", "bytes": 2725, "sha256": "88862e4e9d6ccbbc866f4d4cf7416e848a7dd659dfa1b232de2dd86994c89e28" },
+    { "path": "08_LICENSE_ASSET_SECURITY_AUDIT.md", "bytes": 3723, "sha256": "9a87e99bcce2602274e9234917f07a5c27da34d115ede1510dac5fb939d41ed4" },
+    { "path": "09_RELEASE_RISKS_AND_ROLLBACK.md", "bytes": 2303, "sha256": "e03314276aa3b899cdf719cd7209a56455d61c8e2b039440cda7e64802592433" },
+    { "path": "prompts/CODEX_MVP_RELEASE_MANAGER.md", "bytes": 1948, "sha256": "d647ce314240d821cb164f823356ebd0183a2defa6a259163b105c802c0400c4" },
+    { "path": "README.md", "bytes": 3070, "sha256": "5a00fabf51286e0bbf4bf017e89b005452f116ffb37b76fbecddcacb24820035" },
+    { "path": "references/existing-mvp/ACCEPTANCE_TESTS.md", "bytes": 6505, "sha256": "bc394834e4cf65d1b00521ada017fb1379e706728f9836d4964c2052a68214b6" },
+    { "path": "references/existing-mvp/AGENTS.md", "bytes": 8013, "sha256": "dcab8a06262778cdc1fce7d6db01d3de9b00a4f66677be87eae0078630884dbe" },
+    { "path": "references/existing-mvp/ARCHITECTURE.md", "bytes": 14621, "sha256": "3fe51512230358ca77802d2752339f195be3045507ddaf753301a518a624fb39" },
+    { "path": "references/existing-mvp/IMPLEMENTATION_PLAN.md", "bytes": 11731, "sha256": "6e82863c0fcf3842aaa74bde11dfb3c7603c463e88c56811393b47938088d770" },
+    { "path": "references/existing-mvp/SUBMISSION_CHECKLIST.md", "bytes": 3138, "sha256": "737b9748e05b9ffc9eb68e83a899b6f16664720f8c2b03da7132e67268d78dc6" },
+    { "path": "references/OFFICIAL_REQUIREMENTS_SNAPSHOT.md", "bytes": 1023, "sha256": "a7c1dc029f49b61c1a22a8f8e26c77c2b1c64c95e0c4dca0848d08a9c9678d87" },
+    { "path": "templates/RELEASE_ACCEPTANCE_REPORT.md", "bytes": 646, "sha256": "0c6043c982669f3abdbca285c3476917d29c5a152fc88e8a5ecbd5078ef307bf" },
+    { "path": "templates/SUBMISSION_METADATA.json", "bytes": 273, "sha256": "27f131e40d55063894cb8702ad799e41b0b94b890d1b42b8e8fd1f6fdbb61065" }
+  ]
+}

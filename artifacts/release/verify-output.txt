@@ -1,0 +1,92 @@
+﻿$ eslint . --max-warnings=0
+$ tsc --noEmit
+$ vitest run
+
+ RUN  v4.1.10 D:/Developing/OpenAI Dev Week
+
+
+ Test Files  61 passed (61)
+      Tests  359 passed (359)
+   Start at  00:59:21
+   Duration  3.33s (transform 12.51s, setup 0ms, import 30.75s, tests 3.21s, environment 20ms)
+
+$ pnpm build && playwright test
+$ next build
+▲ Next.js 16.2.10 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 2.4s
+  Running TypeScript ...
+  Finished TypeScript in 10.8s ...
+  Collecting page data using 9 workers ...
+  Generating static pages using 9 workers (0/8) ...
+  Generating static pages using 9 workers (2/8)
+  Generating static pages using 9 workers (4/8)
+  Generating static pages using 9 workers (6/8)
+✓ Generating static pages using 9 workers (8/8) in 1686ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /api/scene/compile
+├ ƒ /api/scene/explain
+├ ○ /classic
+├ ○ /icon.svg
+└ ○ /lab
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+
+[WebServer] (node:13632) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] $ next start "--hostname" "127.0.0.1" "--port" "3000"
+[WebServer] (node:14884) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 38 tests using 1 worker
+
+(node:2352) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  1 [chromium] › tests\e2e\audio-rendering.spec.ts:25:5 › browser renders a finite, decay-controlled reverb and a continuous Raw/Simulated transition (752ms)
+  ok  2 [chromium] › tests\e2e\legacy-regressions.spec.ts:3:5 › preserves the Classic audio, portal and reverb behaviours behind the workspace adapter (1.6s)
+  ok  3 [chromium] › tests\e2e\legacy-regressions.spec.ts:34:5 › preserves the manual scene when the AI compiler rejects adversarial input (799ms)
+  ok  4 [chromium] › tests\e2e\legacy-regressions.spec.ts:53:5 › keeps Classic keyboard editing and focus available through the adapter (659ms)
+  ok  5 [chromium] › tests\e2e\workspace-authoring.spec.ts:6:5 › adds and activates listeners and enforces the source workflow (1.1s)
+  ok  6 [chromium] › tests\e2e\workspace-authoring.spec.ts:21:5 › edits a local source and relinks missing audio without moving it (1.4s)
+  ok  7 [chromium] › tests\e2e\workspace-authoring.spec.ts:47:5 › exports, imports, and safely rejects complete authoring JSON (1.0s)
+  ok  8 [chromium] › tests\e2e\workspace-authoring.spec.ts:68:5 › compiles and applies a validated AI candidate (775ms)
+  ok  9 [chromium] › tests\e2e\workspace-authoring.spec.ts:82:5 › applies a mode-aware AI candidate to Hybrid room and object heights (952ms)
+  ok 10 [chromium] › tests\e2e\workspace-authoring.spec.ts:123:5 › confirms permanent deletes and clears all local project data in two steps (771ms)
+  ok 11 [chromium] › tests\e2e\workspace-failures.spec.ts:3:5 › preserves and downloads an unreadable project cache (476ms)
+  ok 12 [chromium] › tests\e2e\workspace-failures.spec.ts:15:5 › continues in memory and exposes a persistent warning when browser storage is unavailable (347ms)
+  ok 13 [chromium] › tests\e2e\workspace-failures.spec.ts:28:5 › keeps authoring available when Workers cannot start (675ms)
+  ok 14 [chromium] › tests\e2e\workspace-failures.spec.ts:43:5 › preserves scene edits and offers Retry after audio startup fails (599ms)
+  ok 15 [chromium] › tests\e2e\workspace-geometry.spec.ts:3:5 › adds Walls with two viewport points and requires that Wall for a Portal (1.1s)
+  ok 16 [chromium] › tests\e2e\workspace-geometry.spec.ts:22:5 › Classic wall placement remains usable after viewport navigation (1.3s)
+  ok 17 [chromium] › tests\e2e\workspace-geometry.spec.ts:48:5 › Hybrid wall placement ignores pan gestures and still accepts two points (1.2s)
+  ok 18 [chromium] › tests\e2e\workspace-geometry.spec.ts:75:5 › disables and re-enables a wall without deleting its Outliner record (802ms)
+  ok 19 [chromium] › tests\e2e\workspace-geometry.spec.ts:91:5 › treats a disabled ceiling as an acoustic opening and restores it on Enable (619ms)
+  ok 20 [chromium] › tests\e2e\workspace-geometry.spec.ts:106:5 › edits room dimensions and protects the floor (642ms)
+  ok 21 [chromium] › tests\e2e\workspace-geometry.spec.ts:119:5 › supports exact numeric input, arrows, and Escape cancel (678ms)
+  ok 22 [chromium] › tests\e2e\workspace-geometry.spec.ts:136:5 › renders newly authored finite walls and hosted portals in the 3D viewport (849ms)
+  ok 23 [chromium] › tests\e2e\workspace-geometry.spec.ts:155:5 › precision-edits Wall endpoints and Portal offset without detaching hosted geometry (1.1s)
+  ok 24 [chromium] › tests\e2e\workspace-paths.spec.ts:3:5 › shows matched direct and first-order 3D paths with presentation controls (1.0s)
+  ok 25 [chromium] › tests\e2e\workspace-paths.spec.ts:25:5 › keeps the production audio render gate finite and continuous (368ms)
+  ok 26 [chromium] › tests\e2e\workspace.spec.ts:3:5 › renders one modelling workspace on every route (484ms)
+  ok 27 [chromium] › tests\e2e\workspace.spec.ts:14:5 › preserves independent mode state across switches and refresh (675ms)
+  ok 28 [chromium] › tests\e2e\workspace.spec.ts:31:5 › persists compact Undo history across refresh (613ms)
+  ok 29 [chromium] › tests\e2e\workspace.spec.ts:44:5 › coalesces continuous numeric scrubbing into one Undo command (1.1s)
+  ok 30 [chromium] › tests\e2e\workspace.spec.ts:71:5 › keeps one AudioContext and toolbar audition state while switching modes (918ms)
+  ok 31 [chromium] › tests\e2e\workspace.spec.ts:88:5 › resets only the active mode and can undo reset (1.0s)
+  ok 32 [chromium] › tests\e2e\workspace.spec.ts:101:5 › contains wheel zoom inside the 3D viewport and reports no page errors (797ms)
+  ok 33 [chromium] › tests\e2e\workspace.spec.ts:115:5 › Classic viewport supports pan navigation, Home and Frame All (1.6s)
+  ok 34 [chromium] › tests\e2e\workspace.spec.ts:156:5 › restores each mode camera and overlay preferences after switching and refresh (684ms)
+  ok 35 [chromium] › tests\e2e\workspace.spec.ts:174:5 › Hybrid viewport adds pan navigation without stealing object height editing (883ms)
+  ok 36 [chromium] › tests\e2e\workspace.spec.ts:219:5 › restores the 100-wall project and keeps Outliner selection within the interaction budget (748ms)
+  ok 37 [chromium] › tests\e2e\workspace.spec.ts:249:5 › keeps the viewport primary and exposes modal drawers on narrow screens (731ms)
+  ok 38 [chromium] › tests\e2e\workspace.spec.ts:262:5 › survives the full entity-limit project within Worker and interaction budgets (8.3s)
+
+  38 passed (45.6s)
