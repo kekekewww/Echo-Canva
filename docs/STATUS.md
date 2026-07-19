@@ -1,5 +1,14 @@
 # Status
 
+## Local development shell repair — 2026-07-19
+
+- allowed the `127.0.0.1` loopback origin used by the desktop test browser so Next.js development HMR is no longer rejected as cross-origin
+- added the App Router icon route; a fresh Chromium session loads the icon with HTTP 200 and reports no console errors or failed requests
+- `pnpm lint` — PASS, zero warnings
+- `pnpm typecheck` — PASS
+- `pnpm test` — PASS, 59 files / 345 tests
+- `pnpm build` — PASS, including the static `/icon.svg` route
+
 ## Unified modelling workspace complete — static release candidate — 2026-07-19
 
 - replaced the separate page control walls with one modelling-style toolbar / Outliner / viewport / Inspector / status shell on `/`, `/classic`, and `/lab`
@@ -17,7 +26,7 @@ Final static verification:
 
 - `pnpm lint` — PASS, zero warnings
 - `pnpm typecheck` — PASS
-- `pnpm test` — PASS, 58 files / 343 tests
+- `pnpm test` — PASS, 59 files / 345 tests
 - `pnpm build` — PASS, all application and API routes compiled
 - `pnpm e2e` — PASS, 33/33 production Chromium tests including legacy adapter regressions, failure injection, offline audio rendering, and full entity-limit budgets
 - `git diff --check` — PASS; Windows line-ending notices are informational
