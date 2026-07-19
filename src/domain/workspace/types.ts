@@ -72,6 +72,18 @@ export type Portal3DSettings = Readonly<{
   thicknessM: number;
 }>;
 
+export type GeneratedSpatial3D = Readonly<{
+  listenerHeightM: number;
+  sourceHeights: readonly Readonly<{ sourceId: string; heightM: number }>[];
+  wallVerticalBounds: readonly Readonly<{ wallId: string; bottomM: number; topM: number }>[];
+  portalVerticalBounds: readonly Readonly<{
+    portalId: string;
+    bottomM: number;
+    topM: number;
+    thicknessM: number;
+  }>[];
+}>;
+
 export type LocalAudioAssetMetadata = Readonly<{
   id: string;
   name: string;
@@ -122,6 +134,6 @@ export type ProjectAction =
   | Readonly<{ type: "SET_ROOM_3D"; changes: Partial<Room3D> }>
   | Readonly<{ type: "SET_VIEW_STATE"; changes: Partial<WorkspaceViewState> }>
   | Readonly<{ type: "SET_NOTICE"; notice: WorkspaceNotice }>
-  | Readonly<{ type: "REPLACE_SCENE"; scene: SceneSpec }>
+  | Readonly<{ type: "REPLACE_SCENE"; scene: SceneSpec; spatial3d?: GeneratedSpatial3D }>
   | Readonly<{ type: "REPLACE_PROJECT"; project: WorkspaceProject }>
   | Readonly<{ type: "CLEAR_NOTICE" }>;

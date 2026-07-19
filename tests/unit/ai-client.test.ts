@@ -4,6 +4,40 @@ import { requestSceneCompilation } from "@/ai/client";
 import { CONCRETE_PARTITION_PRESET } from "@/domain/presets/concrete-partition";
 
 describe("requestSceneCompilation", () => {
+  it("requests and preserves a mode-aware Hybrid 3D candidate", async () => {
+    const scene = structuredClone(CONCRETE_PARTITION_PRESET);
+    scene.room.outerPolygon = [{ x: 0, y: 0 }, { x: 14, y: 0 }, { x: 14, y: 10 }, { x: 0, y: 10 }];
+    scene.room.heightM = 4.5;
+    const spatial3d = {
+      listenerHeightM: 1.7,
+      sourceHeights: scene.sources.map(({ id }, index) => ({ sourceId: id, heightM: index === 0 ? 1.4 : 3.2 })),
+      wallVerticalBounds: scene.walls.map(({ id }) => ({ wallId: id, bottomM: 0, topM: 4.5 })),
+      portalVerticalBounds: scene.portals.map(({ id }) => ({ portalId: id, bottomM: 0, topM: 2.1, thicknessM: 0.2 })),
+    };
+    let requestBody: unknown;
+    const fetcher = async (_input: RequestInfo | URL, init?: RequestInit) => {
+      requestBody = JSON.parse(String(init?.body)) as unknown;
+      return new Response(JSON.stringify({
+        ok: true,
+        scene,
+        spatial3d,
+        model: "openai/gpt-5.6-luna",
+        repairAttempted: false,
+        warnings: [],
+      }));
+    };
+
+    const response = await requestSceneCompilation(
+      "a 3D gallery",
+      CONCRETE_PARTITION_PRESET,
+      "hybrid-3d",
+      fetcher,
+    );
+
+    expect(requestBody).toMatchObject({ targetMode: "hybrid-3d" });
+    expect(response).toMatchObject({ ok: true, spatial3d });
+  });
+
   it.each([
     ["AI_REQUEST_FAILED", "The scene generator is temporarily unavailable."],
     ["AI_UNAVAILABLE", "AI scene generation is unavailable. Load a preset instead."],

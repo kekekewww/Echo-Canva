@@ -3,12 +3,11 @@
 import { useState } from "react";
 
 import { requestAcousticExplanation, requestSceneCompilation } from "@/ai/client";
-import type { AcousticExplanation } from "@/ai/contracts";
+import type { AcousticExplanation, CompileSceneSuccess } from "@/ai/contracts";
 import { computeAcousticFrame } from "@/acoustics/compute-frame";
 import { HintCard } from "@/components/workspace/HintCard";
 import { PRESETS, type PresetId } from "@/domain/presets";
-import type { SceneSpec } from "@/domain/scene/types";
-import { projectClassicScene } from "@/domain/workspace/projections";
+import { projectClassicScene, projectHybridDocument } from "@/domain/workspace/projections";
 import type { ProjectAction, WorkspaceProject } from "@/domain/workspace/types";
 import type { LocalAudioMetadata } from "@/domain/workspace/transfer";
 import { parseWorkspaceProject, serializeWorkspaceProject } from "@/domain/workspace/transfer";
@@ -19,7 +18,7 @@ export function WorkspaceProjectTools({ project, dispatch, localAssets = [] }: R
   localAssets?: readonly LocalAudioMetadata[];
 }>) {
   const [prompt, setPrompt] = useState("");
-  const [candidate, setCandidate] = useState<SceneSpec | null>(null);
+  const [candidate, setCandidate] = useState<CompileSceneSuccess | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [explanation, setExplanation] = useState<AcousticExplanation | null>(null);
   const scene = projectClassicScene(project);
@@ -54,12 +53,13 @@ export function WorkspaceProjectTools({ project, dispatch, localAssets = [] }: R
 
   async function generate(): Promise<void> {
     setStatus("Generating…");
-    const result = await requestSceneCompilation(prompt, scene);
+    const baseScene = project.mode === "hybrid-3d" ? projectHybridDocument(project) : scene;
+    const result = await requestSceneCompilation(prompt, baseScene, project.mode);
     if (!result.ok) {
       setStatus(result.error.message);
       return;
     }
-    setCandidate(result.scene);
+    setCandidate(result);
     setStatus(`Validated by ${result.model}${result.repairAttempted ? " · repaired once" : ""}`);
   }
 
@@ -101,7 +101,10 @@ export function WorkspaceProjectTools({ project, dispatch, localAssets = [] }: R
       <HintCard title="AI scene tools">
         <label>Scene description<textarea aria-label="Describe a scene" maxLength={2000} onChange={(event) => setPrompt(event.target.value)} value={prompt} /></label>
         <button disabled={!prompt.trim()} onClick={() => void generate()} type="button">Generate scene</button>
-        {candidate ? <button onClick={() => { dispatch({ type: "REPLACE_SCENE", scene: candidate }); setCandidate(null); }} type="button">Apply {candidate.name}</button> : null}
+        {candidate ? <button onClick={() => {
+          dispatch({ type: "REPLACE_SCENE", scene: candidate.scene, spatial3d: candidate.spatial3d });
+          setCandidate(null);
+        }} type="button">Apply {candidate.scene.name}</button> : null}
         <button onClick={() => void explain()} type="button">Explain selected acoustics</button>
         {explanation ? <div className="workspace-explanation"><strong>{explanation.summary}</strong>{explanation.factors.map((factor) => <p key={factor.label}>{factor.label}: {factor.evidence}</p>)}<small>{explanation.limitations.join(" ")}</small></div> : null}
       </HintCard>

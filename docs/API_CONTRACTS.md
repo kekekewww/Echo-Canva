@@ -151,11 +151,30 @@ Request:
 
 ```json
 {
-  "prompt": "A narrow concrete passage with rain outside an open doorway."
+  "prompt": "A narrow concrete passage with rain outside an open doorway.",
+  "targetMode": "classic-2d5d"
 }
 ```
 
-`baseScene` is optional; when supplied it must be a complete valid `SceneSpec` (not `null`).
+`targetMode` is `classic-2d5d` or `hybrid-3d` and defaults to Classic for backwards compatibility. `baseScene` is optional; when supplied it must be a complete valid `SceneSpec` for Classic or `SceneDocumentV2` for Hybrid (not `null`).
+
+Classic Structured Output is one `SceneSpec`. Hybrid Structured Output is `{scene, spatial3d}`. Its `scene` stores horizontal X/Z as planar x/y; `spatial3d` stores Listener/source Y heights and complete Wall/Portal vertical bounds:
+
+```ts
+type GeneratedSpatial3D = {
+  listenerHeightM: number;
+  sourceHeights: Array<{ sourceId: string; heightM: number }>;
+  wallVerticalBounds: Array<{ wallId: string; bottomM: number; topM: number }>;
+  portalVerticalBounds: Array<{
+    portalId: string;
+    bottomM: number;
+    topM: number;
+    thicknessM: number;
+  }>;
+};
+```
+
+Every Hybrid array must cover the matching generated IDs exactly once. The room polygon must be an origin-anchored rectangle; its planar bounds and `heightM` atomically replace the selected mode's authoring room controls.
 
 Response success:
 
@@ -163,6 +182,7 @@ Response success:
 {
   "ok": true,
   "scene": {},
+  "spatial3d": {},
   "model": "gpt-5.6",
   "repairAttempted": false,
   "warnings": []
@@ -196,6 +216,7 @@ Server validation sequence:
 8. portal-to-wall attachment tolerance;
 9. polygon validity and self-intersection checks;
 10. listener/source positions in valid world bounds.
+11. Hybrid ID coverage, room alignment, vertical bounds, and host-Wall containment.
 
 At most one repair request receives a compact list of validation errors.
 

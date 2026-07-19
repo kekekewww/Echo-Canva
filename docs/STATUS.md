@@ -1,12 +1,23 @@
 # Status
 
+## Mode-aware AI scene application repair — 2026-07-19
+
+- reproduced the defect against the configured Luna provider: a requested `(x, y, z)` became planar `(x, y)`, Z was lost, and applying a 14 × 10 × 4.5 m candidate retained the old 12 × 8 × 3 m Hybrid room
+- separated Classic `SceneSpec` output from strict Hybrid `{scene, spatial3d}` output with complete ID-bound Listener/source heights and Wall/Portal vertical bounds
+- candidate application now synchronizes room bounds, height, materials, planar coordinates, and Hybrid vertical geometry as one reversible authoring command
+- live `openai/gpt-5.6-luna` verification returned the requested X/Y/Z values, 3.2 m partition top, and 2 m × 0.3 m Portal without a repair pass
+- focused unit verification — PASS, 19 tests
+- complete unit verification — PASS, 60 files / 349 tests
+- focused production Chromium application test — PASS
+- complete production Chromium verification — PASS, 34/34 tests
+
 ## Local development shell repair — 2026-07-19
 
 - allowed the `127.0.0.1` loopback origin used by the desktop test browser so Next.js development HMR is no longer rejected as cross-origin
 - added the App Router icon route; a fresh Chromium session loads the icon with HTTP 200 and reports no console errors or failed requests
 - `pnpm lint` — PASS, zero warnings
 - `pnpm typecheck` — PASS
-- `pnpm test` — PASS, 59 files / 345 tests
+- `pnpm test` — PASS, 60 files / 349 tests
 - `pnpm build` — PASS, including the static `/icon.svg` route
 
 ## Unified modelling workspace complete — static release candidate — 2026-07-19
@@ -28,7 +39,7 @@ Final static verification:
 - `pnpm typecheck` — PASS
 - `pnpm test` — PASS, 59 files / 345 tests
 - `pnpm build` — PASS, all application and API routes compiled
-- `pnpm e2e` — PASS, 33/33 production Chromium tests including legacy adapter regressions, failure injection, offline audio rendering, and full entity-limit budgets
+- `pnpm e2e` — PASS, 34/34 production Chromium tests including mode-aware Hybrid AI application, legacy adapter regressions, failure injection, offline audio rendering, and full entity-limit budgets
 - `git diff --check` — PASS; Windows line-ending notices are informational
 
 Deployment and the human headphone/release acceptance remain external gates, not static claims.

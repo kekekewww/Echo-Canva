@@ -31,11 +31,11 @@ User
               │                                       │
               ▼                                       │
      Next.js server route                             │
-     GPT-5.6 Structured Output                        │
-              │ candidate SceneSpec                   │
+     GPT-5.6 mode-aware Structured Output             │
+              │ SceneSpec or {scene, spatial3d}        │
               ▼                                       │
      schema + invariant validator                     │
-              │ validated SceneSpec                   │
+              │ validated authoring candidate         │
               └───────────────────────────────────────┤
                                                       ▼
                                             Client scene store
@@ -167,7 +167,8 @@ Input:
 ```json
 {
   "prompt": "A small concrete room with an open east doorway...",
-  "baseScene": null
+  "targetMode": "hybrid-3d",
+  "baseScene": {}
 }
 ```
 
@@ -179,7 +180,9 @@ Behavior:
 4. validate JSON Schema;
 5. validate domain constraints;
 6. optionally call once more with machine-readable validation errors;
-7. return validated scene or a deterministic fallback.
+7. return a validated Classic `SceneSpec` or Hybrid `{scene, spatial3d}` candidate, or a deterministic fallback.
+
+Classic output uses planar x/y. Hybrid output explicitly maps world X/Z to planar x/y and carries world Y in bounded Listener/source height and Wall/Portal vertical records. Applying a candidate replaces the active mode's room bounds, materials, positions, and vertical geometry in one history command; it never alters the other mode.
 
 The prompt must expose only allowed:
 

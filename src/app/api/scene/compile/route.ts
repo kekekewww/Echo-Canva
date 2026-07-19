@@ -8,12 +8,15 @@ import {
   type CompileSceneFailureCode,
   type CompileDependencies,
   type CompileSchemaPrompt,
+  type SceneCompileMode,
 } from "@/ai/contracts";
+import { generatedHybridSceneJsonSchema } from "@/ai/hybrid-scene";
 import { getAiProviderConfig, type AiProviderConfig } from "@/ai/provider";
 import { createSlidingWindowLimiter, type SlidingWindowLimiter } from "@/ai/rate-limit";
 import { compileScene } from "@/ai/scene-compiler";
 import { DEFAULT_PRESET_ID } from "@/domain/presets";
 import { validateScene } from "@/domain/scene/validate";
+import { validateSceneDocument } from "@/domain/scene-document/validate";
 
 export const runtime = "nodejs";
 
@@ -87,9 +90,11 @@ function createOpenAIAdapter(config: AiProviderConfig): CompileDependencies["gen
       text: {
         format: {
           type: "json_schema",
-          name: "scene_spec",
+          name: schemaPrompt.targetMode === "hybrid-3d" ? "hybrid_scene" : "scene_spec",
           strict: true,
-          schema: sceneSpecJsonSchema,
+          schema: schemaPrompt.targetMode === "hybrid-3d"
+            ? generatedHybridSceneJsonSchema
+            : sceneSpecJsonSchema,
         },
       },
     });
@@ -129,6 +134,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+function isSceneCompileMode(value: unknown): value is SceneCompileMode {
+  return value === "classic-2d5d" || value === "hybrid-3d";
+}
+
 async function parseRequestBody(request: Request): Promise<Record<string, unknown> | Response> {
   try {
     const body: unknown = await request.json();
@@ -165,9 +174,17 @@ export async function handleCompileRequest(
     return jsonFailure("INVALID_REQUEST", "Prompt must be a string.", 400);
   }
 
+  const targetMode = body.targetMode ?? "classic-2d5d";
+  if (!isSceneCompileMode(targetMode)) {
+    return jsonFailure("INVALID_REQUEST", "Target mode must be classic-2d5d or hybrid-3d.", 400);
+  }
+
   const baseScene = body.baseScene;
-  if (baseScene !== undefined && !validateScene(baseScene).ok) {
-    return jsonFailure("INVALID_BASE_SCENE", "Base scene must be a valid SceneSpec.", 400);
+  const baseIsValid = targetMode === "hybrid-3d"
+    ? validateSceneDocument(baseScene).ok
+    : validateScene(baseScene).ok;
+  if (baseScene !== undefined && !baseIsValid) {
+    return jsonFailure("INVALID_BASE_SCENE", "Base scene must be valid for the selected workspace mode.", 400);
   }
 
   const rateLimit = dependencies.limiter.check(dependencies.clientKey(request), Date.now());
@@ -188,7 +205,7 @@ export async function handleCompileRequest(
   }
 
   try {
-    const result = await compileScene({ prompt: body.prompt, baseScene }, dependencies);
+    const result = await compileScene({ prompt: body.prompt, baseScene, targetMode }, dependencies);
     const status = result.ok ? 200 : result.error.code === "PROMPT_TOO_LONG" ? 400 : 422;
     return Response.json(result, { status });
   } catch (error) {

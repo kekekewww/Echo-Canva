@@ -12,6 +12,15 @@ function nextRevision(project: WorkspaceProject): number {
   return project.revision + 1;
 }
 
+function generatedRoomDimensions(scene: WorkspaceProject["scene"]): Readonly<{ widthM: number; depthM: number }> {
+  const xs = scene.room.outerPolygon.map(({ x }) => x);
+  const ys = scene.room.outerPolygon.map(({ y }) => y);
+  return {
+    widthM: Math.max(1, Math.min(50, Math.max(...xs) - Math.min(...xs))),
+    depthM: Math.max(1, Math.min(50, Math.max(...ys) - Math.min(...ys))),
+  };
+}
+
 function withNotice(project: WorkspaceProject, notice: WorkspaceNotice): WorkspaceProject {
   return { ...project, notice };
 }
@@ -398,18 +407,44 @@ export function projectReducer(
       const scene = structuredClone(validation.scene);
       scene.revision = nextRevision(project);
       const activeId = project.activeListenerId;
+      const dimensions = generatedRoomDimensions(scene);
+      const spatial3d = project.mode === "hybrid-3d" ? action.spatial3d : undefined;
+      const sourceHeights = new Map(spatial3d?.sourceHeights.map(({ sourceId, heightM }) => [sourceId, heightM]));
+      const wallBounds = new Map(spatial3d?.wallVerticalBounds.map(({ wallId, ...bounds }) => [wallId, bounds]));
+      const portalBounds = new Map(spatial3d?.portalVerticalBounds.map(({ portalId, ...bounds }) => [portalId, bounds]));
+      const defaultObjectHeight = Math.min(1.5, scene.room.heightM - 0.1);
       return {
         ...project,
         revision: scene.revision,
         scene,
         listeners: project.listeners.map((listener) => listener.id === activeId ? {
           ...listener,
-          position: { ...listener.position, x: scene.listener.position.x, z: scene.listener.position.y },
+          position: {
+            x: scene.listener.position.x,
+            y: spatial3d?.listenerHeightM ?? Math.min(listener.position.y, scene.room.heightM - 0.1),
+            z: scene.listener.position.y,
+          },
           headingDeg: scene.listener.headingDeg,
         } : listener),
-        sourceHeightsM: Object.fromEntries(scene.sources.map(({ id }) => [id, project.sourceHeightsM[id] ?? 1.5])),
-        wall3dById: Object.fromEntries(scene.walls.map(({ id, thicknessM }) => [id, project.wall3dById[id] ?? { bottomM: 0, topM: project.room3d.heightM, thicknessM }])),
-        portal3dById: Object.fromEntries(scene.portals.map(({ id, heightM }) => [id, project.portal3dById[id] ?? { bottomM: 0, topM: heightM, thicknessM: 0.12 }])),
+        room3d: {
+          ...project.room3d,
+          ...dimensions,
+          heightM: scene.room.heightM,
+          floorMaterialId: scene.room.floorMaterialId,
+          ceilingMaterialId: scene.room.ceilingMaterialId,
+          ceilingEnabled: true,
+        },
+        sourceHeightsM: Object.fromEntries(scene.sources.map(({ id }) => [id, sourceHeights.get(id) ?? defaultObjectHeight])),
+        wall3dById: Object.fromEntries(scene.walls.map(({ id, thicknessM }) => [id, {
+          bottomM: wallBounds.get(id)?.bottomM ?? 0,
+          topM: wallBounds.get(id)?.topM ?? scene.room.heightM,
+          thicknessM,
+        }])),
+        portal3dById: Object.fromEntries(scene.portals.map(({ id, heightM }) => [id, portalBounds.get(id) ?? {
+          bottomM: 0,
+          topM: heightM,
+          thicknessM: 0.12,
+        }])),
         disabledEntityIds: [],
         selection: null,
         notice: null,

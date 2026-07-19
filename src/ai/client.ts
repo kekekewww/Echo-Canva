@@ -8,10 +8,11 @@ import {
   type CompileSceneFailureCode,
   type CompileSceneResponse,
   type CompileSceneSuccess,
+  type SceneCompileMode,
   type ExplainAcousticsRequest,
 } from "@/ai/contracts";
+import { validateGeneratedHybridScene } from "@/ai/hybrid-scene";
 import { DEFAULT_PRESET_ID, PRESETS, type PresetId } from "@/domain/presets";
-import type { SceneSpec } from "@/domain/scene/types";
 import { validateScene } from "@/domain/scene/validate";
 
 type Fetcher = typeof fetch;
@@ -35,8 +36,15 @@ function typedFailure(message = INVALID_RESPONSE_MESSAGE): CompileSceneFailure {
   };
 }
 
-function parseSuccess(value: Record<string, unknown>): CompileSceneSuccess | null {
-  const validation = validateScene(value.scene);
+function parseSuccess(value: Record<string, unknown>, targetMode: SceneCompileMode): CompileSceneSuccess | null {
+  const hybrid = targetMode === "hybrid-3d"
+    ? validateGeneratedHybridScene({ scene: value.scene, spatial3d: value.spatial3d })
+    : null;
+  const validation = hybrid?.ok
+    ? { ok: true as const, scene: hybrid.candidate.scene }
+    : targetMode === "hybrid-3d"
+      ? { ok: false as const }
+      : validateScene(value.scene);
   if (
     !validation.ok ||
     !isAiModel(value.model) ||
@@ -50,6 +58,7 @@ function parseSuccess(value: Record<string, unknown>): CompileSceneSuccess | nul
   return {
     ok: true,
     scene: validation.scene,
+    ...(hybrid?.ok ? { spatial3d: hybrid.candidate.spatial3d } : {}),
     model: value.model,
     repairAttempted: value.repairAttempted,
     warnings: value.warnings,
@@ -84,12 +93,12 @@ function parseFailure(value: Record<string, unknown>): CompileSceneFailure | nul
   };
 }
 
-function parseCompileResponse(value: unknown): CompileSceneResponse | null {
+function parseCompileResponse(value: unknown, targetMode: SceneCompileMode): CompileSceneResponse | null {
   if (!isRecord(value) || typeof value.ok !== "boolean") {
     return null;
   }
 
-  return value.ok ? parseSuccess(value) : parseFailure(value);
+  return value.ok ? parseSuccess(value, targetMode) : parseFailure(value);
 }
 
 function isExplanationFailureCode(value: unknown): value is AcousticExplanationFailureCode {
@@ -148,22 +157,25 @@ function parseExplanationResponse(value: unknown): AcousticExplanationResponse |
  */
 export async function requestSceneCompilation(
   prompt: string,
-  baseScene: SceneSpec,
-  fetcher: Fetcher = fetch,
+  baseScene: unknown,
+  targetModeOrFetcher: SceneCompileMode | Fetcher = "classic-2d5d",
+  fetcherArgument: Fetcher = fetch,
 ): Promise<CompileSceneResponse> {
+  const targetMode = typeof targetModeOrFetcher === "function" ? "classic-2d5d" : targetModeOrFetcher;
+  const fetcher = typeof targetModeOrFetcher === "function" ? targetModeOrFetcher : fetcherArgument;
   let response: Response;
   try {
     response = await fetcher("/api/scene/compile", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ prompt, baseScene }),
+      body: JSON.stringify({ prompt, baseScene, targetMode }),
     });
   } catch {
     return typedFailure("The scene generator is unavailable. Keep editing manually or load a preset.");
   }
 
   try {
-    const parsed = parseCompileResponse(await response.json());
+    const parsed = parseCompileResponse(await response.json(), targetMode);
     return parsed ?? typedFailure();
   } catch {
     return typedFailure();

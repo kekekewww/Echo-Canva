@@ -1,5 +1,11 @@
 # Decision Log
 
+## D-047 — Compile and apply mode-aware AI authoring candidates
+
+Decision: Keep Classic generation as a strict `SceneSpec`, but require Hybrid generation to return `{scene, spatial3d}`. The planar scene maps world X/Z to scene x/y; the companion record covers every generated Listener/source/Wall/Portal height by ID. Applying either candidate atomically synchronizes the selected mode's room dimensions and materials; applying Hybrid also replaces its vertical geometry.
+
+Reason: Sending a 3D prompt through the legacy planar schema discarded Z, interpreted Y as floor-plan depth, and retained the previous 12 × 8 × 3 m authoring room. A separate strict Hybrid contract preserves user intent without allowing GPT to calculate acoustics or directly control the runtime engine.
+
 ## D-043 — Persist compact reversible authoring patches
 
 Decision: Cache the current project plus at most 50 reversible value/splice patches in each history direction. Coalesce a continuous numeric pointer scrub into one transaction. Migrate the earlier snapshot-history envelope to patches without overwriting the original record on failure.

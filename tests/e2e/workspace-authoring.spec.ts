@@ -1,6 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
 
+import { CONCRETE_PARTITION_PRESET } from "@/domain/presets/concrete-partition";
+
 test("adds and activates listeners and enforces the source workflow", async ({ page }) => {
   await page.goto("/lab");
   await page.getByTestId("add-object").evaluate((element) => (element as HTMLButtonElement).click());
@@ -75,6 +77,47 @@ test("compiles and applies a validated AI candidate", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Apply AI Studio" })).toBeVisible();
   await page.getByRole("button", { name: "Apply AI Studio" }).click();
   await expect(page.getByTestId("classic-workspace-viewport")).toContainText("AI Studio");
+});
+
+test("applies a mode-aware AI candidate to Hybrid room and object heights", async ({ page }) => {
+  let requestedMode: unknown;
+  await page.route("**/api/scene/compile", async (route) => {
+    const body = await route.request().postDataJSON() as { baseScene: { baseScene: typeof CONCRETE_PARTITION_PRESET }; targetMode?: unknown };
+    requestedMode = body.targetMode;
+    const scene = structuredClone(body.baseScene.baseScene);
+    scene.name = "AI Gallery";
+    scene.room.outerPolygon = [{ x: 0, y: 0 }, { x: 14, y: 0 }, { x: 14, y: 10 }, { x: 0, y: 10 }];
+    scene.room.heightM = 4.5;
+    scene.listener.position = { x: 5, y: 3 };
+    scene.sources[0]!.position = { x: 10, y: 7 };
+    await route.fulfill({ json: {
+      ok: true,
+      scene,
+      spatial3d: {
+        listenerHeightM: 1.7,
+        sourceHeights: scene.sources.map(({ id }, index) => ({ sourceId: id, heightM: index === 0 ? 1.4 : 3.2 })),
+        wallVerticalBounds: scene.walls.map(({ id }) => ({ wallId: id, bottomM: 0, topM: id === "partition_center" ? 3.2 : 4.5 })),
+        portalVerticalBounds: scene.portals.map(({ id }) => ({ portalId: id, bottomM: 0, topM: 2, thicknessM: 0.3 })),
+      },
+      model: "openai/gpt-5.6-luna",
+      repairAttempted: false,
+      warnings: [],
+    } });
+  });
+
+  await page.goto("/lab");
+  await page.getByText("AI scene tools").click();
+  await page.getByLabel("Describe a scene").fill("A 14 by 10 by 4.5 metre gallery");
+  await page.getByRole("button", { name: "Generate scene" }).click();
+  await page.getByRole("button", { name: "Apply AI Gallery" }).click();
+
+  expect(requestedMode).toBe("hybrid-3d");
+  await page.getByRole("complementary", { name: "Scene Outliner" }).getByRole("button", { name: "Room" }).click();
+  await expect(page.getByRole("textbox", { name: "Width" })).toHaveValue("14");
+  await expect(page.getByRole("textbox", { name: "Depth" })).toHaveValue("10");
+  await expect(page.getByRole("textbox", { name: "Height" })).toHaveValue("4.5");
+  await page.getByRole("complementary", { name: "Scene Outliner" }).getByRole("button", { name: "Radio" }).click();
+  await expect(page.getByRole("textbox", { name: "Y position" })).toHaveValue("1.4");
 });
 
 test("confirms permanent deletes and clears all local project data in two steps", async ({ page }) => {

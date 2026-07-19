@@ -1,6 +1,7 @@
 import { sceneSpecSchema } from "@/domain/scene/schema";
 import type { PresetId } from "@/domain/presets";
 import type { SceneValidationIssue, SceneSpec } from "@/domain/scene/types";
+import type { GeneratedSpatial3D } from "@/domain/workspace/types";
 
 export const SCENE_COMPILER_MODEL = "gpt-5.6";
 export const OPENROUTER_LUNA_MODEL = "openai/gpt-5.6-luna";
@@ -16,12 +17,16 @@ export const FIXED_PORTAL_LIMITATION = "Portal routing is a geometric perceptual
 export type CompileSceneRequest = {
   prompt: string;
   baseScene?: unknown;
+  targetMode?: SceneCompileMode;
 };
+
+export type SceneCompileMode = "classic-2d5d" | "hybrid-3d";
 
 export type CompileSchemaPrompt = {
   instructions: string;
   prompt: string;
   baseScene?: unknown;
+  targetMode: SceneCompileMode;
 };
 
 export type CompileDependencies = {
@@ -35,6 +40,7 @@ export type CompileDependencies = {
 export type CompileSceneSuccess = {
   ok: true;
   scene: SceneSpec;
+  spatial3d?: GeneratedSpatial3D;
   repairAttempted: boolean;
   warnings: string[];
   model: AiModel;
