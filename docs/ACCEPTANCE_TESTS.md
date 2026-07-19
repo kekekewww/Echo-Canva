@@ -15,6 +15,19 @@
 11. Load the maximum 100 Wall / 8 Portal / 4 Source / 8 Listener project, switch modes, refresh twice, and confirm no data or duplicate audio graphs. Automated Chromium must measure Worker p95 below 12 ms and no >50 ms long task in the tested edit sequence.
 12. Run the complete static/browser verification, then perform the headphone-only localization/occlusion/Portal/reverb comparison before deployment.
 
+### Viewport navigation acceptance
+
+Run these checks once in 2.5D and once in 3D:
+
+1. Start a middle-button drag over a source or Listener. Confirm the view pans while the object's authored position remains unchanged.
+2. Hold Shift and left-drag empty space. Confirm the view pans. In 3D, Shift-left-drag a source or Listener and confirm it still edits Y height rather than panning.
+3. Hover the drawing area and use the wheel. Confirm zoom is anchored near the cursor and the browser page does not scroll.
+4. Choose **Home** and confirm default rotation/zoom with zero pan. Choose **Frame All** and confirm the enabled room and objects fit with padding.
+5. Enter Wall placement, pan, zoom, and then place both endpoints. Confirm navigation does not create an endpoint and the resulting Wall aligns with the clicks.
+6. Switch 2.5D/3D and refresh. Confirm each mode restores its own view.
+
+Pass when navigation never mutates authored geometry, does not enter Undo/Redo, does not change the acoustic revision, and all pre-existing object/orbit/height gestures remain available.
+
 ## Tester role
 
 The human tester does not inspect implementation details unless a failure requires evidence. The tester follows these scripts and returns `PASS` or `FAIL` with observed behavior.

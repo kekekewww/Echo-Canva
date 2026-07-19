@@ -1,5 +1,21 @@
 # Status
 
+## Modelling-style viewport navigation — 2026-07-19
+
+- added persistent, independent pan/zoom cameras to Classic 2.5D and Hybrid 3D, including zero-pan migration for existing caches
+- added middle-button pan from any viewport target, Shift-left empty-space pan, cursor-anchored wheel zoom with page-scroll containment, Home, and Frame All
+- preserved Classic object/Wall-endpoint editing and Hybrid empty-space orbit, object X/Z dragging, Shift-object Y dragging, and two-point Wall placement
+- added pure round-trip, zoom-anchor, maximum-room framing, and persistence tests plus production Chromium gesture/persistence/placement regressions
+- presentation camera changes remain outside Undo/Redo and do not increment the deterministic acoustic revision
+
+Final complete verification:
+
+- `pnpm lint` — PASS, zero warnings
+- `pnpm typecheck` — PASS
+- `pnpm test` — PASS, 61 files / 357 tests
+- `pnpm build` — PASS, all application and API routes compiled
+- `pnpm e2e` — PASS, 38/38 production Chromium tests
+
 ## Mode-aware AI scene application repair — 2026-07-19
 
 - reproduced the defect against the configured Luna provider: a requested `(x, y, z)` became planar `(x, y)`, Z was lost, and applying a 14 × 10 × 4.5 m candidate retained the old 12 × 8 × 3 m Hybrid room

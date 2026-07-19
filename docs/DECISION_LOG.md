@@ -364,3 +364,9 @@ unrelated slider. A game-engine-oriented workbench needs scene navigation, an ac
 contextual inspector so object manipulation and exact values are one coherent operation. The
 environment card remains intentionally preview-only and states that it does not alter Browser HRTF
 rendering, preventing the more compact UI from obscuring a model boundary.
+
+## D-041 — Persist modelling-style viewport navigation as presentation state
+
+Decision: Add finite virtual-pixel `panX` / `panY` to each mode's cached camera. Both viewports use middle-button drag and Shift-left on empty space for panning, cursor-anchored wheel zoom, Home, and deterministic Frame All. Hybrid keeps ordinary empty-space orbit and Shift-object Y editing; middle-button panning takes priority even when initiated over an authored object. Legacy camera caches receive zero pan.
+
+Reason: Large generated or manually resized scenes can exceed the fixed viewport and become difficult to edit. A reversible projection/inverse-projection pair keeps visible geometry, pointer coordinates, and Wall placement aligned while treating navigation as presentation-only state outside acoustic revisions and Undo/Redo.

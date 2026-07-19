@@ -7,6 +7,7 @@ The product is an **interactive acoustic approximation**. It is not an architect
 ## Unified modelling workspace
 
 - Switch **2.5D / 3D** without converting or overwriting either project. Each mode is restored from its own versioned local cache.
+- Navigate either viewport with middle-button drag or Shift + left drag on empty space. The wheel zooms around the cursor without scrolling the page; **Home** restores the default view and **Frame All** fits enabled scene content. Each mode persists its own presentation camera.
 - Select objects in the Outliner or viewport, then edit exact values in the Inspector. Numeric fields accept typed units, arrow keys, and horizontal scrubbing; `Shift` is fine adjustment and `Ctrl` snaps to the normal step.
 - Add up to eight listeners and four point sources. Exactly one enabled listener is active; selecting another listener switches the acoustic receiver.
 - Add built-in or device-local WAV/MP3/Ogg sources. Local files are decoded and stored in the browser only, with a 25 MB file limit and 100 MB library limit; they are never sent to an API route.
@@ -14,7 +15,7 @@ The product is an **interactive acoustic approximation**. It is not an architect
 - **Disable** is reversible and removes an entity from rendering and acoustic compilation while retaining it in the Outliner. **Delete** removes it. The floor and final enabled listener are protected.
 - 3D path overlays use the same accepted Worker revision as audio and show direct, blocked, Portal-aware, and first-order floor/ceiling/wall reflection paths.
 - Undo/Redo is persisted as at most 50 compact reversible commands per mode. Continuous scrubbing is coalesced into one command. Reset affects only the active mode and is undoable.
-- Authoring JSON preserves listeners, finite geometry, disabled state, camera/overlay preferences, and local-audio metadata without embedding blobs. Missing files remain silent and can be relinked in place.
+- Authoring JSON preserves listeners, finite geometry, disabled state, camera pan/zoom/overlay preferences, and local-audio metadata without embedding blobs. Missing files remain silent and can be relinked in place.
 
 ## Run locally
 
