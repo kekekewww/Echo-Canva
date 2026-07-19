@@ -48,7 +48,7 @@ function validateRegistryIds(scene: SceneSpec, errors: SceneValidationIssue[]): 
   });
 
   scene.sources.forEach((source, index) => {
-    if (!AUDIO_ASSET_IDS.has(source.clipId)) {
+    if (!AUDIO_ASSET_IDS.has(source.clipId) && !/^local_[a-zA-Z0-9_]{1,57}$/.test(source.clipId)) {
       errors.push(
         issue(
           `sources.${index}.clipId`,

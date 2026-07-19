@@ -1,5 +1,17 @@
 # Decision Log
 
+## D-041 — Introduce a versioned authoring layer above both deterministic engines
+
+Decision: Keep independent 2.5D and 3D `WorkspaceProject` documents above the existing `SceneSpec` and `SceneDocumentV2` contracts. Projectors select the active listener, filter disabled entities, apply finite 3D wall/Portal bounds, and then invoke the existing deterministic workers. A single modelling-style shell owns selection, Inspector edits, local caches, history, and Reset.
+
+Reason: The requested game-engine interaction model requires multiple authoring listeners, local sources, reversible disable state, and independent modes, while the validated acoustic engines intentionally accept narrower contracts. The authoring layer adds those workflows without allowing UI or GPT output to become an acoustic solver. The Hybrid viewport consumes the same accepted Worker revision as audio, so generalized 3D visualization does not introduce a second ray solver.
+
+## D-042 — Render all enabled finite 3D authoring geometry
+
+Decision: Replace the fixed Radio/Rain/partition viewport model with data-driven listener, source, wall, and Portal collections. Render wall thickness as paired finite faces, carve open Portals using their own bottom/top bounds, expose wall endpoints and Portal centres as direct-manipulation handles, and omit disabled entities.
+
+Reason: A fixed fixture contradicted the new Add, Disable, and finite-dimension authoring commands. Generalized viewport data makes visual selection, Inspector values, deterministic compilation, and cached authoring state describe the same objects while retaining a rectangular room shell and first-order acoustic boundary.
+
 ## D-001 — Browser-first delivery
 
 Decision: Use a deployed Web Audio application instead of Godot/OpenAL for the hackathon MVP.

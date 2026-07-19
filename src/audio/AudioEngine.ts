@@ -19,6 +19,7 @@ import type { AcousticFrame } from "@/acoustics/compute-frame";
 type AudioEngineDependencies = Readonly<{
   createContext?: () => AudioContextLike;
   fetchArrayBuffer?: (url: string) => Promise<ArrayBuffer>;
+  resolveAudioAsset?: (clipId: string) => Promise<ArrayBuffer | null>;
 }>;
 
 function createBrowserAudioContext(): AudioContextLike {
@@ -44,6 +45,7 @@ const ASSET_BY_ID = new Map(AUDIO_ASSETS.map((asset) => [asset.id, asset]));
 export class AudioEngine {
   private readonly createContext: () => AudioContextLike;
   private readonly fetchArrayBuffer: (url: string) => Promise<ArrayBuffer>;
+  private readonly resolveAudioAsset: ((clipId: string) => Promise<ArrayBuffer | null>) | null;
   private readonly sourceGraphs = new Map<string, SourceGraph>();
   private readonly bufferCache = new Map<string, Promise<AudioBufferLike>>();
   private context: AudioContextLike | null = null;
@@ -70,6 +72,7 @@ export class AudioEngine {
   constructor(dependencies: AudioEngineDependencies = {}) {
     this.createContext = dependencies.createContext ?? createBrowserAudioContext;
     this.fetchArrayBuffer = dependencies.fetchArrayBuffer ?? fetchLocalArrayBuffer;
+    this.resolveAudioAsset = dependencies.resolveAudioAsset ?? null;
   }
 
   async start(scene: SceneSpec): Promise<void> {
@@ -325,8 +328,16 @@ export class AudioEngine {
     const cached = this.bufferCache.get(clipId);
     if (cached) return cached;
     const asset = ASSET_BY_ID.get(clipId);
-    if (!asset) return Promise.reject(new Error(`Unknown local audio asset: ${clipId}`));
-    const loading = this.fetchArrayBuffer(asset.url)
+    const data = this.resolveAudioAsset
+      ? this.resolveAudioAsset(clipId).then((resolved) => {
+        if (resolved) return resolved;
+        if (!asset) throw new Error(`Unknown local audio asset: ${clipId}`);
+        return this.fetchArrayBuffer(asset.url);
+      })
+      : asset
+        ? this.fetchArrayBuffer(asset.url)
+        : Promise.reject(new Error(`Unknown local audio asset: ${clipId}`));
+    const loading = data
       .then((data) => context.decodeAudioData(data))
       .then((buffer) => {
         if (buffer.numberOfChannels !== 1) {

@@ -1,5 +1,13 @@
 # API and Data Contracts
 
+## Workspace authoring contract
+
+The browser-only `WorkspaceProject` schema is versioned independently from API-facing `SceneSpec`. It stores mode, revision, listener collection and active listener, authoring selection, reversible disabled IDs, rectangular room dimensions, source heights, and finite wall/Portal settings.
+
+Limits are eight listeners, four sources, one hundred walls, eight Portals, 50 m room width/depth, and 12 m room height. At least one enabled listener and the floor are mandatory. Disabled host walls suspend attached Portals. Projectors filter disabled entities before either deterministic worker runs.
+
+Local audio IDs use the `local_` prefix and resolve only from browser IndexedDB. WAV/MP3/Ogg files are limited to 25 MB each and 100 MB total, decoded before source creation, and never accepted as arbitrary remote URLs. Scene JSON does not embed blobs.
+
 ## `SceneSpec`
 
 Canonical TypeScript concept:

@@ -42,26 +42,31 @@ function portalOpening(
 ): PortalOpening3 | null {
   if (!portal.open || portal.wallId !== wall.id) return null;
   const spatial = requireSpatialDocument(document);
+  const vertical = spatial.portalVerticalBoundsM?.[portal.id];
   const along = normalize3({ x: wall.b.x - wall.a.x, y: 0, z: wall.b.y - wall.a.y });
+  const bottomM = vertical?.bottomM ?? 0;
+  const topM = vertical?.topM ?? portal.heightM;
   return {
     id: portal.id,
     wallId: wall.id,
-    center: planPointToWorld(portal.center, spatial.floorElevationM + portal.heightM * 0.5),
+    center: planPointToWorld(portal.center, spatial.floorElevationM + (bottomM + topM) * 0.5),
     along,
     widthM: portal.widthM,
-    floorElevationM: spatial.floorElevationM,
-    heightM: portal.heightM,
+    floorElevationM: spatial.floorElevationM + bottomM,
+    heightM: topM - bottomM,
   };
 }
 
 function wallPatches(document: SceneDocumentV2): readonly AcousticPatch3[] {
   const spatial = requireSpatialDocument(document);
   const scene = document.baseScene;
-  const topY = spatial.floorElevationM + scene.room.heightM;
   const patches: AcousticPatch3[] = [];
   for (const wall of scene.walls) {
-    const a = planPointToWorld(wall.a, spatial.floorElevationM);
-    const b = planPointToWorld(wall.b, spatial.floorElevationM);
+    const vertical = spatial.wallVerticalBoundsM?.[wall.id];
+    const bottomY = spatial.floorElevationM + (vertical?.bottomM ?? 0);
+    const topY = spatial.floorElevationM + (vertical?.topM ?? scene.room.heightM);
+    const a = planPointToWorld(wall.a, bottomY);
+    const b = planPointToWorld(wall.b, bottomY);
     const along = normalize3({ x: b.x - a.x, y: 0, z: b.z - a.z });
     const normal = { x: -along.z, y: 0, z: along.x };
     const offset = scale3(normal, wall.thicknessM * 0.5);
@@ -72,7 +77,7 @@ function wallPatches(document: SceneDocumentV2): readonly AcousticPatch3[] {
     const frontB = add3(b, offset);
     const backA = add3(a, scale3(offset, -1));
     const backB = add3(b, scale3(offset, -1));
-    const lift = { x: 0, y: topY - spatial.floorElevationM, z: 0 };
+    const lift = { x: 0, y: topY - bottomY, z: 0 };
     patches.push(
       makePatch3(`${wall.id}:front`, "wall", wall.materialId, [frontA, frontB, add3(frontB, lift), add3(frontA, lift)], {
         wallId: wall.id,
@@ -95,9 +100,10 @@ export function compileHybridStaticGeometry(document: SceneDocumentV2): HybridSt
   const ceiling = scene.room.outerPolygon
     .map((point) => planPointToWorld(point, spatial.floorElevationM + scene.room.heightM))
     .reverse();
+  const disabledSurfaces = new Set(spatial.disabledSurfaceIds ?? []);
   const patches = [
     makePatch3("floor", "floor", scene.room.floorMaterialId, floor),
-    makePatch3("ceiling", "ceiling", scene.room.ceilingMaterialId, ceiling),
+    ...(disabledSurfaces.has("ceiling") ? [] : [makePatch3("ceiling", "ceiling", scene.room.ceilingMaterialId, ceiling)]),
     ...wallPatches(document),
   ];
   return {

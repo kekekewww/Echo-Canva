@@ -1,5 +1,5 @@
-import { EchoWorkbench } from "@/components/workbench/EchoWorkbench";
+import { UnifiedWorkspace } from "@/components/workspace/UnifiedWorkspace";
 
 export default function ClassicPage() {
-  return <EchoWorkbench />;
+  return <UnifiedWorkspace initialMode="classic-2d5d" />;
 }

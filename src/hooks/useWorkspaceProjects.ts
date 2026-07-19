@@ -32,14 +32,14 @@ function restoredHistories(): WorkspaceHistories {
   return { classic: createHistory(classic.project), hybrid: createHistory(hybrid.project) };
 }
 
-function restoredMode(): WorkspaceMode {
-  if (typeof window === "undefined") return "classic-2d5d";
+function restoredMode(fallback: WorkspaceMode): WorkspaceMode {
+  if (typeof window === "undefined") return fallback;
   const stored = window.localStorage.getItem(WORKSPACE_UI_KEY);
-  return stored === "hybrid-3d" ? stored : "classic-2d5d";
+  return stored === "classic-2d5d" || stored === "hybrid-3d" ? stored : fallback;
 }
 
-export function useWorkspaceProjects() {
-  const [activeMode, setActiveModeState] = useState<WorkspaceMode>(restoredMode);
+export function useWorkspaceProjects(initialMode?: WorkspaceMode) {
+  const [activeMode, setActiveModeState] = useState<WorkspaceMode>(() => initialMode ?? restoredMode("classic-2d5d"));
   const [histories, setHistories] = useState<WorkspaceHistories>(restoredHistories);
   const [persistenceStatus, setPersistenceStatus] = useState("saved");
 

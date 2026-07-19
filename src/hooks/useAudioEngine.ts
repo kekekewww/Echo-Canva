@@ -22,8 +22,9 @@ export function useAudioEngine(
   mode: PreviewMode,
   acousticFrame: AcousticFrame | null,
   acousticFallbackNotice: string | null,
+  resolveAudioAsset?: (clipId: string) => Promise<ArrayBuffer | null>,
 ): AudioEngineControls {
-  const [engine] = useState(() => new AudioEngine());
+  const [engine] = useState(() => new AudioEngine({ resolveAudioAsset }));
   const [diagnostics, setDiagnostics] = useState(() => engine.getDiagnostics());
   const mounted = useRef(true);
   const disposalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

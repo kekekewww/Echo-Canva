@@ -27,6 +27,7 @@ export type DirectPath3D = Readonly<{
 }>;
 
 export type HybridDirectFrame = Readonly<{
+  revision: number;
   classicProjectionHash: string;
   computedAtMs: number;
   paths: readonly DirectPath3D[];
@@ -77,6 +78,7 @@ export function computeHybridDirectFrame(
   computedAtMs = 0,
 ): HybridDirectFrame {
   return {
+    revision: geometry.document.baseScene.revision,
     classicProjectionHash: geometry.document.compatibility.classicProjectionHash,
     computedAtMs,
     paths: computeHybridDirectPaths(geometry),

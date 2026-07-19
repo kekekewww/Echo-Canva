@@ -1,5 +1,23 @@
 # Architecture
 
+## Unified authoring workspace (2026-07-19)
+
+The application now has a versioned authoring layer above both engine contracts:
+
+```text
+UnifiedWorkspace
+  ├─ classic WorkspaceProject ─ projectClassicScene ─ Classic Worker / Web Audio
+  ├─ hybrid WorkspaceProject  ─ projectHybridDocument ─ Hybrid Worker / Web Audio
+  ├─ per-mode bounded history and localStorage cache
+  └─ browser-only IndexedDB local-audio library
+```
+
+`WorkspaceProject` owns the listener collection, active listener, authoring selection, disabled IDs, rectangular room dimensions, source heights, and finite wall/Portal vertical settings. Projectors produce the narrower validated `SceneSpec` or `SceneDocumentV2`, omit disabled geometry and dependent Portals, and expose exactly one active listener to deterministic computation.
+
+The 3D viewport receives every enabled listener, source, wall, and Portal. Its path overlay is derived from the accepted Hybrid Worker frame and rejects stale revisions. Camera orbit, ceiling presentation, and path visibility never change acoustic state. The persistent Web Audio graph receives smoothed parameters from the same accepted result.
+
+Project cache keys are `echo-canvas:project:classic:v1`, `echo-canvas:project:hybrid:v1`, and `echo-canvas:workspace-ui:v1`. Local audio uses `echo-canvas-audio/assets` in IndexedDB and never crosses a server route.
+
 ## Context diagram
 
 ```text

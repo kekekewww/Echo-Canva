@@ -1,5 +1,18 @@
 # Human Acceptance Test Plan
 
+## Gate E workspace static and browser acceptance
+
+1. Edit Listener X/Z in 2.5D, switch to 3D and edit X/Y/Z, switch back, refresh, and confirm both independent values restore.
+2. Add another Listener; confirm it becomes Active. Select the first Listener and confirm exactly one Active badge remains. The final enabled Listener must not disable/delete.
+3. Add a built-in source and a valid local WAV/MP3/Ogg source. Confirm invalid/undecodable or oversized files do not create a source and no local blob is sent to an API route.
+4. In 3D, add a Wall, select its finite panel, drag either endpoint, edit thickness/bottom/top, then add a hosted Portal and edit width/bottom/top/thickness.
+5. Disable and re-enable a Wall, Portal, source, Listener, ceiling, and a 2.5D wall. Disabled objects stay in the Outliner but disappear from viewport and deterministic compilation. Floor remains protected.
+6. Select a source and verify direct/blocked/Portal-aware and first-order floor/ceiling/wall paths. Toggle Paths, All paths, and presentation-only Ceiling without changing the accepted acoustic revision.
+7. Exercise exact numeric input with units, label scrubbing, Shift fine adjustment, Ctrl snapping, arrows, Enter, and Escape. Verify invalid input preserves the last accepted value.
+8. Undo/Redo scene changes. Reset 3D, Undo it, and verify 2.5D is unchanged.
+9. Import/export a valid scene and reject malformed JSON without changing the current project. Simulate unavailable AI and confirm manual authoring/audio remain available.
+10. Run the complete static/browser verification, then perform the headphone-only localization/occlusion/Portal/reverb comparison before deployment.
+
 ## Tester role
 
 The human tester does not inspect implementation details unless a failure requires evidence. The tester follows these scripts and returns `PASS` or `FAIL` with observed behavior.

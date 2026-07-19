@@ -38,6 +38,16 @@ const projectEnvelopeSchema = z.object({
     heightM: z.number().min(0.1).max(12),
   }).strict(),
   sourceHeightsM: z.record(z.string(), z.number().finite()),
+  wall3dById: z.record(z.string(), z.object({
+    bottomM: z.number().finite(),
+    topM: z.number().finite(),
+    thicknessM: z.number().finite(),
+  }).strict()),
+  portal3dById: z.record(z.string(), z.object({
+    bottomM: z.number().finite(),
+    topM: z.number().finite(),
+    thicknessM: z.number().finite(),
+  }).strict()),
   notice: z.object({ code: z.string(), message: z.string() }).nullable(),
 }).strict();
 

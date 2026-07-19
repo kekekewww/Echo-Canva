@@ -5,6 +5,9 @@ export type Spatial3DExtension = Readonly<{
   floorElevationM: number;
   listenerHeightM: number;
   sourceHeightsM: Readonly<Record<string, number>>;
+  wallVerticalBoundsM?: Readonly<Record<string, Readonly<{ bottomM: number; topM: number }>>>;
+  portalVerticalBoundsM?: Readonly<Record<string, Readonly<{ bottomM: number; topM: number; thicknessM: number }>>>;
+  disabledSurfaceIds?: readonly string[];
 }>;
 
 export type Propagation3DConfig = Readonly<{

@@ -30,6 +30,16 @@ function createDefaultProject(mode: WorkspaceMode): WorkspaceProject {
       heightM: scene.room.heightM,
     },
     sourceHeightsM: Object.fromEntries(scene.sources.map(({ id }) => [id, 1.5])),
+    wall3dById: Object.fromEntries(scene.walls.map(({ id, thicknessM }) => [id, {
+      bottomM: 0,
+      topM: scene.room.heightM,
+      thicknessM,
+    }])),
+    portal3dById: Object.fromEntries(scene.portals.map(({ id, heightM }) => [id, {
+      bottomM: 0,
+      topM: heightM,
+      thicknessM: 0.12,
+    }])),
     notice: null,
   };
 }

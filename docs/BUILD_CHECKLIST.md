@@ -1,5 +1,16 @@
 # Autonomous Build Checklist
 
+## Unified workspace extension (2026-07-19)
+
+- [x] Versioned independent 2.5D/3D authoring projects and deterministic engine projections.
+- [x] Per-mode local cache, bounded undo/redo, and undoable active-mode Reset.
+- [x] Shared modelling shell, Outliner/viewport/Inspector selection bridge, and numeric scrub fields.
+- [x] Multiple active-switchable listeners, dynamic built-in/local sources, and browser-only audio storage.
+- [x] Editable rectangular 3D room, arbitrary finite walls/Portals, and reversible Disable semantics.
+- [x] Matched-Worker-revision 3D direct, blocked, Portal-aware, floor, ceiling, and wall reflection overlays.
+- [x] Unified-workspace unit and production Chromium suites.
+- [ ] External-only: production deployment, clean-device headphone acceptance, submission video/screenshots, and Devpost `/feedback` record.
+
 ## Operating mode
 
 - Plan owner: Codex.

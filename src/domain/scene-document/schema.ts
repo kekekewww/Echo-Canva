@@ -8,6 +8,16 @@ const spatial3dSchema = z
     floorElevationM: z.number().min(-10).max(10),
     listenerHeightM: z.number().min(0.1).max(12),
     sourceHeightsM: z.record(z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/), z.number().min(0.1).max(12)),
+    wallVerticalBoundsM: z.record(z.string(), z.object({
+      bottomM: z.number().min(0).max(12),
+      topM: z.number().min(0.1).max(12),
+    }).strict()).optional(),
+    portalVerticalBoundsM: z.record(z.string(), z.object({
+      bottomM: z.number().min(0).max(12),
+      topM: z.number().min(0.1).max(12),
+      thicknessM: z.number().min(0.02).max(2),
+    }).strict()).optional(),
+    disabledSurfaceIds: z.array(z.string()).optional(),
   })
   .strict();
 

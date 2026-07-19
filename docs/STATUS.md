@@ -1,5 +1,27 @@
 # Status
 
+## Unified modelling workspace complete — static release candidate — 2026-07-19
+
+- replaced the separate page control walls with one modelling-style toolbar / Outliner / viewport / Inspector / status shell on `/`, `/classic`, and `/lab`
+- added independent versioned 2.5D and 3D project caches, bounded per-mode undo/redo, and undoable active-mode-only Reset
+- added exact numeric typing, unit parsing, pointer scrubbing, Shift fine adjustment, Ctrl snapping, arrow editing, and Escape cancel
+- added up to eight selectable listeners, four built-in/local point sources, browser-only IndexedDB audio, decode rejection, and persistent audio-asset resolution
+- added editable rectangular 3D room dimensions, arbitrary finite walls, hosted finite Portals, thickness and vertical bounds, and reversible Disable semantics
+- generalized the 3D viewport to render and select every enabled listener/source/wall/Portal, including finite wall thickness and Portal bottom/top openings
+- added matched-revision direct, blocked, Portal-aware, floor, ceiling, and wall first-order path overlays with compact presentation controls
+- migrated the production browser suite to the unified workspace flows and retained the offline audio render gate
+
+Final static verification:
+
+- `pnpm lint` — PASS, zero warnings
+- `pnpm typecheck` — PASS
+- `pnpm test` — PASS, 56 files / 325 tests
+- `pnpm build` — PASS, all application and API routes compiled
+- `pnpm e2e` — PASS, 15/15 production Chromium tests including the offline audio-render probe and 100-wall interaction budget
+- `git diff --check` — PASS; Windows line-ending notices are informational
+
+Deployment and the human headphone/release acceptance remain external gates, not static claims.
+
 ## Unified workspace Task 2 — independent persistence and history — 2026-07-19
 
 - added separate versioned localStorage records for Classic 2.5D and Hybrid 3D projects

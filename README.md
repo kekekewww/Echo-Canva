@@ -1,8 +1,19 @@
 # Echo Canvas
 
-Echo Canvas is a browser-based spatial-audio prototyping and previsualization tool for OpenAI Build Week 2026. The Gate D candidate provides a deterministic 2D scene editor, local mono demo sources, Raw/Simulated A/B preview, browser HRTF rendering, Worker-driven direct-path occlusion, portal-aware sound propagation, first-order early reflections, a perceptually tuned Schroeder late-reverb preview, GPT-5.6 scene compilation, and grounded acoustic explanations.
+Echo Canvas is a browser-based spatial-audio prototyping and previsualization tool for OpenAI Build Week 2026. It provides one modelling-style workspace with independent cached 2.5D and 3D projects, deterministic acoustic previews, browser HRTF rendering, GPT-5.6 scene compilation, and grounded acoustic explanations.
 
 The product is an **interactive acoustic approximation**. It is not an architectural-acoustics measurement tool and does not claim physically accurate diffraction.
+
+## Unified modelling workspace
+
+- Switch **2.5D / 3D** without converting or overwriting either project. Each mode is restored from its own versioned local cache.
+- Select objects in the Outliner or viewport, then edit exact values in the Inspector. Numeric fields accept typed units, arrow keys, and horizontal scrubbing; `Shift` is fine adjustment and `Ctrl` snaps to the normal step.
+- Add up to eight listeners and four point sources. Exactly one enabled listener is active; selecting another listener switches the acoustic receiver.
+- Add built-in or device-local WAV/MP3/Ogg sources. Local files are decoded and stored in the browser only, with a 25 MB file limit and 100 MB library limit; they are never sent to an API route.
+- In 3D, edit room size plus finite wall and Portal thickness, bottom, and top. Walls and objects are directly selectable in the viewport; source/listener positions and wall endpoints are draggable.
+- **Disable** is reversible and removes an entity from rendering and acoustic compilation while retaining it in the Outliner. **Delete** removes it. The floor and final enabled listener are protected.
+- 3D path overlays use the same accepted Worker revision as audio and show direct, blocked, Portal-aware, and first-order floor/ceiling/wall reflection paths.
+- Undo/Redo is bounded to 50 scene changes. Reset affects only the active mode and is undoable during the current session.
 
 ## Run locally
 
@@ -35,7 +46,7 @@ This explicitly selects `openai/gpt-5.6-luna` for both scene compilation and aco
 
 ### Scene transfer
 
-Use **Export scene JSON** in the left workbench panel to download the current validated scene. **Import scene JSON** accepts only a supported, versioned Echo Canvas scene smaller than 1 MB; invalid or unsupported JSON is rejected without changing the current editor state.
+Use **Import / export** in the Inspector to download or restore the current validated scene. Import accepts only a supported, versioned Echo Canvas scene smaller than 1 MB; invalid or unsupported JSON is rejected without changing the current project.
 
 ## Verify
 
@@ -105,4 +116,5 @@ GPT-5.6 is a server-only control-plane component. It compiles bounded natural-la
 - Primary browser targets are current desktop Chrome and Edge.
 - External device changes and browser-initiated `AudioContext` interruption observation remain a documented follow-up; explicit Start, Stop, resume, and error lifecycle are covered.
 - First-order reflections and late reverberation are perceptually tuned approximations, not architectural-acoustics measurement or certification. The live UI uses continuous-loop assets rather than a separate one-shot impulse audition; automated Chromium validation nevertheless renders the production Schroeder network through `OfflineAudioContext` to check finite/non-clipping output on each stereo channel, an equal-band RT60 target from summed stereo energy, and a relative Raw/Simulated transition-continuity limit. The editor does not expose outer-room scale editing; room-scale math is covered by deterministic unit tests.
-- JSON import/export UI and deployment remain later checklist items; GPT-5.6 compilation and snapshot-grounded explanations are implemented in the current Gate D candidate.
+- Local-audio blobs are intentionally not embedded in scene JSON; another browser must relink a missing local asset.
+- The 3D room is rectangular and acoustic paths remain first-order deterministic approximations. True diffraction, arbitrary room meshes, and simultaneous rendering for multiple listeners are outside this release.

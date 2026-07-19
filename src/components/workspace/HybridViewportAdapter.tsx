@@ -1,0 +1,183 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+
+import { resolveHybridAudibleDirectState } from "@/acoustics/hybrid3d/audible-direct";
+import { compileHybridGeometry } from "@/acoustics/hybrid3d/compile";
+import { renderHybridEarlyReflections } from "@/acoustics/hybrid3d/reflection-rendering";
+import {
+  HybridSpatialViewport,
+  type HybridViewportObject,
+  type HybridViewportSelection,
+  type HybridViewportWall,
+} from "@/components/lab/HybridSpatialViewport";
+import { deriveHybridPathDisplay } from "@/components/workspace/HybridPathOverlay";
+import { constrainPortal3D, constrainWall3D } from "@/domain/workspace/geometry-constraints";
+import { projectClassicScene, projectHybridDocument } from "@/domain/workspace/projections";
+import type { ProjectAction, Vec3, WorkspaceProject } from "@/domain/workspace/types";
+import { useAudioEngine } from "@/hooks/useAudioEngine";
+import { useHybridDirectPaths } from "@/hooks/useHybridDirectPaths";
+
+export function HybridViewportAdapter({ project, dispatch, resolveAudioAsset }: Readonly<{
+  project: WorkspaceProject;
+  dispatch: (action: ProjectAction) => void;
+  resolveAudioAsset?: (clipId: string) => Promise<ArrayBuffer | null>;
+}>) {
+  const [playing, setPlaying] = useState(false);
+  const [pathsVisible, setPathsVisible] = useState(true);
+  const [showAllPaths, setShowAllPaths] = useState(false);
+  const [ceilingShown, setCeilingShown] = useState(true);
+  const scene = useMemo(() => projectClassicScene(project), [project]);
+  const document = useMemo(() => projectHybridDocument(project), [project]);
+  const geometry = useMemo(() => compileHybridGeometry(document), [document]);
+  const direct = useHybridDirectPaths(document, geometry);
+  const audible = useMemo(() => resolveHybridAudibleDirectState(geometry, direct.frame), [direct.frame, geometry]);
+  const reflectionState = useMemo(() => ({
+    listenerPosition: geometry.listenerPosition,
+    reflectionsBySource: Object.fromEntries(scene.sources.map(({ id }) => [
+      id,
+      renderHybridEarlyReflections(direct.frame.firstOrderReflectionsBySource[id] ?? []),
+    ])),
+  }), [direct.frame.firstOrderReflectionsBySource, geometry.listenerPosition, scene.sources]);
+  const { applyHybridDirectState, applyHybridReflectionState, startAudio, stopAudio } = useAudioEngine(
+    scene,
+    "simulated",
+    null,
+    null,
+    resolveAudioAsset,
+  );
+  const disabled = useMemo(() => new Set(project.disabledEntityIds), [project.disabledEntityIds]);
+  const selectedSourceId = project.selection?.type === "source"
+    ? project.selection.id
+    : project.scene.sources.find(({ id }) => !disabled.has(id))?.id ?? null;
+  const displayPaths = useMemo(() => deriveHybridPathDisplay(
+    direct.frame,
+    geometry,
+    selectedSourceId,
+    showAllPaths,
+    project.revision,
+    audible.paths,
+  ), [audible.paths, direct.frame, geometry, project.revision, selectedSourceId, showAllPaths]);
+
+  const objects = useMemo<readonly HybridViewportObject[]>(() => [
+    ...project.listeners.filter(({ enabled }) => enabled).map((listener) => ({
+      id: listener.id,
+      kind: "listener" as const,
+      label: listener.id === project.activeListenerId ? `${listener.name} · Active` : listener.name,
+      position: listener.position,
+    })),
+    ...project.scene.sources.filter(({ id }) => !disabled.has(id)).map((source) => ({
+      id: source.id,
+      kind: "source" as const,
+      label: source.name,
+      position: { x: source.position.x, y: project.sourceHeightsM[source.id] ?? 1.5, z: source.position.y },
+    })),
+  ], [disabled, project.activeListenerId, project.listeners, project.scene.sources, project.sourceHeightsM]);
+
+  const walls = useMemo<readonly HybridViewportWall[]>(() => project.scene.walls
+    .filter(({ id }) => !disabled.has(id))
+    .map((wall) => {
+      const vertical = project.wall3dById[wall.id] ?? {
+        bottomM: 0,
+        topM: project.room3d.heightM,
+        thicknessM: wall.thicknessM,
+      };
+      return {
+        id: wall.id,
+        label: wall.id.replaceAll("_", " "),
+        a: { x: wall.a.x, z: wall.a.y },
+        b: { x: wall.b.x, z: wall.b.y },
+        thicknessM: vertical.thicknessM,
+        bottomM: vertical.bottomM,
+        topM: vertical.topM,
+        portals: project.scene.portals.filter((portal) => portal.wallId === wall.id && !disabled.has(portal.id)).map((portal) => {
+          const portalVertical = project.portal3dById[portal.id] ?? { bottomM: 0, topM: portal.heightM, thicknessM: 0.12 };
+          return {
+            id: portal.id,
+            center: { x: portal.center.x, z: portal.center.y },
+            widthM: portal.widthM,
+            bottomM: portalVertical.bottomM,
+            topM: portalVertical.topM,
+            open: portal.open,
+          };
+        }),
+      };
+    }), [disabled, project.portal3dById, project.room3d.heightM, project.scene.portals, project.scene.walls, project.wall3dById]);
+
+  const selectedTarget = useMemo<HybridViewportSelection>(() => {
+    const selection = project.selection;
+    if (!selection) return null;
+    if (selection.type === "listener" || selection.type === "source") return { type: "object", id: selection.id };
+    if (selection.type === "wall") return { type: "wall", id: selection.id };
+    if (selection.type === "portal") return { type: "portal", id: selection.id };
+    return null;
+  }, [project.selection]);
+
+  useEffect(() => applyHybridDirectState(audible.audioState), [applyHybridDirectState, audible]);
+  useEffect(() => applyHybridReflectionState(reflectionState), [applyHybridReflectionState, reflectionState]);
+
+  function moveObject(id: string, position: Vec3): void {
+    const listener = project.listeners.find((candidate) => candidate.id === id);
+    if (listener) {
+      dispatch({ type: "UPDATE_LISTENER", id, changes: { position } });
+      return;
+    }
+    if (project.scene.sources.some((source) => source.id === id)) dispatch({ type: "MOVE_SOURCE", id, position });
+  }
+
+  function moveWallEndpoint(id: string, endpoint: "a" | "b", position: Readonly<{ x: number; z: number }>): void {
+    const wall = project.scene.walls.find((candidate) => candidate.id === id);
+    if (!wall) return;
+    const vertical = project.wall3dById[id] ?? { bottomM: 0, topM: project.room3d.heightM, thicknessM: wall.thicknessM };
+    const candidate = {
+      a: endpoint === "a" ? { x: position.x, y: position.z } : wall.a,
+      b: endpoint === "b" ? { x: position.x, y: position.z } : wall.b,
+      ...vertical,
+    };
+    const result = constrainWall3D(project, id, candidate);
+    if (result.ok) dispatch({ type: "REPLACE_PROJECT", project: { ...result.project, selection: { type: "wall", id } } });
+  }
+
+  function movePortal(id: string, center: Readonly<{ x: number; z: number }>): void {
+    const portal = project.scene.portals.find((candidate) => candidate.id === id);
+    if (!portal) return;
+    const vertical = project.portal3dById[id] ?? { bottomM: 0, topM: portal.heightM, thicknessM: 0.12 };
+    const result = constrainPortal3D(project, id, {
+      center: { x: center.x, y: center.z },
+      widthM: portal.widthM,
+      ...vertical,
+    });
+    if (result.ok) dispatch({ type: "REPLACE_PROJECT", project: { ...result.project, selection: { type: "portal", id } } });
+  }
+
+  return (
+    <section className="workspace-viewport-panel" data-testid="hybrid-workspace-viewport">
+      <header className="viewport-tools">
+        <span>{project.scene.name}</span><span>{direct.source === "worker" ? "Worker" : "Fallback"}</span>
+        <button onClick={() => void (playing ? stopAudio() : startAudio()).then(() => setPlaying(!playing))} type="button">{playing ? "Stop" : "Play"}</button>
+      </header>
+      <HybridSpatialViewport
+        ceilingVisible={ceilingShown && !disabled.has("ceiling")}
+        objects={objects}
+        onMoveObject={moveObject}
+        onMovePortalCenter={movePortal}
+        onMoveWallEndpoint={moveWallEndpoint}
+        onSelectTarget={(target) => {
+          if (target.type === "object") {
+            const type = project.listeners.some(({ id }) => id === target.id) ? "listener" : "source";
+            dispatch({ type: "SELECT_ENTITY", selection: { type, id: target.id } });
+          } else dispatch({ type: "SELECT_ENTITY", selection: { type: target.type === "wall" ? "wall" : "portal", id: target.id } });
+        }}
+        onToggleCeiling={() => setCeilingShown((shown) => !shown)}
+        onTogglePaths={() => setPathsVisible((visible) => !visible)}
+        onToggleShowAllPaths={() => setShowAllPaths((visible) => !visible)}
+        paths={displayPaths}
+        pathsVisible={pathsVisible}
+        roomDimensions={project.room3d}
+        selectedTarget={selectedTarget}
+        showAllPaths={showAllPaths}
+        walls={walls}
+      />
+    </section>
+  );
+}

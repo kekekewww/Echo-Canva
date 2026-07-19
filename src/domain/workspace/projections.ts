@@ -56,6 +56,16 @@ export function projectHybridDocument(project: WorkspaceProject): SceneDocumentV
       sourceHeightsM: Object.fromEntries(
         baseScene.sources.map(({ id }) => [id, project.sourceHeightsM[id] ?? 1.5]),
       ),
+      wallVerticalBoundsM: Object.fromEntries(baseScene.walls.map(({ id }) => [id, {
+        bottomM: project.wall3dById[id]?.bottomM ?? 0,
+        topM: project.wall3dById[id]?.topM ?? heightM,
+      }])),
+      portalVerticalBoundsM: Object.fromEntries(baseScene.portals.map(({ id }) => [id, {
+        bottomM: project.portal3dById[id]?.bottomM ?? 0,
+        topM: project.portal3dById[id]?.topM ?? baseScene.portals.find((portal) => portal.id === id)!.heightM,
+        thicknessM: project.portal3dById[id]?.thicknessM ?? 0.12,
+      }])),
+      disabledSurfaceIds: project.disabledEntityIds.filter((id) => id === "ceiling"),
     },
     propagation3d: {
       maxReflectionOrder: 1,
