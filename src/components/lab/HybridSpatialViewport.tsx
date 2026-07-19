@@ -3,7 +3,7 @@
 import { HybridPathOverlay, type HybridDisplayPath } from "@/components/workspace/HybridPathOverlay";
 import { clientPointToSvg, type Rect } from "@/domain/editor/coordinates";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   DEFAULT_VIEWPORT_CAMERA,
@@ -188,6 +188,27 @@ function projectWall(wall: HybridViewportWall, camera: ViewportCamera): Projecte
     endpointB: projectViewportPoint({ x: wall.b.x, y: wall.bottomM, z: wall.b.z }, camera),
   };
 }
+
+const HybridWallSurfaceLayer = memo(function HybridWallSurfaceLayer({
+  projectedWalls,
+  onSelectTarget,
+}: Readonly<{
+  projectedWalls: readonly ProjectedWall[];
+  onSelectTarget: Props["onSelectTarget"];
+}>) {
+  return projectedWalls.flatMap(({ wall, panels }) => panels.map((panel, index) => (
+    <polygon
+      aria-hidden="true"
+      className={`hybrid-viewport-wall-panel${wall.portals.some(({ open }) => open) ? "" : " is-closed"}`}
+      key={`${wall.id}-panel-${index}`}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelectTarget({ type: "wall", id: wall.id });
+      }}
+      points={points(panel)}
+    />
+  )));
+});
 
 export function HybridSpatialViewport({
   roomDimensions: room,
@@ -400,9 +421,7 @@ export function HybridSpatialViewport({
         {projected.floor.map((point, index) => <line className="hybrid-viewport-room-edge" key={`edge-${index}`} x1={point.x} x2={projected.ceiling[index]!.x} y1={point.y} y2={projected.ceiling[index]!.y} />)}
         <polyline className="hybrid-viewport-room-edge" fill="none" points={points([...projected.floor, projected.floor[0]!])} />
         {ceilingVisible ? <polyline className="hybrid-viewport-ceiling-edge" fill="none" points={points([...projected.ceiling, projected.ceiling[0]!])} /> : null}
-        {projected.walls.flatMap(({ wall, panels }) => panels.map((panel, index) => (
-          <polygon aria-hidden="true" className={`hybrid-viewport-wall-panel${wall.portals.some(({ open }) => open) ? "" : " is-closed"}`} key={`${wall.id}-panel-${index}`} onClick={(event) => { event.stopPropagation(); onSelectTarget({ type: "wall", id: wall.id }); }} points={points(panel)} />
-        )))}
+        <HybridWallSurfaceLayer onSelectTarget={onSelectTarget} projectedWalls={projected.walls} />
         {projected.walls.flatMap(({ portalOutlines }) => portalOutlines.map(({ portal, points: outline, center }) => (
           <g key={portal.id}>
             <polyline className="hybrid-viewport-portal" fill="none" points={points(outline)} />

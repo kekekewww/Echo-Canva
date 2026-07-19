@@ -1,4 +1,5 @@
 import type { EntityRef, WorkspaceProject } from "@/domain/workspace/types";
+import { memo } from "react";
 
 type Props = Readonly<{
   project: WorkspaceProject;
@@ -6,14 +7,30 @@ type Props = Readonly<{
   mobileOpen?: boolean;
 }>;
 
-export function SceneOutliner({ project, onSelect, mobileOpen = false }: Props) {
-  const disabled = new Set(project.disabledEntityIds);
-  const row = (entity: EntityRef, label: string, kind: string, active = false, enabled = true) => (
+const OutlinerEntityRow = memo(function OutlinerEntityRow({
+  type,
+  id,
+  label,
+  kind,
+  active,
+  enabled,
+  selected,
+  onSelect,
+}: Readonly<{
+  type: EntityRef["type"];
+  id: string;
+  label: string;
+  kind: string;
+  active: boolean;
+  enabled: boolean;
+  selected: boolean;
+  onSelect: (selection: EntityRef) => void;
+}>) {
+  return (
     <button
-      aria-pressed={project.selection?.type === entity.type && project.selection.id === entity.id}
+      aria-pressed={selected}
       className={`outliner-row kind-${kind}${enabled ? "" : " is-disabled"}`}
-      key={`${entity.type}-${entity.id}`}
-      onClick={() => onSelect(entity)}
+      onClick={() => onSelect({ type, id })}
       type="button"
     >
       <i aria-hidden="true" />
@@ -21,6 +38,23 @@ export function SceneOutliner({ project, onSelect, mobileOpen = false }: Props) 
       {active ? <em>Active</em> : null}
       {!enabled ? <em>Off</em> : null}
     </button>
+  );
+});
+
+export function SceneOutliner({ project, onSelect, mobileOpen = false }: Props) {
+  const disabled = new Set(project.disabledEntityIds);
+  const row = (entity: EntityRef, label: string, kind: string, active = false, enabled = true) => (
+    <OutlinerEntityRow
+      active={active}
+      enabled={enabled}
+      id={entity.id}
+      key={`${entity.type}-${entity.id}`}
+      kind={kind}
+      label={label}
+      onSelect={onSelect}
+      selected={project.selection?.type === entity.type && project.selection.id === entity.id}
+      type={entity.type}
+    />
   );
   return (
     <aside aria-label="Scene Outliner" aria-modal={mobileOpen || undefined} className={`workspace-outliner${mobileOpen ? " is-mobile-open" : ""}`} role={mobileOpen ? "dialog" : undefined}>

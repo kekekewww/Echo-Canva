@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { resolveHybridAudibleDirectState } from "@/acoustics/hybrid3d/audible-direct";
-import { compileHybridGeometry } from "@/acoustics/hybrid3d/compile";
+import {
+  createHybridGeometryCompiler,
+} from "@/acoustics/hybrid3d/compile";
 import { renderHybridEarlyReflections } from "@/acoustics/hybrid3d/reflection-rendering";
 import {
   HybridSpatialViewport,
@@ -29,9 +31,10 @@ export function HybridViewportAdapter({ project, dispatch, audioEngine, wallPlac
   onAcousticStatus?: (status: WorkspaceAcousticStatus) => void;
 }>) {
   const { pathsVisible, showAllPaths, ceilingVisible } = project.view.overlays;
+  const [geometryCompiler] = useState(() => createHybridGeometryCompiler());
   const scene = useMemo(() => projectClassicScene(project), [project]);
   const document = useMemo(() => projectHybridDocument(project), [project]);
-  const geometry = useMemo(() => compileHybridGeometry(document), [document]);
+  const geometry = useMemo(() => geometryCompiler.compile(document), [document, geometryCompiler]);
   const direct = useHybridDirectPaths(document, geometry);
   const workerAccepted = direct.source === "worker";
   const audible = useMemo(() => resolveHybridAudibleDirectState(geometry, direct.frame), [direct.frame, geometry]);
@@ -163,6 +166,18 @@ export function HybridViewportAdapter({ project, dispatch, audioEngine, wallPlac
     if (result.ok) dispatch({ type: "REPLACE_PROJECT", project: { ...result.project, selection: { type: "portal", id } } });
   }
 
+  const selectViewportTarget = useCallback((target: NonNullable<HybridViewportSelection>) => {
+    if (target.type === "object") {
+      const type = project.listeners.some(({ id }) => id === target.id) ? "listener" : "source";
+      dispatch({ type: "SELECT_ENTITY", selection: { type, id: target.id } });
+      return;
+    }
+    dispatch({
+      type: "SELECT_ENTITY",
+      selection: { type: target.type === "wall" ? "wall" : "portal", id: target.id },
+    });
+  }, [dispatch, project.listeners]);
+
   return (
     <section className="workspace-viewport-panel" data-testid="hybrid-workspace-viewport">
       <header className="viewport-tools">
@@ -176,12 +191,7 @@ export function HybridViewportAdapter({ project, dispatch, audioEngine, wallPlac
         onCameraChange={(camera) => dispatch({ type: "SET_VIEW_STATE", changes: { camera } })}
         onMovePortalCenter={movePortal}
         onMoveWallEndpoint={moveWallEndpoint}
-        onSelectTarget={(target) => {
-          if (target.type === "object") {
-            const type = project.listeners.some(({ id }) => id === target.id) ? "listener" : "source";
-            dispatch({ type: "SELECT_ENTITY", selection: { type, id: target.id } });
-          } else dispatch({ type: "SELECT_ENTITY", selection: { type: target.type === "wall" ? "wall" : "portal", id: target.id } });
-        }}
+        onSelectTarget={selectViewportTarget}
         onToggleCeiling={() => dispatch({ type: "SET_VIEW_STATE", changes: { overlays: { ...project.view.overlays, ceilingVisible: !ceilingVisible } } })}
         onTogglePaths={() => dispatch({ type: "SET_VIEW_STATE", changes: { overlays: { ...project.view.overlays, pathsVisible: !pathsVisible } } })}
         onToggleShowAllPaths={() => dispatch({ type: "SET_VIEW_STATE", changes: { overlays: { ...project.view.overlays, showAllPaths: !showAllPaths } } })}

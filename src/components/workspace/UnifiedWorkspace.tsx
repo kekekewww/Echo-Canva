@@ -11,6 +11,7 @@ import { SceneOutliner } from "@/components/workspace/SceneOutliner";
 import { WorkspaceStatusBar, type WorkspaceAcousticStatus } from "@/components/workspace/WorkspaceStatusBar";
 import { WorkspaceToolbar } from "@/components/workspace/WorkspaceToolbar";
 import type { WorkspaceMode } from "@/domain/workspace/types";
+import type { EntityRef } from "@/domain/workspace/types";
 import { useWorkspaceProjects } from "@/hooks/useWorkspaceProjects";
 import { useLocalAudioLibrary } from "@/hooks/useLocalAudioLibrary";
 import { installGateCAudioRenderValidation } from "@/audio/gate-c-render-validation";
@@ -26,6 +27,7 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
     () => false,
   );
   const workspace = useWorkspaceProjects(initialMode);
+  const dispatchWorkspace = workspace.dispatch;
   const audioLibrary = useLocalAudioLibrary();
   const [addOpen, setAddOpen] = useState(false);
   const [audioPickerOpen, setAudioPickerOpen] = useState(false);
@@ -57,6 +59,10 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
     audioEngine,
     true,
   );
+  const selectOutlinerEntity = useCallback((selection: EntityRef) => {
+    dispatchWorkspace({ type: "SELECT_ENTITY", selection });
+    setMobilePanel(null);
+  }, [dispatchWorkspace]);
 
   useEffect(() => installGateCAudioRenderValidation(), []);
 
@@ -275,7 +281,7 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
         warning={audioLibrary.warning}
       /> : null}
       <div className="workspace-grid">
-        <SceneOutliner mobileOpen={mobilePanel === "outliner"} project={workspace.activeProject} onSelect={(selection) => { workspace.dispatch({ type: "SELECT_ENTITY", selection }); setMobilePanel(null); }} />
+        <SceneOutliner mobileOpen={mobilePanel === "outliner"} project={workspace.activeProject} onSelect={selectOutlinerEntity} />
         {workspace.activeMode === "classic-2d5d"
           ? <ClassicViewportAdapter
             audioEngine={audioEngine}

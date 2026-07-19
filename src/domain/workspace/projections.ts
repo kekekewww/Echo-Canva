@@ -1,5 +1,5 @@
 import type { SceneSpec } from "@/domain/scene/types";
-import { createSceneDocumentV2 } from "@/domain/scene-document/serialize";
+import { classicProjectionHash } from "@/domain/scene-document/validate";
 import type { SceneDocumentV2 } from "@/domain/scene-document/types";
 import type { WorkspaceProject } from "@/domain/workspace/types";
 
@@ -48,7 +48,7 @@ export function projectHybridDocument(project: WorkspaceProject): SceneDocumentV
     ],
   };
 
-  return createSceneDocumentV2(baseScene, {
+  const extensions: SceneDocumentV2["extensions"] = {
     spatial3d: {
       coordinateSystem: "x-right-y-up-z-forward",
       floorElevationM: 0,
@@ -71,5 +71,17 @@ export function projectHybridDocument(project: WorkspaceProject): SceneDocumentV
       maxReflectionOrder: 1,
       receiverConnection: false,
     },
-  });
+  };
+
+  // Workspace actions preserve schema/domain invariants before state is accepted.
+  // This hot projection avoids repeating external-boundary validation on every pose update.
+  return {
+    documentVersion: "2.0",
+    baseScene,
+    extensions,
+    compatibility: {
+      migratedFrom: "1.0",
+      classicProjectionHash: classicProjectionHash(baseScene),
+    },
+  };
 }

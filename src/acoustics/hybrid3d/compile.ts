@@ -20,10 +20,19 @@ export type HybridGeometry = Readonly<{
 }>;
 
 export type HybridStaticGeometry = Readonly<{
-  baseSceneHash: string;
+  staticGeometryHash: string;
   patches: readonly AcousticPatch3[];
   bvh: PatchBvh;
 }>;
+
+function fnv1a(value: string): string {
+  let hash = 0x811c9dc5;
+  for (const character of value) {
+    hash ^= character.charCodeAt(0);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
 
 function planPointToWorld(point: Readonly<{ x: number; y: number }>, heightM: number): Vec3 {
   return { x: point.x, y: heightM, z: point.y };
@@ -33,6 +42,30 @@ function requireSpatialDocument(document: SceneDocumentV2): NonNullable<SceneDoc
   const spatial = document.extensions.spatial3d;
   if (!spatial) throw new Error("Hybrid 3D geometry requires a spatial3d extension.");
   return spatial;
+}
+
+/** Fingerprint only the fields that change finite static patches or their BVH. */
+export function hybridStaticGeometryHash(document: SceneDocumentV2): string {
+  const spatial = requireSpatialDocument(document);
+  const scene = document.baseScene;
+  return fnv1a(JSON.stringify({
+    room: scene.room,
+    floorElevationM: spatial.floorElevationM,
+    disabledSurfaceIds: [...(spatial.disabledSurfaceIds ?? [])].toSorted(),
+    walls: scene.walls.map((wall) => ({
+      ...wall,
+      vertical: spatial.wallVerticalBoundsM?.[wall.id] ?? null,
+    })),
+    portals: scene.portals.map((portal) => ({
+      id: portal.id,
+      wallId: portal.wallId,
+      center: portal.center,
+      widthM: portal.widthM,
+      heightM: portal.heightM,
+      open: portal.open,
+      vertical: spatial.portalVerticalBoundsM?.[portal.id] ?? null,
+    })),
+  }));
 }
 
 function portalOpening(
@@ -163,7 +196,7 @@ export function compileHybridStaticGeometry(document: SceneDocumentV2): HybridSt
     ...wallPatches(document),
   ];
   return {
-    baseSceneHash: document.compatibility.classicProjectionHash,
+    staticGeometryHash: hybridStaticGeometryHash(document),
     patches,
     bvh: buildPatchBvh(patches),
   };
@@ -175,8 +208,8 @@ export function bindHybridPoses(
 ): HybridGeometry {
   const spatial = requireSpatialDocument(document);
   const scene = document.baseScene;
-  if (structure.baseSceneHash !== document.compatibility.classicProjectionHash) {
-    throw new Error("Hybrid 3D static geometry cannot be reused for a different Classic projection.");
+  if (structure.staticGeometryHash !== hybridStaticGeometryHash(document)) {
+    throw new Error("Hybrid 3D static geometry cannot be reused after a geometry change.");
   }
   const sourcePositions = Object.fromEntries(
     scene.sources.map((source) => [
@@ -195,4 +228,17 @@ export function bindHybridPoses(
 
 export function compileHybridGeometry(document: SceneDocumentV2): HybridGeometry {
   return bindHybridPoses(compileHybridStaticGeometry(document), document);
+}
+
+export function createHybridGeometryCompiler(
+  compileStatic: (document: SceneDocumentV2) => HybridStaticGeometry = compileHybridStaticGeometry,
+): Readonly<{ compile: (document: SceneDocumentV2) => HybridGeometry }> {
+  let cached: HybridStaticGeometry | null = null;
+  return {
+    compile(document): HybridGeometry {
+      const hash = hybridStaticGeometryHash(document);
+      if (!cached || cached.staticGeometryHash !== hash) cached = compileStatic(document);
+      return bindHybridPoses(cached, document);
+    },
+  };
 }

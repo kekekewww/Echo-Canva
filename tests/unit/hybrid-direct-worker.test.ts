@@ -52,4 +52,34 @@ describe("Hybrid direct Worker controller", () => {
     controller.handle({ type: "COMPUTE", requestId: 3, document: moved });
     expect(responses).toHaveLength(2);
   });
+
+  it("reuses static BVH geometry when only planar listener and source poses change", () => {
+    const responses: HybridDirectWorkerResponse[] = [];
+    let compileCount = 0;
+    const controller = createHybridDirectWorkerController(
+      { postMessage: (response) => responses.push(response) },
+      {
+        compileStatic: (document) => {
+          compileCount += 1;
+          return compileHybridStaticGeometry(document);
+        },
+        now: () => 100,
+      },
+    );
+    const initial = documentWithHeights(1.5, 1.3);
+    const movedScene: SceneSpec = structuredClone(initial.baseScene);
+    movedScene.revision += 1;
+    movedScene.listener.position = { x: 7, y: 5 };
+    movedScene.sources[0]!.position = { x: 3, y: 6 };
+    const moved = createSceneDocumentV2(movedScene, initial.extensions);
+
+    expect(moved.compatibility.classicProjectionHash).not.toBe(
+      initial.compatibility.classicProjectionHash,
+    );
+    controller.handle({ type: "COMPUTE", requestId: 1, document: initial });
+    controller.handle({ type: "COMPUTE", requestId: 2, document: moved });
+
+    expect(compileCount).toBe(1);
+    expect(responses).toHaveLength(2);
+  });
 });

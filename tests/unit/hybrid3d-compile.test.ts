@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { intersectSegmentBvh } from "@/acoustics/hybrid3d/bvh";
-import { compileHybridGeometry } from "@/acoustics/hybrid3d/compile";
+import {
+  compileHybridGeometry,
+  compileHybridStaticGeometry,
+  createHybridGeometryCompiler,
+} from "@/acoustics/hybrid3d/compile";
 import { createDefaultHybridProject } from "@/domain/workspace/defaults";
 import { projectReducer } from "@/domain/workspace/project-reducer";
 import { projectHybridDocument } from "@/domain/workspace/projections";
@@ -53,5 +57,31 @@ describe("Hybrid finite Wall and Portal compilation", () => {
     expect(ids).toContain(`${wall.id}:end-b`);
     expect(ids).toContain(`${wall.id}:top`);
     expect(ids).toContain(`${wall.id}:bottom`);
+  });
+
+  it("keeps one static geometry compilation while switching active listener poses", () => {
+    const initial = createDefaultHybridProject();
+    const withListener = projectReducer(initial, {
+      type: "ADD_LISTENER",
+      listener: {
+        id: "listener_b",
+        name: "Listener B",
+        position: { x: 8, y: 1.8, z: 5 },
+        headingDeg: 30,
+        enabled: true,
+      },
+    });
+    let compileCount = 0;
+    const compiler = createHybridGeometryCompiler((document) => {
+      compileCount += 1;
+      return compileHybridStaticGeometry(document);
+    });
+
+    const first = compiler.compile(projectHybridDocument(initial));
+    const second = compiler.compile(projectHybridDocument(withListener));
+
+    expect(compileCount).toBe(1);
+    expect(second.bvh).toBe(first.bvh);
+    expect(second.listenerPosition).toEqual({ x: 8, y: 1.8, z: 5 });
   });
 });

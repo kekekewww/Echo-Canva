@@ -1,6 +1,7 @@
 import {
   bindHybridPoses,
   compileHybridStaticGeometry,
+  hybridStaticGeometryHash,
   type HybridStaticGeometry,
 } from "@/acoustics/hybrid3d/compile";
 import { computeHybridDirectFrame, type HybridDirectFrame } from "@/acoustics/hybrid3d/direct";
@@ -42,7 +43,7 @@ export function createHybridDirectWorkerController(
       }
       const startedAtMs = now();
       try {
-        const hash = request.document.compatibility.classicProjectionHash;
+        const hash = hybridStaticGeometryHash(request.document);
         if (!cached || cached.hash !== hash) {
           cached = { hash, structure: compileStatic(request.document) };
         }
