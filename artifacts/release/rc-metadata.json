@@ -3,7 +3,7 @@
   "branch": "codex/echo-canvas-mvp",
   "baseCommit": "03ba72c5da3f79cb61b36eda4958ecc666cd8808",
   "applicationCommit": "e05f38c",
-  "evidenceCommit": null,
+  "evidenceCommit": "f43a07c",
   "deploymentUrl": null,
   "testedAt": "2026-07-19T17:01:04.4642521Z",
   "browsers": [

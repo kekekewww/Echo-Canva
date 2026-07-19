@@ -7,6 +7,8 @@ Branch: `codex/echo-canvas-mvp`
 Base commit before release evidence: `03ba72c5da3f79cb61b36eda4958ecc666cd8808`
 Verified application commit: `e05f38c`
 
+Release evidence commit: `f43a07c`
+
 ## Result
 
 **PASS — internal static release candidate.**
