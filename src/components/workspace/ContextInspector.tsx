@@ -4,10 +4,12 @@ import { HintCard } from "@/components/workspace/HintCard";
 import { WorkspaceProjectTools } from "@/components/workspace/WorkspaceProjectTools";
 import type { ProjectAction, WorkspaceProject } from "@/domain/workspace/types";
 import { constrainPortal3D, constrainWall3D, resizeRoomAndClamp } from "@/domain/workspace/geometry-constraints";
+import type { LocalAudioMetadata } from "@/domain/workspace/transfer";
 
-export function ContextInspector({ project, dispatch }: Readonly<{
+export function ContextInspector({ project, dispatch, localAssets = [] }: Readonly<{
   project: WorkspaceProject;
   dispatch: (action: ProjectAction) => void;
+  localAssets?: readonly LocalAudioMetadata[];
 }>) {
   const selection = project.selection;
   const listener = selection?.type === "listener" ? project.listeners.find(({ id }) => id === selection.id) : null;
@@ -37,7 +39,7 @@ export function ContextInspector({ project, dispatch }: Readonly<{
   return (
     <aside className="workspace-inspector" aria-label="Inspector">
       <header><span>Inspector</span><small>{selection ? selection.type : "No selection"}</small></header>
-      <WorkspaceProjectTools dispatch={dispatch} project={project} />
+      <WorkspaceProjectTools dispatch={dispatch} localAssets={localAssets} project={project} />
       {position ? (
         <section className="inspector-section">
           <h3>Transform</h3>

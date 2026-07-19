@@ -6,6 +6,9 @@ import {
   loadWorkspaceCache,
   saveWorkspaceCache,
 } from "@/domain/workspace/persistence";
+import { createHistory, reduceWithHistory } from "@/domain/workspace/history";
+import { createSceneDocumentV2 } from "@/domain/scene-document/serialize";
+import { projectReducer } from "@/domain/workspace/project-reducer";
 import {
   createDefaultClassicProject,
   createDefaultHybridProject,
@@ -44,6 +47,62 @@ describe("workspace persistence", () => {
     expect(loadWorkspaceCache(storage, "hybrid-3d").project).toEqual(hybrid);
   });
 
+  it("round-trips bounded undo history and per-mode viewport state", () => {
+    const storage = new MemoryStorage();
+    const initial = createDefaultHybridProject();
+    const project = {
+      ...initial,
+      view: {
+        ...initial.view,
+        camera: { yawDeg: 123, pitchDeg: 41, zoom: 1.4 },
+        overlays: { pathsVisible: false, showAllPaths: true, ceilingVisible: false },
+      },
+    };
+    const history = reduceWithHistory(createHistory(project), {
+      type: "SET_ACTIVE_LISTENER",
+      id: project.activeListenerId,
+    }, projectReducer);
+
+    expect(saveWorkspaceCache(storage, "hybrid-3d", history).ok).toBe(true);
+    const restored = loadWorkspaceCache(storage, "hybrid-3d");
+
+    expect(restored.history.present.view).toEqual(project.view);
+    expect(restored.history.past.length).toBeLessThanOrEqual(50);
+  });
+
+  it("migrates a bare Classic SceneSpec into the authoring store", () => {
+    const storage = new MemoryStorage();
+    const scene = structuredClone(createDefaultClassicProject().scene);
+    scene.name = "Migrated Classic";
+    storage.setItem(CLASSIC_PROJECT_KEY, JSON.stringify(scene));
+
+    const restored = loadWorkspaceCache(storage, "classic-2d5d");
+
+    expect(restored.project.scene.name).toBe("Migrated Classic");
+    expect(restored.project.schemaVersion).toBe("2.0");
+    expect(restored.warning).toContain("migrated");
+  });
+
+  it("migrates a v2 Hybrid scene document into the authoring store", () => {
+    const storage = new MemoryStorage();
+    const initial = createDefaultHybridProject();
+    const document = createSceneDocumentV2(initial.scene, {
+      spatial3d: {
+        coordinateSystem: "x-right-y-up-z-forward",
+        floorElevationM: 0,
+        listenerHeightM: 1.7,
+        sourceHeightsM: Object.fromEntries(initial.scene.sources.map(({ id }) => [id, 1.2])),
+      },
+    });
+    storage.setItem(HYBRID_PROJECT_KEY, JSON.stringify(document));
+
+    const restored = loadWorkspaceCache(storage, "hybrid-3d");
+
+    expect(restored.project.listeners[0]?.position.y).toBe(1.7);
+    expect(Object.values(restored.project.sourceHeightsM)).toEqual(expect.arrayContaining([1.2]));
+    expect(restored.warning).toContain("migrated");
+  });
+
   it("falls back without overwriting an unreadable cached record", () => {
     const storage = new MemoryStorage();
     storage.setItem(CLASSIC_PROJECT_KEY, "{broken");
@@ -52,6 +111,7 @@ describe("workspace persistence", () => {
 
     expect(result.project).toEqual(createDefaultClassicProject());
     expect(result.warning).toContain("could not be restored");
+    expect(result.recoveryRaw).toBe("{broken");
     expect(storage.getItem(CLASSIC_PROJECT_KEY)).toBe("{broken");
   });
 });

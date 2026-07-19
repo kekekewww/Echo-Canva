@@ -28,6 +28,23 @@ test("preserves independent mode state across switches and refresh", async ({ pa
   await expect(x).toHaveValue("4.5");
 });
 
+test("keeps one AudioContext and toolbar audition state while switching modes", async ({ page }) => {
+  await page.goto("/");
+  const workspace = page.getByTestId("unified-workspace");
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible();
+  await expect(workspace).toHaveAttribute("data-audio-contexts", "1");
+  const initialGraphs = await workspace.getAttribute("data-audio-graphs");
+
+  await page.getByRole("button", { name: "3D", exact: true }).click();
+
+  await expect(page.getByRole("button", { name: "Stop", exact: true })).toBeVisible();
+  await expect(workspace).toHaveAttribute("data-audio-contexts", "1");
+  await expect(workspace).toHaveAttribute("data-audio-graphs", initialGraphs ?? "2");
+  await page.getByRole("button", { name: "Raw", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Simulated", exact: true })).toBeVisible();
+});
+
 test("resets only the active mode and can undo reset", async ({ page }) => {
   await page.goto("/lab");
   const x = page.getByRole("textbox", { name: "X position" });
@@ -52,6 +69,24 @@ test("contains wheel zoom inside the 3D viewport and reports no page errors", as
   await expect(viewport).not.toHaveAttribute("data-camera", before ?? "");
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(scroll);
   expect(errors).toEqual([]);
+});
+
+test("restores each mode camera and overlay preferences after switching and refresh", async ({ page }) => {
+  await page.goto("/lab");
+  const viewport = page.getByTestId("hybrid-spatial-viewport");
+  await viewport.hover();
+  await page.mouse.wheel(0, -120);
+  const camera = await viewport.getAttribute("data-camera");
+  await page.getByRole("button", { name: "Paths", exact: true }).click();
+
+  await page.getByRole("button", { name: "2.5D", exact: true }).click();
+  await page.getByRole("button", { name: "3D", exact: true }).click();
+  await expect(viewport).toHaveAttribute("data-camera", camera ?? "");
+  await expect(page.getByRole("button", { name: "Paths", exact: true })).toHaveAttribute("aria-pressed", "false");
+
+  await page.reload();
+  await expect(viewport).toHaveAttribute("data-camera", camera ?? "");
+  await expect(page.getByRole("button", { name: "Paths", exact: true })).toHaveAttribute("aria-pressed", "false");
 });
 
 test("restores the 100-wall project and keeps Outliner selection within the interaction budget", async ({ page }) => {

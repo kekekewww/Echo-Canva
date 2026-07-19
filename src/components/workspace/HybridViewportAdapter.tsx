@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 
 import { resolveHybridAudibleDirectState } from "@/acoustics/hybrid3d/audible-direct";
 import { compileHybridGeometry } from "@/acoustics/hybrid3d/compile";
@@ -15,18 +15,15 @@ import { deriveHybridPathDisplay } from "@/components/workspace/HybridPathOverla
 import { constrainPortal3D, constrainWall3D } from "@/domain/workspace/geometry-constraints";
 import { projectClassicScene, projectHybridDocument } from "@/domain/workspace/projections";
 import type { ProjectAction, Vec3, WorkspaceProject } from "@/domain/workspace/types";
-import { useAudioEngine } from "@/hooks/useAudioEngine";
 import { useHybridDirectPaths } from "@/hooks/useHybridDirectPaths";
+import type { AudioEngine } from "@/audio/AudioEngine";
 
-export function HybridViewportAdapter({ project, dispatch, resolveAudioAsset }: Readonly<{
+export function HybridViewportAdapter({ project, dispatch, audioEngine }: Readonly<{
   project: WorkspaceProject;
   dispatch: (action: ProjectAction) => void;
-  resolveAudioAsset?: (clipId: string) => Promise<ArrayBuffer | null>;
+  audioEngine: AudioEngine;
 }>) {
-  const [playing, setPlaying] = useState(false);
-  const [pathsVisible, setPathsVisible] = useState(true);
-  const [showAllPaths, setShowAllPaths] = useState(false);
-  const [ceilingShown, setCeilingShown] = useState(true);
+  const { pathsVisible, showAllPaths, ceilingVisible } = project.view.overlays;
   const scene = useMemo(() => projectClassicScene(project), [project]);
   const document = useMemo(() => projectHybridDocument(project), [project]);
   const geometry = useMemo(() => compileHybridGeometry(document), [document]);
@@ -39,13 +36,6 @@ export function HybridViewportAdapter({ project, dispatch, resolveAudioAsset }: 
       renderHybridEarlyReflections(direct.frame.firstOrderReflectionsBySource[id] ?? []),
     ])),
   }), [direct.frame.firstOrderReflectionsBySource, geometry.listenerPosition, scene.sources]);
-  const { applyHybridDirectState, applyHybridReflectionState, startAudio, stopAudio } = useAudioEngine(
-    scene,
-    "simulated",
-    null,
-    null,
-    resolveAudioAsset,
-  );
   const disabled = useMemo(() => new Set(project.disabledEntityIds), [project.disabledEntityIds]);
   const selectedSourceId = project.selection?.type === "source"
     ? project.selection.id
@@ -113,8 +103,8 @@ export function HybridViewportAdapter({ project, dispatch, resolveAudioAsset }: 
     return null;
   }, [project.selection]);
 
-  useEffect(() => applyHybridDirectState(audible.audioState), [applyHybridDirectState, audible]);
-  useEffect(() => applyHybridReflectionState(reflectionState), [applyHybridReflectionState, reflectionState]);
+  useEffect(() => audioEngine.applyHybridDirectState(audible.audioState), [audioEngine, audible]);
+  useEffect(() => audioEngine.applyHybridReflectionState(reflectionState), [audioEngine, reflectionState]);
 
   function moveObject(id: string, position: Vec3): void {
     const listener = project.listeners.find((candidate) => candidate.id === id);
@@ -154,12 +144,13 @@ export function HybridViewportAdapter({ project, dispatch, resolveAudioAsset }: 
     <section className="workspace-viewport-panel" data-testid="hybrid-workspace-viewport">
       <header className="viewport-tools">
         <span>{project.scene.name}</span><span>{direct.source === "worker" ? "Worker" : "Fallback"}</span>
-        <button onClick={() => void (playing ? stopAudio() : startAudio()).then(() => setPlaying(!playing))} type="button">{playing ? "Stop" : "Play"}</button>
       </header>
       <HybridSpatialViewport
-        ceilingVisible={ceilingShown && !disabled.has("ceiling")}
+        camera={project.view.camera}
+        ceilingVisible={ceilingVisible && !disabled.has("ceiling")}
         objects={objects}
         onMoveObject={moveObject}
+        onCameraChange={(camera) => dispatch({ type: "SET_VIEW_STATE", changes: { camera } })}
         onMovePortalCenter={movePortal}
         onMoveWallEndpoint={moveWallEndpoint}
         onSelectTarget={(target) => {
@@ -168,9 +159,9 @@ export function HybridViewportAdapter({ project, dispatch, resolveAudioAsset }: 
             dispatch({ type: "SELECT_ENTITY", selection: { type, id: target.id } });
           } else dispatch({ type: "SELECT_ENTITY", selection: { type: target.type === "wall" ? "wall" : "portal", id: target.id } });
         }}
-        onToggleCeiling={() => setCeilingShown((shown) => !shown)}
-        onTogglePaths={() => setPathsVisible((visible) => !visible)}
-        onToggleShowAllPaths={() => setShowAllPaths((visible) => !visible)}
+        onToggleCeiling={() => dispatch({ type: "SET_VIEW_STATE", changes: { overlays: { ...project.view.overlays, ceilingVisible: !ceilingVisible } } })}
+        onTogglePaths={() => dispatch({ type: "SET_VIEW_STATE", changes: { overlays: { ...project.view.overlays, pathsVisible: !pathsVisible } } })}
+        onToggleShowAllPaths={() => dispatch({ type: "SET_VIEW_STATE", changes: { overlays: { ...project.view.overlays, showAllPaths: !showAllPaths } } })}
         paths={displayPaths}
         pathsVisible={pathsVisible}
         roomDimensions={project.room3d}

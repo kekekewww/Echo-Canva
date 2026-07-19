@@ -16,7 +16,7 @@ function createDefaultProject(mode: WorkspaceMode): WorkspaceProject {
   } as const;
 
   return {
-    schemaVersion: "1.0",
+    schemaVersion: "2.0",
     mode,
     revision: scene.revision,
     scene,
@@ -40,6 +40,12 @@ function createDefaultProject(mode: WorkspaceMode): WorkspaceProject {
       topM: heightM,
       thicknessM: 0.12,
     }])),
+    missingAudioAssetIds: [],
+    view: {
+      camera: { yawDeg: 38, pitchDeg: 34, zoom: 1 },
+      overlays: { pathsVisible: true, showAllPaths: false, ceilingVisible: true },
+      panels: { outlinerCollapsed: false, inspectorCollapsed: false },
+    },
     notice: null,
   };
 }

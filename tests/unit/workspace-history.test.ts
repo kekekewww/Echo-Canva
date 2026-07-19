@@ -7,6 +7,7 @@ import {
   reduceWithHistory,
   resetActiveMode,
   undoHistory,
+  shouldRecordProjectAction,
 } from "@/domain/workspace/history";
 import { projectReducer } from "@/domain/workspace/project-reducer";
 
@@ -38,6 +39,12 @@ describe("workspace history", () => {
 
     expect(next.past).toHaveLength(0);
     expect(next.present.selection).toEqual({ type: "wall", id: "partition_center" });
+  });
+
+  it("records active-listener changes but not ordinary selection", () => {
+    expect(shouldRecordProjectAction({ type: "SELECT_ENTITY", selection: { type: "wall", id: "partition_center" } })).toBe(false);
+    expect(shouldRecordProjectAction({ type: "SELECT_ENTITY", selection: { type: "listener", id: "listener_b" } })).toBe(true);
+    expect(shouldRecordProjectAction({ type: "SET_ACTIVE_LISTENER", id: "listener_b" })).toBe(true);
   });
 
   it("bounds retained history to fifty entries", () => {

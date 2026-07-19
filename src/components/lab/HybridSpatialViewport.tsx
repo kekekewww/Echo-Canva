@@ -59,6 +59,7 @@ type Props = Readonly<{
   paths?: readonly HybridDisplayPath[];
   pathsVisible?: boolean;
   showAllPaths?: boolean;
+  camera: ViewportCamera;
   selectedTarget: HybridViewportSelection;
   onMoveObject: (id: string, position: ViewportVec3) => void;
   onMoveWallEndpoint: (id: string, endpoint: "a" | "b", position: PlanPosition) => void;
@@ -67,6 +68,7 @@ type Props = Readonly<{
   onTogglePaths?: () => void;
   onToggleShowAllPaths?: () => void;
   onToggleCeiling?: () => void;
+  onCameraChange: (camera: ViewportCamera) => void;
 }>;
 
 type DragState =
@@ -198,8 +200,9 @@ export function HybridSpatialViewport({
   onTogglePaths,
   onToggleShowAllPaths,
   onToggleCeiling,
+  camera,
+  onCameraChange,
 }: Props) {
-  const [camera, setCamera] = useState<ViewportCamera>(DEFAULT_VIEWPORT_CAMERA);
   const [dragState, setDragState] = useState<DragState | null>(null);
   const viewportRef = useRef<HTMLElement>(null);
   const projected = useMemo(() => ({
@@ -231,11 +234,11 @@ export function HybridSpatialViewport({
     if (!viewport) return undefined;
     const zoomViewport = (event: WheelEvent): void => {
       event.preventDefault();
-      setCamera((current) => clampViewportCamera({ ...current, zoom: current.zoom + (event.deltaY < 0 ? 0.08 : -0.08) }));
+      onCameraChange(clampViewportCamera({ ...camera, zoom: camera.zoom + (event.deltaY < 0 ? 0.08 : -0.08) }));
     };
     viewport.addEventListener("wheel", zoomViewport, { passive: false });
     return () => viewport.removeEventListener("wheel", zoomViewport);
-  }, []);
+  }, [camera, onCameraChange]);
 
   function clientToViewport(event: ReactPointerEvent<SVGElement>): ScreenPoint {
     const svg = event.currentTarget.ownerSVGElement ?? event.currentTarget;
@@ -260,7 +263,7 @@ export function HybridSpatialViewport({
   function orbit(event: ReactPointerEvent<SVGRectElement>): void {
     if (dragState?.kind !== "orbit" || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
     const next = clientToViewport(event);
-    setCamera(clampViewportCamera({
+    onCameraChange(clampViewportCamera({
       yawDeg: dragState.camera.yawDeg + (next.x - dragState.pointer.x) * 0.35,
       pitchDeg: dragState.camera.pitchDeg - (next.y - dragState.pointer.y) * 0.22,
       zoom: dragState.camera.zoom,
@@ -300,9 +303,9 @@ export function HybridSpatialViewport({
           {onTogglePaths ? <button aria-pressed={pathsVisible} onClick={onTogglePaths} type="button">Paths</button> : null}
           {onToggleShowAllPaths ? <button aria-pressed={showAllPaths} onClick={onToggleShowAllPaths} type="button">All paths</button> : null}
           {onToggleCeiling ? <button aria-pressed={ceilingVisible} onClick={onToggleCeiling} type="button">Ceiling</button> : null}
-          <button onClick={() => setCamera({ yawDeg: 0, pitchDeg: 78, zoom: 1 })} type="button">Top</button>
-          <button onClick={() => setCamera({ yawDeg: 0, pitchDeg: 28, zoom: 1 })} type="button">Front</button>
-          <button onClick={() => setCamera(DEFAULT_VIEWPORT_CAMERA)} type="button">Reset view</button>
+          <button onClick={() => onCameraChange({ yawDeg: 0, pitchDeg: 78, zoom: 1 })} type="button">Top</button>
+          <button onClick={() => onCameraChange({ yawDeg: 0, pitchDeg: 28, zoom: 1 })} type="button">Front</button>
+          <button onClick={() => onCameraChange(DEFAULT_VIEWPORT_CAMERA)} type="button">Reset view</button>
         </div>
       </header>
       <p className="hybrid-viewport-help" id="hybrid-viewport-help">

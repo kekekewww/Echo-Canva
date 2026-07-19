@@ -1,25 +1,25 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 
 import { SceneEditor } from "@/components/workbench/SceneEditor";
 import type { EditorAction } from "@/domain/editor/reducer";
-import type { EditorSelection, PreviewMode } from "@/domain/editor/state";
+import type { EditorSelection } from "@/domain/editor/state";
 import { projectClassicScene } from "@/domain/workspace/projections";
 import type { ProjectAction, WorkspaceProject } from "@/domain/workspace/types";
 import { useAcousticFrame } from "@/hooks/useAcousticFrame";
-import { useAudioEngine } from "@/hooks/useAudioEngine";
+import type { AudioEngine } from "@/audio/AudioEngine";
 
-export function ClassicViewportAdapter({ project, dispatch, resolveAudioAsset }: Readonly<{
+export function ClassicViewportAdapter({ project, dispatch, audioEngine }: Readonly<{
   project: WorkspaceProject;
   dispatch: (action: ProjectAction) => void;
-  resolveAudioAsset?: (clipId: string) => Promise<ArrayBuffer | null>;
+  audioEngine: AudioEngine;
 }>) {
-  const [previewMode, setPreviewMode] = useState<PreviewMode>("simulated");
-  const [playing, setPlaying] = useState(false);
   const scene = useMemo(() => projectClassicScene(project), [project]);
   const acoustic = useAcousticFrame(scene);
-  const audio = useAudioEngine(scene, previewMode, acoustic.frame, acoustic.fallbackNotice, resolveAudioAsset);
+  useEffect(() => {
+    if (acoustic.frame) audioEngine.applyAcousticFrame(acoustic.frame);
+  }, [acoustic.frame, audioEngine]);
   const selection: EditorSelection = project.selection?.type === "listener"
     ? { type: "listener" }
     : project.selection?.type === "source" || project.selection?.type === "wall" || project.selection?.type === "portal"
@@ -68,8 +68,7 @@ export function ClassicViewportAdapter({ project, dispatch, resolveAudioAsset }:
     <section className="workspace-viewport-panel" data-testid="classic-workspace-viewport">
       <header className="viewport-tools">
         <span>{scene.name}</span>
-        <button onClick={() => setPreviewMode((mode) => mode === "raw" ? "simulated" : "raw")} type="button">{previewMode === "raw" ? "Raw" : "Simulated"}</button>
-        <button onClick={() => void (playing ? audio.stopAudio() : audio.startAudio()).then(() => setPlaying(!playing))} type="button">{playing ? "Stop" : "Play"}</button>
+        <span>{acoustic.fallbackNotice ? "Fallback" : "Worker"}</span>
       </header>
       <SceneEditor acousticFrame={acoustic.frame} dispatch={adapt} scene={scene} selection={selection} />
     </section>

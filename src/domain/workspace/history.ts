@@ -54,7 +54,8 @@ export function redoHistory<T>(history: HistoryState<T>): HistoryState<T> {
 }
 
 export function shouldRecordProjectAction(action: ProjectAction): boolean {
-  return !["SELECT_ENTITY", "SET_ACTIVE_LISTENER", "CLEAR_NOTICE"].includes(action.type);
+  if (action.type === "SELECT_ENTITY") return action.selection?.type === "listener";
+  return !["SET_VIEW_STATE", "CLEAR_NOTICE"].includes(action.type);
 }
 
 export function resetActiveMode(

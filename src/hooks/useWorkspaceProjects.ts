@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { createDefaultClassicProject, createDefaultHybridProject } from "@/domain/workspace/defaults";
 import {
@@ -27,28 +27,57 @@ const initialHistories = (): WorkspaceHistories => ({
 
 function restoredHistories(): WorkspaceHistories {
   if (typeof window === "undefined") return initialHistories();
-  const classic = loadWorkspaceCache(window.localStorage, "classic-2d5d");
-  const hybrid = loadWorkspaceCache(window.localStorage, "hybrid-3d");
-  return { classic: createHistory(classic.project), hybrid: createHistory(hybrid.project) };
+  let storage: Storage | null = null;
+  try { storage = window.localStorage; } catch { /* Private/sandboxed contexts may deny storage. */ }
+  const classic = loadWorkspaceCache(storage, "classic-2d5d");
+  const hybrid = loadWorkspaceCache(storage, "hybrid-3d");
+  return { classic: classic.history, hybrid: hybrid.history };
 }
 
 function restoredMode(fallback: WorkspaceMode): WorkspaceMode {
   if (typeof window === "undefined") return fallback;
-  const stored = window.localStorage.getItem(WORKSPACE_UI_KEY);
+  let stored: string | null = null;
+  try { stored = window.localStorage.getItem(WORKSPACE_UI_KEY); } catch { return fallback; }
   return stored === "classic-2d5d" || stored === "hybrid-3d" ? stored : fallback;
+}
+
+function restorationReport(): Readonly<{
+  status: string;
+  recoveryRaw: Partial<Record<WorkspaceMode, string>>;
+}> {
+  if (typeof window === "undefined") return { status: "saved", recoveryRaw: {} };
+  let storage: Storage | null = null;
+  try { storage = window.localStorage; } catch { /* Keep memory-only defaults. */ }
+  const classic = loadWorkspaceCache(storage, "classic-2d5d");
+  const hybrid = loadWorkspaceCache(storage, "hybrid-3d");
+  const warnings = [classic.warning, hybrid.warning].filter(Boolean);
+  return {
+    status: warnings[0] ?? "saved",
+    recoveryRaw: {
+      ...(classic.recoveryRaw ? { "classic-2d5d": classic.recoveryRaw } : {}),
+      ...(hybrid.recoveryRaw ? { "hybrid-3d": hybrid.recoveryRaw } : {}),
+    },
+  };
 }
 
 export function useWorkspaceProjects(initialMode?: WorkspaceMode) {
   const [activeMode, setActiveModeState] = useState<WorkspaceMode>(() => initialMode ?? restoredMode("classic-2d5d"));
   const [histories, setHistories] = useState<WorkspaceHistories>(restoredHistories);
-  const [persistenceStatus, setPersistenceStatus] = useState("saved");
+  const [restoration] = useState(restorationReport);
+  const [persistenceStatus, setPersistenceStatus] = useState(restoration.status);
+  const historiesRef = useRef(histories);
+  useEffect(() => {
+    historiesRef.current = histories;
+  }, [histories]);
 
   const keyFor = useCallback((mode: WorkspaceMode) => mode === "classic-2d5d" ? "classic" : "hybrid", []);
 
   const flushMode = useCallback((mode: WorkspaceMode) => {
-    const result = saveWorkspaceCache(window.localStorage, mode, histories[keyFor(mode)].present);
+    let storage: Storage | null = null;
+    try { storage = window.localStorage; } catch { /* save function reports unavailable */ }
+    const result = saveWorkspaceCache(storage, mode, historiesRef.current[keyFor(mode)]);
     setPersistenceStatus(result.ok ? "saved" : result.warning ?? "unavailable");
-  }, [histories, keyFor]);
+  }, [keyFor]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => flushMode(activeMode), 150);
@@ -62,8 +91,9 @@ export function useWorkspaceProjects(initialMode?: WorkspaceMode) {
   }, [activeMode, flushMode]);
 
   const setActiveMode = useCallback((mode: WorkspaceMode) => {
+    if (mode === activeMode) return;
     flushMode(activeMode);
-    window.localStorage.setItem(WORKSPACE_UI_KEY, mode);
+    try { window.localStorage.setItem(WORKSPACE_UI_KEY, mode); } catch { setPersistenceStatus("Local persistence is unavailable."); }
     setActiveModeState(mode);
   }, [activeMode, flushMode]);
 
@@ -108,5 +138,6 @@ export function useWorkspaceProjects(initialMode?: WorkspaceMode) {
     canRedo: activeHistory.future.length > 0,
     resetActiveProject,
     persistenceStatus,
-  }), [activeHistory, activeMode, dispatch, persistenceStatus, redo, resetActiveProject, setActiveMode, undo]);
+    recoveryRaw: restoration.recoveryRaw[activeMode] ?? null,
+  }), [activeHistory, activeMode, dispatch, persistenceStatus, redo, resetActiveProject, restoration.recoveryRaw, setActiveMode, undo]);
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import { AddObjectMenu } from "@/components/workspace/AddObjectMenu";
 import { AudioAssetPicker } from "@/components/workspace/AudioAssetPicker";
@@ -14,6 +14,10 @@ import type { WorkspaceMode } from "@/domain/workspace/types";
 import { useWorkspaceProjects } from "@/hooks/useWorkspaceProjects";
 import { useLocalAudioLibrary } from "@/hooks/useLocalAudioLibrary";
 import { installGateCAudioRenderValidation } from "@/audio/gate-c-render-validation";
+import { AudioEngine } from "@/audio/AudioEngine";
+import type { PreviewMode } from "@/domain/editor/state";
+import { projectClassicScene } from "@/domain/workspace/projections";
+import { useAudioEngine } from "@/hooks/useAudioEngine";
 
 export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: WorkspaceMode }>) {
   const hydrated = useSyncExternalStore(
@@ -25,6 +29,20 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
   const audioLibrary = useLocalAudioLibrary();
   const [addOpen, setAddOpen] = useState(false);
   const [audioPickerOpen, setAudioPickerOpen] = useState(false);
+  const [previewMode, setPreviewMode] = useState<PreviewMode>("simulated");
+  const [playing, setPlaying] = useState(false);
+  const [audioError, setAudioError] = useState<string | null>(null);
+  const [audioEngine] = useState(() => new AudioEngine({ resolveAudioAsset: audioLibrary.resolveAudioAsset }));
+  const activeScene = useMemo(() => projectClassicScene(workspace.activeProject), [workspace.activeProject]);
+  const audio = useAudioEngine(
+    activeScene,
+    previewMode,
+    null,
+    null,
+    audioLibrary.resolveAudioAsset,
+    audioEngine,
+    true,
+  );
 
   useEffect(() => installGateCAudioRenderValidation(), []);
 
@@ -117,10 +135,27 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
     }
   }
 
+  async function togglePlaying(): Promise<void> {
+    setAudioError(null);
+    try {
+      if (playing) await audio.stopAudio();
+      else await audio.startAudio();
+      setPlaying(!playing);
+    } catch (error) {
+      setAudioError(error instanceof Error ? error.message : "Audio is unavailable.");
+    }
+  }
+
   if (!hydrated) return <main className="unified-workspace workspace-loading" aria-label="Loading Echo Canvas" />;
 
   return (
-    <main className="unified-workspace" data-testid="unified-workspace" data-mode={workspace.activeMode}>
+    <main
+      className="unified-workspace"
+      data-audio-contexts={audio.diagnostics.contextCreations}
+      data-audio-graphs={audio.diagnostics.graphCount}
+      data-testid="unified-workspace"
+      data-mode={workspace.activeMode}
+    >
       <WorkspaceToolbar
         canRedo={workspace.canRedo}
         canUndo={workspace.canUndo}
@@ -130,7 +165,12 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
         onRedo={workspace.redo}
         onReset={reset}
         onUndo={workspace.undo}
+        onTogglePlaying={() => void togglePlaying()}
+        onTogglePreviewMode={() => setPreviewMode((mode) => mode === "raw" ? "simulated" : "raw")}
+        playing={playing}
+        previewMode={previewMode}
       />
+      {audioError ? <div className="workspace-error" role="alert">{audioError} <button onClick={() => void togglePlaying()} type="button">Retry</button></div> : null}
       {addOpen ? <AddObjectMenu onAdd={addObject} onClose={() => setAddOpen(false)} /> : null}
       {audioPickerOpen ? <AudioAssetPicker
         onChoose={addSource}
@@ -142,9 +182,15 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
       <div className="workspace-grid">
         <SceneOutliner project={workspace.activeProject} onSelect={(selection) => workspace.dispatch({ type: "SELECT_ENTITY", selection })} />
         {workspace.activeMode === "classic-2d5d"
-          ? <ClassicViewportAdapter dispatch={workspace.dispatch} project={workspace.activeProject} resolveAudioAsset={audioLibrary.resolveAudioAsset} />
-          : <HybridViewportAdapter dispatch={workspace.dispatch} project={workspace.activeProject} resolveAudioAsset={audioLibrary.resolveAudioAsset} />}
-        <ContextInspector dispatch={workspace.dispatch} project={workspace.activeProject} />
+          ? <ClassicViewportAdapter audioEngine={audioEngine} dispatch={workspace.dispatch} project={workspace.activeProject} />
+          : <HybridViewportAdapter audioEngine={audioEngine} dispatch={workspace.dispatch} project={workspace.activeProject} />}
+        <ContextInspector dispatch={workspace.dispatch} localAssets={audioLibrary.records.map((record) => ({
+          id: record.id,
+          name: record.name,
+          mimeType: record.mimeType,
+          size: record.size,
+          createdAt: record.createdAt,
+        }))} project={workspace.activeProject} />
       </div>
       <WorkspaceStatusBar mode={workspace.activeMode} persistence={workspace.persistenceStatus} revision={workspace.activeProject.revision} />
     </main>

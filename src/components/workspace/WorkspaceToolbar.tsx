@@ -1,14 +1,19 @@
+import type { PreviewMode } from "@/domain/editor/state";
 import type { WorkspaceMode } from "@/domain/workspace/types";
 
 type Props = Readonly<{
   mode: WorkspaceMode;
   canUndo: boolean;
   canRedo: boolean;
+  playing: boolean;
+  previewMode: PreviewMode;
   onModeChange: (mode: WorkspaceMode) => void;
   onUndo: () => void;
   onRedo: () => void;
   onReset: () => void;
   onAdd: () => void;
+  onTogglePlaying: () => void;
+  onTogglePreviewMode: () => void;
 }>;
 
 export function WorkspaceToolbar(props: Props) {
@@ -21,8 +26,10 @@ export function WorkspaceToolbar(props: Props) {
       </div>
       <div className="workspace-toolbar-actions">
         <button data-testid="add-object" onClick={props.onAdd} type="button">＋ Add</button>
-        <button disabled={!props.canUndo} onClick={props.onUndo} type="button" title="Undo (Ctrl+Z)">↶</button>
-        <button disabled={!props.canRedo} onClick={props.onRedo} type="button" title="Redo (Ctrl+Shift+Z)">↷</button>
+        <button aria-pressed={props.playing} onClick={props.onTogglePlaying} type="button">{props.playing ? "Stop" : "Play"}</button>
+        <button onClick={props.onTogglePreviewMode} type="button">{props.previewMode === "simulated" ? "Raw" : "Simulated"}</button>
+        <button aria-label="Undo" disabled={!props.canUndo} onClick={props.onUndo} type="button" title="Undo (Ctrl+Z)">↶</button>
+        <button aria-label="Redo" disabled={!props.canRedo} onClick={props.onRedo} type="button" title="Redo (Ctrl+Shift+Z)">↷</button>
         <button className="danger-quiet" onClick={props.onReset} type="button">Reset</button>
       </div>
     </header>

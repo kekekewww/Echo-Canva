@@ -6,21 +6,49 @@ import { requestAcousticExplanation, requestSceneCompilation } from "@/ai/client
 import type { AcousticExplanation } from "@/ai/contracts";
 import { computeAcousticFrame } from "@/acoustics/compute-frame";
 import { HintCard } from "@/components/workspace/HintCard";
-import { SceneTransfer } from "@/components/workbench/SceneTransfer";
 import { PRESETS, type PresetId } from "@/domain/presets";
 import type { SceneSpec } from "@/domain/scene/types";
 import { projectClassicScene } from "@/domain/workspace/projections";
 import type { ProjectAction, WorkspaceProject } from "@/domain/workspace/types";
+import type { LocalAudioMetadata } from "@/domain/workspace/transfer";
+import { parseWorkspaceProject, serializeWorkspaceProject } from "@/domain/workspace/transfer";
 
-export function WorkspaceProjectTools({ project, dispatch }: Readonly<{
+export function WorkspaceProjectTools({ project, dispatch, localAssets = [] }: Readonly<{
   project: WorkspaceProject;
   dispatch: (action: ProjectAction) => void;
+  localAssets?: readonly LocalAudioMetadata[];
 }>) {
   const [prompt, setPrompt] = useState("");
   const [candidate, setCandidate] = useState<SceneSpec | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [explanation, setExplanation] = useState<AcousticExplanation | null>(null);
   const scene = projectClassicScene(project);
+
+  function exportAuthoring(): void {
+    const blob = new Blob([serializeWorkspaceProject(project, localAssets)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${project.scene.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "echo-canvas"}.authoring.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function importAuthoring(file: File): Promise<void> {
+    try {
+      const imported = parseWorkspaceProject(
+        await file.text(),
+        project.mode,
+        new Set(localAssets.map(({ id }) => id)),
+      );
+      dispatch({ type: "REPLACE_PROJECT", project: imported.project });
+      setStatus(imported.project.missingAudioAssetIds.length
+        ? `Authoring project imported; ${imported.project.missingAudioAssetIds.length} audio asset requires relinking.`
+        : "Authoring project imported.");
+    } catch (error) {
+      setStatus(`Import rejected: ${error instanceof Error ? error.message : "unsupported document"}`);
+    }
+  }
 
   async function generate(): Promise<void> {
     setStatus("Generating…");
@@ -73,12 +101,19 @@ export function WorkspaceProjectTools({ project, dispatch }: Readonly<{
         <button disabled={!prompt.trim()} onClick={() => void generate()} type="button">Generate scene</button>
         {candidate ? <button onClick={() => { dispatch({ type: "REPLACE_SCENE", scene: candidate }); setCandidate(null); }} type="button">Apply {candidate.name}</button> : null}
         <button onClick={() => void explain()} type="button">Explain selected acoustics</button>
-        {status ? <p role="status">{status}</p> : null}
         {explanation ? <div className="workspace-explanation"><strong>{explanation.summary}</strong>{explanation.factors.map((factor) => <p key={factor.label}>{factor.label}: {factor.evidence}</p>)}<small>{explanation.limitations.join(" ")}</small></div> : null}
       </HintCard>
       <HintCard title="Import / export">
-        <SceneTransfer scene={scene} onImportScene={(imported) => dispatch({ type: "REPLACE_SCENE", scene: imported })} />
+        <button onClick={exportAuthoring} type="button">Export authoring JSON</button>
+        <label className="file-button">Import authoring JSON
+          <input accept="application/json,.json" aria-label="Import authoring JSON" onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) void importAuthoring(file);
+            event.currentTarget.value = "";
+          }} type="file" />
+        </label>
       </HintCard>
+      {status ? <p className="workspace-project-status" role="status">{status}</p> : null}
     </section>
   );
 }

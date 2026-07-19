@@ -28,8 +28,27 @@ export type EntityRef = Readonly<{
 }>;
 
 export type WorkspaceNotice = Readonly<{
-  code: "listener_required" | "floor_required" | "entity_missing" | "limit_reached";
+  code: "listener_required" | "floor_required" | "entity_missing" | "limit_reached" | "geometry_clamped" | "host_wall_required";
   message: string;
+}>;
+
+export type WorkspaceCamera = Readonly<{
+  yawDeg: number;
+  pitchDeg: number;
+  zoom: number;
+}>;
+
+export type WorkspaceViewState = Readonly<{
+  camera: WorkspaceCamera;
+  overlays: Readonly<{
+    pathsVisible: boolean;
+    showAllPaths: boolean;
+    ceilingVisible: boolean;
+  }>;
+  panels: Readonly<{
+    outlinerCollapsed: boolean;
+    inspectorCollapsed: boolean;
+  }>;
 }>;
 
 export type Room3D = Readonly<{
@@ -51,7 +70,7 @@ export type Portal3DSettings = Readonly<{
 }>;
 
 export type WorkspaceProject = Readonly<{
-  schemaVersion: "1.0";
+  schemaVersion: "2.0";
   mode: WorkspaceMode;
   revision: number;
   scene: SceneSpec;
@@ -63,6 +82,8 @@ export type WorkspaceProject = Readonly<{
   sourceHeightsM: Readonly<Record<string, number>>;
   wall3dById: Readonly<Record<string, Wall3DSettings>>;
   portal3dById: Readonly<Record<string, Portal3DSettings>>;
+  missingAudioAssetIds: readonly string[];
+  view: WorkspaceViewState;
   notice: WorkspaceNotice | null;
 }>;
 
@@ -83,6 +104,7 @@ export type ProjectAction =
   | Readonly<{ type: "UPDATE_PORTAL"; id: string; changes: Partial<Portal>; vertical?: Partial<Portal3DSettings> }>
   | Readonly<{ type: "DELETE_PORTAL"; id: string }>
   | Readonly<{ type: "SET_ROOM_3D"; changes: Partial<Room3D> }>
+  | Readonly<{ type: "SET_VIEW_STATE"; changes: Partial<WorkspaceViewState> }>
   | Readonly<{ type: "REPLACE_SCENE"; scene: SceneSpec }>
   | Readonly<{ type: "REPLACE_PROJECT"; project: WorkspaceProject }>
   | Readonly<{ type: "CLEAR_NOTICE" }>;

@@ -23,8 +23,10 @@ export function useAudioEngine(
   acousticFrame: AcousticFrame | null,
   acousticFallbackNotice: string | null,
   resolveAudioAsset?: (clipId: string) => Promise<ArrayBuffer | null>,
+  sharedEngine?: AudioEngine,
+  disposeOnUnmount = true,
 ): AudioEngineControls {
-  const [engine] = useState(() => new AudioEngine({ resolveAudioAsset }));
+  const [engine] = useState(() => sharedEngine ?? new AudioEngine({ resolveAudioAsset }));
   const [diagnostics, setDiagnostics] = useState(() => engine.getDiagnostics());
   const mounted = useRef(true);
   const disposalTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -53,9 +55,9 @@ export function useAudioEngine(
     if (disposalTimer.current !== null) clearTimeout(disposalTimer.current);
     return () => {
       mounted.current = false;
-      disposalTimer.current = setTimeout(() => void engine.dispose(), 0);
+      if (disposeOnUnmount) disposalTimer.current = setTimeout(() => void engine.dispose(), 0);
     };
-  }, [engine]);
+  }, [disposeOnUnmount, engine]);
 
   const startAudio = useCallback(async () => {
     try {

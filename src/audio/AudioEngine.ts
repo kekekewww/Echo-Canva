@@ -16,7 +16,7 @@ import type { PreviewMode } from "@/domain/editor/state";
 import type { SceneSpec } from "@/domain/scene/types";
 import type { AcousticFrame } from "@/acoustics/compute-frame";
 
-type AudioEngineDependencies = Readonly<{
+export type AudioEngineDependencies = Readonly<{
   createContext?: () => AudioContextLike;
   fetchArrayBuffer?: (url: string) => Promise<ArrayBuffer>;
   resolveAudioAsset?: (clipId: string) => Promise<ArrayBuffer | null>;

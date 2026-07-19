@@ -304,6 +304,18 @@ export function projectReducer(
       };
     }
 
+    case "SET_VIEW_STATE":
+      return {
+        ...project,
+        view: {
+          ...project.view,
+          ...action.changes,
+          camera: { ...project.view.camera, ...action.changes.camera },
+          overlays: { ...project.view.overlays, ...action.changes.overlays },
+          panels: { ...project.view.panels, ...action.changes.panels },
+        },
+      };
+
     case "REPLACE_SCENE": {
       const validation = validateScene(action.scene);
       if (!validation.ok) return withNotice(project, { code: "entity_missing", message: "Scene replacement failed validation." });

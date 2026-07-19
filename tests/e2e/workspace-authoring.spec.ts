@@ -16,19 +16,24 @@ test("adds and activates listeners and enforces the source workflow", async ({ p
   await expect(page.locator('[data-testid^="hybrid-viewport-source-"]')).toHaveCount(3);
 });
 
-test("exports, imports, and safely rejects scene JSON", async ({ page }) => {
+test("exports, imports, and safely rejects complete authoring JSON", async ({ page }) => {
   await page.goto("/");
   await page.getByText("Import / export").click();
   const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Export scene JSON" }).click();
+  await page.getByRole("button", { name: "Export authoring JSON" }).click();
   const path = await (await downloadPromise).path();
   if (!path) throw new Error("No exported scene path.");
   const json = await readFile(path, "utf8");
-  expect(JSON.parse(json)).toMatchObject({ schemaVersion: "1.0" });
+  expect(JSON.parse(json)).toMatchObject({
+    format: "echo-canvas-authoring-project",
+    version: "1.0",
+    project: { schemaVersion: "2.0", mode: "classic-2d5d", listeners: expect.any(Array) },
+    localAssets: expect.any(Array),
+  });
   await page.getByLabel("Scene preset").selectOption("hard-room");
-  await page.getByLabel("Import scene JSON").setInputFiles({ name: "scene.json", mimeType: "application/json", buffer: Buffer.from(json) });
+  await page.getByLabel("Import authoring JSON").setInputFiles({ name: "scene.json", mimeType: "application/json", buffer: Buffer.from(json) });
   await expect(page.getByRole("status")).toContainText("imported");
-  await page.getByLabel("Import scene JSON").setInputFiles({ name: "bad.json", mimeType: "application/json", buffer: Buffer.from("{") });
+  await page.getByLabel("Import authoring JSON").setInputFiles({ name: "bad.json", mimeType: "application/json", buffer: Buffer.from("{") });
   await expect(page.getByRole("status")).toContainText("rejected");
 });
 
