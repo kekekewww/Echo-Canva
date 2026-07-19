@@ -8,9 +8,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DEFAULT_VIEWPORT_CAMERA,
   clampViewportCamera,
+  frameViewportPoints,
   northViewportAngleDeg,
   projectViewportPoint,
   unprojectViewportPointAtHeight,
+  zoomViewportCameraAtPoint,
   type ScreenPoint,
   type ViewportCamera,
   type ViewportVec3,
@@ -75,6 +77,7 @@ type Props = Readonly<{
 
 type DragState =
   | Readonly<{ kind: "orbit"; pointer: ScreenPoint; camera: ViewportCamera }>
+  | Readonly<{ kind: "pan"; pointer: ScreenPoint; camera: ViewportCamera }>
   | Readonly<{ kind: "object"; id: string; pointer: ScreenPoint; position: ViewportVec3 }>
   | Readonly<{ kind: "wall"; id: string; endpoint: "a" | "b" }>
   | Readonly<{ kind: "portal"; id: string; heightM: number }>;
@@ -208,7 +211,7 @@ export function HybridSpatialViewport({
   onWallPlacementPoint,
 }: Props) {
   const [dragState, setDragState] = useState<DragState | null>(null);
-  const viewportRef = useRef<HTMLElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const projected = useMemo(() => ({
     floor: [
       projectViewportPoint({ x: 0, y: 0, z: 0 }, camera),
@@ -233,19 +236,54 @@ export function HybridSpatialViewport({
     };
   }, [camera, room.depthM, room.widthM]);
 
+  const framePoints = useMemo<readonly ViewportVec3[]>(() => [
+    { x: 0, y: 0, z: 0 },
+    { x: room.widthM, y: 0, z: 0 },
+    { x: room.widthM, y: 0, z: room.depthM },
+    { x: 0, y: 0, z: room.depthM },
+    { x: 0, y: room.heightM, z: 0 },
+    { x: room.widthM, y: room.heightM, z: 0 },
+    { x: room.widthM, y: room.heightM, z: room.depthM },
+    { x: 0, y: room.heightM, z: room.depthM },
+    ...objects.map(({ position }) => position),
+    ...walls.flatMap((wall) => [
+      { x: wall.a.x, y: wall.bottomM, z: wall.a.z },
+      { x: wall.a.x, y: wall.topM, z: wall.a.z },
+      { x: wall.b.x, y: wall.bottomM, z: wall.b.z },
+      { x: wall.b.x, y: wall.topM, z: wall.b.z },
+      ...wall.portals.flatMap((portal) => {
+        const interval = portalInterval(wall, portal);
+        const a = wallPoint(wall, interval.start, 0);
+        const b = wallPoint(wall, interval.end, 0);
+        return [
+          { x: a.x, y: portal.bottomM, z: a.z },
+          { x: a.x, y: portal.topM, z: a.z },
+          { x: b.x, y: portal.bottomM, z: b.z },
+          { x: b.x, y: portal.topM, z: b.z },
+        ];
+      }),
+    ]),
+  ], [objects, room.depthM, room.heightM, room.widthM, walls]);
+
   useEffect(() => {
-    const viewport = viewportRef.current;
+    const viewport = svgRef.current;
     if (!viewport) return undefined;
     const zoomViewport = (event: WheelEvent): void => {
       event.preventDefault();
-      onCameraChange(clampViewportCamera({ ...camera, zoom: camera.zoom + (event.deltaY < 0 ? 0.08 : -0.08) }));
+      const anchor = clientToViewport(event);
+      onCameraChange(zoomViewportCameraAtPoint(
+        camera,
+        anchor,
+        camera.zoom * Math.exp(-event.deltaY * 0.0015),
+      ));
     };
     viewport.addEventListener("wheel", zoomViewport, { passive: false });
     return () => viewport.removeEventListener("wheel", zoomViewport);
   }, [camera, onCameraChange]);
 
-  function clientToViewport(event: ReactPointerEvent<SVGElement>): ScreenPoint {
-    const svg = event.currentTarget.ownerSVGElement ?? event.currentTarget;
+  function clientToViewport(event: Pick<PointerEvent | WheelEvent, "clientX" | "clientY">): ScreenPoint {
+    const svg = svgRef.current;
+    if (!svg) return { x: VIEW_BOX.width / 2, y: VIEW_BOX.height / 2 };
     const bounds = svg.getBoundingClientRect();
     return clientPointToSvg(
       { x: event.clientX, y: event.clientY },
@@ -259,7 +297,19 @@ export function HybridSpatialViewport({
     setDragState(null);
   }
 
+  function beginPan(event: ReactPointerEvent<SVGElement>): void {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDragState({ kind: "pan", pointer: clientToViewport(event), camera });
+  }
+
   function beginOrbit(event: ReactPointerEvent<SVGRectElement>): void {
+    if (event.button !== 0) return;
+    if (event.shiftKey) {
+      beginPan(event);
+      return;
+    }
     if (onWallPlacementPoint) {
       event.preventDefault();
       const point = unprojectViewportPointAtHeight(clientToViewport(event), 0, camera);
@@ -273,14 +323,23 @@ export function HybridSpatialViewport({
     setDragState({ kind: "orbit", pointer: clientToViewport(event), camera });
   }
 
-  function orbit(event: ReactPointerEvent<SVGRectElement>): void {
-    if (dragState?.kind !== "orbit" || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
+  function moveView(event: ReactPointerEvent<SVGElement>): void {
+    if (!dragState || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
+    if (dragState.kind !== "orbit" && dragState.kind !== "pan") return;
     const next = clientToViewport(event);
-    onCameraChange(clampViewportCamera({
-      ...dragState.camera,
-      yawDeg: dragState.camera.yawDeg + (next.x - dragState.pointer.x) * 0.35,
-      pitchDeg: dragState.camera.pitchDeg - (next.y - dragState.pointer.y) * 0.22,
-    }));
+    if (dragState.kind === "pan") {
+      onCameraChange(clampViewportCamera({
+        ...dragState.camera,
+        panX: dragState.camera.panX + next.x - dragState.pointer.x,
+        panY: dragState.camera.panY + next.y - dragState.pointer.y,
+      }));
+    } else {
+      onCameraChange(clampViewportCamera({
+        ...dragState.camera,
+        yawDeg: dragState.camera.yawDeg + (next.x - dragState.pointer.x) * 0.35,
+        pitchDeg: dragState.camera.pitchDeg - (next.y - dragState.pointer.y) * 0.22,
+      }));
+    }
   }
 
   function dragObject(event: ReactPointerEvent<SVGGElement>): void {
@@ -309,7 +368,7 @@ export function HybridSpatialViewport({
 
   const northAngle = northViewportAngleDeg(camera);
   return (
-    <section className="hybrid-spatial-viewport" data-camera={`${camera.yawDeg.toFixed(1)},${camera.pitchDeg.toFixed(1)},${camera.zoom.toFixed(2)}`} data-testid="hybrid-spatial-viewport" ref={viewportRef}>
+    <section className="hybrid-spatial-viewport" data-camera={`${camera.yawDeg.toFixed(1)},${camera.pitchDeg.toFixed(1)},${camera.zoom.toFixed(2)},${camera.panX.toFixed(1)},${camera.panY.toFixed(1)}`} data-testid="hybrid-spatial-viewport">
       <header className="hybrid-viewport-header">
         <div><p className="panel-kicker">3D viewport</p><h3>Orbit · select · place</h3></div>
         <div className="hybrid-view-buttons" aria-label="Camera views">
@@ -318,19 +377,20 @@ export function HybridSpatialViewport({
           {onToggleCeiling ? <button aria-pressed={ceilingVisible} onClick={onToggleCeiling} type="button">Ceiling</button> : null}
           <button onClick={() => onCameraChange({ yawDeg: 0, pitchDeg: 78, zoom: 1, panX: 0, panY: 0 })} type="button">Top</button>
           <button onClick={() => onCameraChange({ yawDeg: 0, pitchDeg: 28, zoom: 1, panX: 0, panY: 0 })} type="button">Front</button>
-          <button onClick={() => onCameraChange(DEFAULT_VIEWPORT_CAMERA)} type="button">Reset view</button>
+          <button onClick={() => onCameraChange(DEFAULT_VIEWPORT_CAMERA)} type="button">Home</button>
+          <button onClick={() => onCameraChange(frameViewportPoints(framePoints, camera))} type="button">Frame All</button>
         </div>
       </header>
       <p className="hybrid-viewport-help" id="hybrid-viewport-help">
         <span>Amber: listener</span><span>Cyan: source / Portal</span><span>Coral: wall</span>
-        <span>Drag: X/Z</span><span>Shift-drag: Y</span><span>Wheel: zoom</span><span>North: +Z</span>
+        <span>Drag: X/Z</span><span>Shift-object: Y</span><span>MMB / Shift-empty: pan</span><span>Wheel: zoom</span><span>North: +Z</span>
       </p>
-      <svg aria-describedby="hybrid-viewport-help" aria-label="Interactive 3D acoustic scene viewport" className="hybrid-viewport-svg" preserveAspectRatio="xMidYMid meet" role="group" viewBox="0 0 1200 720">
+      <svg aria-describedby="hybrid-viewport-help" aria-label="Interactive 3D acoustic scene viewport" className="hybrid-viewport-svg" data-panning={dragState?.kind === "pan" ? "true" : "false"} onLostPointerCapture={() => { if (dragState?.kind === "pan") setDragState(null); }} onPointerCancel={endDrag} onPointerDownCapture={(event) => { if (event.button === 1) beginPan(event); }} onPointerMove={moveView} onPointerUp={endDrag} preserveAspectRatio="xMidYMid meet" ref={svgRef} role="group" viewBox="0 0 1200 720">
         <defs>
           <linearGradient id="hybrid-viewport-floor" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stopColor="#173539" stopOpacity="0.56" /><stop offset="1" stopColor="#0b1417" stopOpacity="0.94" /></linearGradient>
           <filter id="hybrid-viewport-glow"><feGaussianBlur result="blur" stdDeviation="6" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
         </defs>
-        <rect className="hybrid-viewport-orbit-surface" data-testid="hybrid-wall-placement-surface" height="720" onPointerCancel={endDrag} onPointerDown={beginOrbit} onPointerMove={orbit} onPointerUp={endDrag} width="1200" x="0" y="0" />
+        <rect className="hybrid-viewport-orbit-surface" data-testid="hybrid-wall-placement-surface" height="720" onPointerCancel={endDrag} onPointerDown={beginOrbit} onPointerMove={moveView} onPointerUp={endDrag} width="1200" x="0" y="0" />
         <polygon className="hybrid-viewport-floor" points={points(projected.floor)} />
         {wallPlacementFirst ? (() => {
           const point = projectViewportPoint({ x: wallPlacementFirst.x, y: 0, z: wallPlacementFirst.z }, camera);

@@ -171,6 +171,51 @@ test("restores each mode camera and overlay preferences after switching and refr
   await expect(page.getByRole("button", { name: "Paths", exact: true })).toHaveAttribute("aria-pressed", "false");
 });
 
+test("Hybrid viewport adds pan navigation without stealing object height editing", async ({ page }) => {
+  await page.goto("/lab");
+  const viewport = page.getByTestId("hybrid-spatial-viewport");
+  const svg = viewport.locator("svg.hybrid-viewport-svg");
+  const source = viewport.locator('[data-testid^="hybrid-viewport-source-"]').first();
+  const sourceBeforePan = await source.getAttribute("data-position");
+  const sourceBox = await source.boundingBox();
+  if (!sourceBox) throw new Error("Hybrid source is not visible.");
+
+  const initialCamera = await viewport.getAttribute("data-camera");
+  await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2);
+  await page.mouse.down({ button: "middle" });
+  await page.mouse.move(sourceBox.x + sourceBox.width / 2 + 70, sourceBox.y + sourceBox.height / 2 + 35, { steps: 4 });
+  await page.mouse.up({ button: "middle" });
+  await expect(viewport).not.toHaveAttribute("data-camera", initialCamera ?? "");
+  await expect(source).toHaveAttribute("data-position", sourceBeforePan ?? "");
+
+  const afterMiddlePan = await viewport.getAttribute("data-camera");
+  const svgBox = await svg.boundingBox();
+  if (!svgBox) throw new Error("Hybrid SVG is not visible.");
+  await page.keyboard.down("Shift");
+  await page.mouse.move(svgBox.x + svgBox.width * 0.18, svgBox.y + svgBox.height * 0.18);
+  await page.mouse.down();
+  await page.mouse.move(svgBox.x + svgBox.width * 0.27, svgBox.y + svgBox.height * 0.24, { steps: 4 });
+  await page.mouse.up();
+  await page.keyboard.up("Shift");
+  await expect(viewport).not.toHaveAttribute("data-camera", afterMiddlePan ?? "");
+
+  const sourceBeforeHeight = await source.getAttribute("data-position");
+  const movedSourceBox = await source.boundingBox();
+  if (!movedSourceBox) throw new Error("Panned Hybrid source is not visible.");
+  await page.keyboard.down("Shift");
+  await page.mouse.move(movedSourceBox.x + movedSourceBox.width / 2, movedSourceBox.y + movedSourceBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(movedSourceBox.x + movedSourceBox.width / 2, movedSourceBox.y + movedSourceBox.height / 2 - 35, { steps: 4 });
+  await page.mouse.up();
+  await page.keyboard.up("Shift");
+  await expect(source).not.toHaveAttribute("data-position", sourceBeforeHeight ?? "");
+
+  await page.getByRole("button", { name: "Home", exact: true }).click();
+  await expect(viewport).toHaveAttribute("data-camera", /,1\.00,0\.0,0\.0$/);
+  await page.getByRole("button", { name: "Frame All", exact: true }).click();
+  await expect(viewport).not.toHaveAttribute("data-camera", initialCamera ?? "");
+});
+
 test("restores the 100-wall project and keeps Outliner selection within the interaction budget", async ({ page }) => {
   await page.goto("/classic");
   await page.getByLabel("Scene preset").selectOption("stress-100-walls");

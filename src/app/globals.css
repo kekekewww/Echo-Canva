@@ -1889,12 +1889,18 @@ select {
 }
 
 .hybrid-viewport-svg {
+  cursor: grab;
   display: block;
   height: auto;
   margin-top: 0.5rem;
   touch-action: none;
   user-select: none;
   width: 100%;
+}
+
+.hybrid-viewport-svg[data-panning="true"],
+.hybrid-viewport-svg[data-panning="true"] * {
+  cursor: grabbing !important;
 }
 
 .hybrid-viewport-orbit-surface {
