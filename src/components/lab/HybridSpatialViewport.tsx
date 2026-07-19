@@ -277,9 +277,9 @@ export function HybridSpatialViewport({
     if (dragState?.kind !== "orbit" || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
     const next = clientToViewport(event);
     onCameraChange(clampViewportCamera({
+      ...dragState.camera,
       yawDeg: dragState.camera.yawDeg + (next.x - dragState.pointer.x) * 0.35,
       pitchDeg: dragState.camera.pitchDeg - (next.y - dragState.pointer.y) * 0.22,
-      zoom: dragState.camera.zoom,
     }));
   }
 
@@ -316,8 +316,8 @@ export function HybridSpatialViewport({
           {onTogglePaths ? <button aria-pressed={pathsVisible} onClick={onTogglePaths} type="button">Paths</button> : null}
           {onToggleShowAllPaths ? <button aria-pressed={showAllPaths} onClick={onToggleShowAllPaths} type="button">Show all paths</button> : null}
           {onToggleCeiling ? <button aria-pressed={ceilingVisible} onClick={onToggleCeiling} type="button">Ceiling</button> : null}
-          <button onClick={() => onCameraChange({ yawDeg: 0, pitchDeg: 78, zoom: 1 })} type="button">Top</button>
-          <button onClick={() => onCameraChange({ yawDeg: 0, pitchDeg: 28, zoom: 1 })} type="button">Front</button>
+          <button onClick={() => onCameraChange({ yawDeg: 0, pitchDeg: 78, zoom: 1, panX: 0, panY: 0 })} type="button">Top</button>
+          <button onClick={() => onCameraChange({ yawDeg: 0, pitchDeg: 28, zoom: 1, panX: 0, panY: 0 })} type="button">Front</button>
           <button onClick={() => onCameraChange(DEFAULT_VIEWPORT_CAMERA)} type="button">Reset view</button>
         </div>
       </header>

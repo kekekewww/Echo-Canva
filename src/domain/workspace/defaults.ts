@@ -46,7 +46,7 @@ function createDefaultProject(mode: WorkspaceMode): WorkspaceProject {
     missingAudioAssetIds: [],
     localAudioMetadata: {},
     view: {
-      camera: { yawDeg: 38, pitchDeg: 34, zoom: 1 },
+      camera: { yawDeg: 38, pitchDeg: 34, zoom: 1, panX: 0, panY: 0 },
       overlays: { pathsVisible: true, showAllPaths: false, ceilingVisible: true },
       panels: { outlinerCollapsed: false, inspectorCollapsed: false },
     },

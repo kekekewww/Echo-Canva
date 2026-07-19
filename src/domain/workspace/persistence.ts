@@ -32,6 +32,8 @@ const viewSchema = z.object({
     yawDeg: z.number().finite(),
     pitchDeg: z.number().finite(),
     zoom: z.number().finite().positive(),
+    panX: z.number().finite().optional(),
+    panY: z.number().finite().optional(),
   }).strict(),
   overlays: z.object({
     pathsVisible: z.boolean(),
@@ -140,6 +142,22 @@ function defaultView(mode: WorkspaceMode): WorkspaceViewState {
   return defaultProject(mode).view;
 }
 
+function migrateView(
+  view: z.infer<typeof viewSchema> | undefined,
+  mode: WorkspaceMode,
+): WorkspaceViewState {
+  const fallback = defaultView(mode);
+  if (!view) return fallback;
+  return {
+    ...view,
+    camera: {
+      ...view.camera,
+      panX: view.camera.panX ?? 0,
+      panY: view.camera.panY ?? 0,
+    },
+  };
+}
+
 function projectFromScene(scene: SceneSpec, mode: WorkspaceMode): WorkspaceProject {
   const project = defaultProject(mode);
   const firstListener = project.listeners[0]!;
@@ -188,7 +206,7 @@ function migrateProjectCandidate(input: unknown, mode: WorkspaceMode): Workspace
         ceilingMaterialId: parsedProject.data.room3d.ceilingMaterialId ?? scene.scene.room.ceilingMaterialId,
         ceilingEnabled: parsedProject.data.room3d.ceilingEnabled ?? !parsedProject.data.disabledEntityIds.includes("ceiling"),
       },
-      view: parsedProject.data.view ?? defaultView(mode),
+      view: migrateView(parsedProject.data.view, mode),
       missingAudioAssetIds: parsedProject.data.missingAudioAssetIds ?? [],
       localAudioMetadata: parsedProject.data.localAudioMetadata ?? {},
       notice: null,

@@ -36,6 +36,8 @@ export type WorkspaceCamera = Readonly<{
   yawDeg: number;
   pitchDeg: number;
   zoom: number;
+  panX: number;
+  panY: number;
 }>;
 
 export type WorkspaceViewState = Readonly<{

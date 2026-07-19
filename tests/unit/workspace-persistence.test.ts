@@ -54,7 +54,7 @@ describe("workspace persistence", () => {
       ...initial,
       view: {
         ...initial.view,
-        camera: { yawDeg: 123, pitchDeg: 41, zoom: 1.4 },
+        camera: { yawDeg: 123, pitchDeg: 41, zoom: 1.4, panX: 86, panY: -44 },
         overlays: { pathsVisible: false, showAllPaths: true, ceilingVisible: false },
       },
     };
@@ -71,6 +71,27 @@ describe("workspace persistence", () => {
     expect(restored.history.past.length).toBeLessThanOrEqual(50);
     expect(JSON.parse(storage.getItem(HYBRID_PROJECT_KEY)!).cacheVersion).toBe("3.0");
     expect(JSON.parse(storage.getItem(HYBRID_PROJECT_KEY)!).past[0]).toMatchObject({ operations: expect.any(Array) });
+  });
+
+  it("adds a neutral pan to projects cached before viewport panning existed", () => {
+    const storage = new MemoryStorage();
+    const legacyProject = structuredClone(createDefaultHybridProject()) as unknown as {
+      view: { camera: Record<string, number> };
+    };
+    delete legacyProject.view.camera.panX;
+    delete legacyProject.view.camera.panY;
+    storage.setItem(HYBRID_PROJECT_KEY, JSON.stringify({
+      cacheVersion: "3.0",
+      mode: "hybrid-3d",
+      present: legacyProject,
+      past: [],
+      future: [],
+    }));
+
+    const restored = loadWorkspaceCache(storage, "hybrid-3d");
+
+    expect(restored.project.view.camera).toMatchObject({ panX: 0, panY: 0 });
+    expect(restored.warning).toBeNull();
   });
 
   it("migrates legacy snapshot history into compact patches", () => {

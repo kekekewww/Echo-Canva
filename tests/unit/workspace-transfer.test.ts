@@ -14,7 +14,7 @@ describe("workspace authoring transfer", () => {
       disabledEntityIds: [initial.scene.walls[0]!.id, "ceiling"],
       view: {
         ...initial.view,
-        camera: { yawDeg: 90, pitchDeg: 35, zoom: 1.25 },
+        camera: { yawDeg: 90, pitchDeg: 35, zoom: 1.25, panX: 40, panY: -20 },
       },
     };
     const json = serializeWorkspaceProject(project, [{
