@@ -1,5 +1,17 @@
 # Status
 
+## Unified workspace Task 1 — authoring project and engine projections — 2026-07-19
+
+- added independent versioned Classic 2.5D and Hybrid 3D authoring projects
+- added an eight-listener authoring contract with exactly one active listener and protected final-listener/floor invariants
+- kept disabled authoring objects recoverable while filtering them and hosted Portals from deterministic engine projections
+- projected the active 3D listener and rectangular room into the existing SceneSpec / SceneDocumentV2 contracts
+- `pnpm lint` — PASS
+- `pnpm typecheck` — PASS
+- `pnpm test` — PASS, 49 files / 302 tests
+
+Current phase: unified workspace implementation is in progress. Next action: add independent local persistence, history, and current-mode reset.
+
 ## Hybrid modelling-workbench UI - 2026-07-19
 
 - replaced the always-visible parameter wall with a compact Scene Outliner: Listener, Radio,
