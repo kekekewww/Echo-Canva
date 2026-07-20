@@ -11,6 +11,9 @@ export type AcousticWorkerRequest =
 export type WorkerMetrics = Readonly<{
   computeMs: number;
   completedAtMs: number;
+  workerCount?: number;
+  sourceComputeMsMax?: number;
+  sourceComputeMsTotal?: number;
 }>;
 
 export type AcousticWorkerResponse =

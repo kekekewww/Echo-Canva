@@ -9,6 +9,7 @@ import type {
   AcousticWorkerRequest,
   AcousticWorkerResponse,
 } from "@/workers/acoustics.worker";
+import { createClassicSourcePool } from "@/workers/classic-source-pool";
 
 const FALLBACK_NOTICE = "Worker unavailable; using deterministic main-thread acoustic updates.";
 
@@ -22,6 +23,9 @@ type FrameState = Readonly<{
 export type AcousticFrameMetrics = Readonly<{
   source: "worker" | "fallback";
   computeMs: number;
+  workerCount?: number;
+  sourceComputeMsMax?: number;
+  sourceComputeMsTotal?: number;
 }>;
 
 export type AcousticFrameResult = Readonly<{
@@ -81,6 +85,9 @@ export class AcousticFrameClient {
           this.options.onFrame(event.data.frame, {
             source: "worker",
             computeMs: event.data.metrics.computeMs,
+            workerCount: event.data.metrics.workerCount,
+            sourceComputeMsMax: event.data.metrics.sourceComputeMsMax,
+            sourceComputeMsTotal: event.data.metrics.sourceComputeMsTotal,
           });
           return;
         }
@@ -180,7 +187,9 @@ export class AcousticFrameClient {
 }
 
 function createBrowserWorker(): AcousticWorkerLike {
-  return new Worker(new URL("../workers/acoustics.worker.ts", import.meta.url));
+  return createClassicSourcePool({
+    hardwareConcurrency: typeof navigator === "undefined" ? undefined : navigator.hardwareConcurrency,
+  });
 }
 
 function scheduleBrowserFrame(callback: () => void): unknown {

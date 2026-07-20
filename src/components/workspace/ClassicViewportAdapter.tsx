@@ -38,8 +38,11 @@ export function ClassicViewportAdapter({ project, dispatch, audioEngine, wallPla
       rt60MidS: acceptedFrame?.room.rt60S.mid ?? null,
       worker: acceptedFrame ? "Worker" : "Stopped",
       computeMs: acceptedFrame ? acoustic.metrics?.computeMs ?? null : null,
+      workerCount: acceptedFrame ? acoustic.metrics?.workerCount ?? null : null,
+      sourceComputeMsMax: acceptedFrame ? acoustic.metrics?.sourceComputeMsMax ?? null : null,
+      sourceComputeMsTotal: acceptedFrame ? acoustic.metrics?.sourceComputeMsTotal ?? null : null,
     });
-  }, [acceptedFrame, acoustic.metrics?.computeMs, onAcousticStatus, project.activeListenerId, project.listeners, project.selection, scene.sources]);
+  }, [acceptedFrame, acoustic.metrics, onAcousticStatus, project.activeListenerId, project.listeners, project.selection, scene.sources]);
   const selection: EditorSelection = project.selection?.type === "listener"
     ? { type: "listener" }
     : project.selection?.type === "source" || project.selection?.type === "wall" || project.selection?.type === "portal"

@@ -99,11 +99,23 @@ describe("AcousticFrameClient", () => {
         type: "FRAME",
         revision: scene.revision,
         frame: computeAcousticFrame(scene),
-        metrics: { computeMs: 3.25, completedAtMs: 40 },
+        metrics: {
+          computeMs: 3.25,
+          completedAtMs: 40,
+          workerCount: 2,
+          sourceComputeMsMax: 2.5,
+          sourceComputeMsTotal: 4.5,
+        },
       },
     } as MessageEvent<AcousticWorkerResponse>);
 
-    expect(received).toEqual([{ source: "worker", computeMs: 3.25 }]);
+    expect(received).toEqual([{
+      source: "worker",
+      computeMs: 3.25,
+      workerCount: 2,
+      sourceComputeMsMax: 2.5,
+      sourceComputeMsTotal: 4.5,
+    }]);
   });
 
   it("rate-limits and coalesces fallback computations across a drag timeline", () => {
