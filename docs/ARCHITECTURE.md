@@ -6,8 +6,8 @@ The application now has a versioned authoring layer above both engine contracts:
 
 ```text
 UnifiedWorkspace
-  ├─ classic WorkspaceProject ─ projectClassicScene ─ Classic Worker / Web Audio
-  ├─ hybrid WorkspaceProject  ─ projectHybridDocument ─ Hybrid Worker / Web Audio
+  ├─ classic WorkspaceProject ─ projectClassicScene ─ Classic source Worker pool / Web Audio
+  ├─ hybrid WorkspaceProject  ─ projectHybridDocument ─ Hybrid source Worker pool / Web Audio
   ├─ per-mode 50-command reversible-diff history and localStorage cache
   └─ browser-only IndexedDB local-audio library
 ```
@@ -20,7 +20,11 @@ Project cache keys are `echo-canvas:project:classic:v1`, `echo-canvas:project:hy
 
 One `AudioEngine` belongs to `UnifiedWorkspace`, outside both mode adapters. A mode switch flushes the departing cache and updates the same graph; it does not construct another `AudioContext` or duplicate source graphs. Numeric pointer scrubbing begins a history transaction, updates the deterministic projection continuously, and commits one reversible patch on pointer release.
 
-Hybrid patch/BVH caching uses a static-geometry fingerprint containing room surfaces, enabled wall/Portal geometry, primitive facets, materials, and vertical bounds. Listener/source poses, selection, presentation camera, and revision do not invalidate that structure. The Worker and main-thread fallback compiler rebind only pose data until the static fingerprint changes.
+Hybrid patch/BVH caching uses a static-geometry fingerprint containing room surfaces, enabled wall/Portal geometry, primitive facets, materials, and vertical bounds. Listener/source poses, selection, presentation camera, and revision do not invalidate that structure. Each persistent Hybrid source Worker owns a cloned cached BVH. Pose-only frames send compact Listener/source data; a static edit reinstalls the changed geometry in every active Worker before that Worker computes its assigned sources. The deterministic serial fallback uses the same static fingerprint and pose-rebinding boundary.
+
+Each active mode has a main-thread coordinator and one to four persistent source Workers. Pool capacity is `min(4, max(1, floor(navigator.hardwareConcurrency) - 2))`, reserving two logical cores when possible; the active count for a completed frame is `min(sourceCount, capacity)`. A one-source scene therefore intentionally uses one active Worker. This is deterministic source sharding for bounded CPU work, not GPU acceleration or evidence of physical accuracy.
+
+The coordinator coalesces updates at 10–15 Hz, assigns stable source-ID shards, and accepts a frame only after every assigned Worker returns a valid result for the same request, revision, static fingerprint, compatibility hash, and source assignment. It merges shards atomically in deterministic source order and publishes pool wall latency, active Worker count, maximum shard compute time, and total shard compute time. A constructor, protocol, message, or compute failure invalidates the whole pool: partial results are discarded, all pool Workers are terminated, and complete deterministic serial fallback takes over. The visible status is `Fallback`, and authoring remains usable.
 
 ## Context diagram
 
@@ -44,7 +48,7 @@ User
                                               │          │
                            geometry snapshot  │          │ UI render
                                               ▼          ▼
-                                      Acoustic Web Worker Canvas/SVG
+                                      Main-thread coordinator + 1–4 source Workers / Canvas/SVG
                                               │
                                       AcousticFrame @ 10–15 Hz
                                               │
@@ -88,7 +92,9 @@ Contains:
 
 No React, Web Audio, Worker, or OpenAI dependencies.
 
-### 3. Acoustic Worker
+### 3. Acoustic Worker pools
+
+The Classic coordinator preserves the existing request/response facade shown below so consumers do not control individual shards. Hybrid uses an analogous internal pool contract and publishes one validated completed frame.
 
 Input:
 
@@ -109,15 +115,17 @@ type AcousticWorkerResponse =
 
 Responsibilities:
 
-- build geometry indexes;
-- determine direct visibility;
-- accumulate occlusion;
-- construct and query a portal visibility graph;
-- compute first-order image-source candidates;
-- estimate room volume, absorption, and three-band RT60;
-- return stable scalar parameters and debug paths.
+- keep one main-thread coordinator and one to four persistent source Workers for the active mode;
+- reserve two logical cores when possible, cap each pool at four, and never activate more Workers than sources;
+- source-shard direct visibility, occlusion, portal-graph routing, and first-order image-source candidates;
+- install and cache static geometry in each Worker, with compact pose-only updates between static edits;
+- compute Classic room absorption and three-band RT60 once per frame outside per-source shards;
+- validate request IDs, revisions, fingerprints, compatibility hashes, assigned source IDs, and result structure;
+- atomically merge all shards in stable source order before publishing scalar parameters and debug paths;
+- report wall latency, active Worker count, maximum shard time, and total shard time;
+- discard partial work and activate complete deterministic serial fallback if any pool member fails.
 
-Authoritative update rate: 10–15 Hz. Ignore stale frames by `revision`.
+Authoritative update rate: 10–15 Hz. The coordinator coalesces pending updates and ignores obsolete or stale frames. No partial pool frame reaches audio or overlays.
 
 ### 4. Audio engine
 
@@ -233,6 +241,7 @@ No database.
 - deploy a Vercel-compatible build;
 - keep all audio and preset data local to the app;
 - when OpenAI is unavailable, manual editing and presets still work;
+- when a Worker pool is unavailable, complete deterministic serial fallback keeps the matching acoustic frame, audio, overlays, and authoring available while the UI reports `Fallback`;
 - show deterministic error states rather than empty UI;
 - primary browsers: current desktop Chrome and Edge;
 - Safari/Firefox are best-effort and must be documented honestly.
@@ -241,6 +250,7 @@ No database.
 
 - 100 walls, 8 portals, 4 sources;
 - 6 early-reflection taps per source;
+- 1–4 persistent source Workers per active mode, capped at four and reserving two logical cores when possible;
 - Worker p95 calculation under 12 ms on a typical laptop;
 - no long task over 50 ms during normal dragging;
 - no Web Audio node allocation during steady-state acoustic updates;
@@ -310,8 +320,8 @@ public/
 1. User changes the scene or GPT returns a candidate.
 2. Domain validator emits an immutable, valid `SceneSpec` with a new revision.
 3. UI renders immediately.
-4. Worker receives a coalesced snapshot.
-5. Worker returns `AcousticFrame`.
+4. The active mode's coordinator receives a coalesced snapshot and shards its sources across one to four persistent Workers.
+5. The coordinator validates every shard and atomically returns one matching `AcousticFrame`; any pool failure produces the complete deterministic serial fallback instead.
 6. Client ignores frames older than the current revision.
 7. Audio engine smoothly maps parameters to persistent nodes.
 8. Debug UI displays the exact frame used by the audio engine.

@@ -143,7 +143,7 @@ Each item is complete only when its Acceptance and Verify sections pass.
   pnpm e2e
   pnpm build
   ```
-  Internal status: performance budgets, failure handling, input limits, server-only key boundary, asset/license audit, production build, and local production Chromium coverage are complete. Public deployment and its clean-profile browser smoke remain external, so the parent item intentionally stays unchecked.
+  Internal status: performance budgets, failure handling, input limits, server-only key boundary, asset/license audit, production build, and local production Chromium coverage are complete. Classic and Hybrid now use bounded deterministic source-sharded Worker pools with complete serial fallback; the production four-source fixture verifies the exact browser-derived active count, `<12 ms` Worker p95, and no task over 50 ms across all 24 measured switches. Public deployment and its clean-profile browser smoke remain external, so the parent item intentionally stays unchecked.
 
 - [ ] **12. Prepare submission-ready evidence**
   Spec ref: `PRD.md > Track and judging alignment`

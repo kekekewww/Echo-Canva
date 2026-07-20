@@ -63,6 +63,8 @@ pnpm e2e
 
 The browser suite starts its own local application server. The detailed human scripts and current verification evidence are in [`docs/STATUS.md`](docs/STATUS.md) and [`docs/ACCEPTANCE_TESTS.md`](docs/ACCEPTANCE_TESTS.md).
 
+The maximum-entity browser case keeps its long-task observer active across all 24 measured Listener switches, requires every recorded task to remain at or below 50 ms, and preserves the Worker p95 wall-latency budget below 12 ms. It also derives the exact expected active Worker count from the browser's own `navigator.hardwareConcurrency` and checks the completed four-source Hybrid frame against it.
+
 ## Gate C demo
 
 ### Reflection + room character
@@ -80,7 +82,7 @@ The browser suite starts its own local application server. The detailed human sc
 4. Close the portal and inspect the blocked fallback, `partition_center` occluder, and red wall highlight; reopen it to compare the route.
 5. Load **Stress Test — 100 Walls** to exercise the editor budget and see the visible wall-limit feedback.
 
-The stress preset is deterministic. Playwright measures selection and keyboard movement from the initiating event to the rendered DOM mutation with an in-page `MutationObserver` and `performance.now()`; both must complete in under 50 ms.
+The stress preset is deterministic. Playwright measures selection and keyboard movement from the initiating event to the rendered DOM mutation with an in-page `MutationObserver` and `performance.now()`; both must complete in under 50 ms. To inspect multicore use manually, load the four-source stress project, wait for **Ready**, open the status bar's **Debug** disclosure, and read the Worker count. The expected value is `min(4 sources, min(4, max(1, floor(navigator.hardwareConcurrency) - 2)))`; on a browser exposing at least four logical cores this is at least two. One-source scenes intentionally display one active Worker.
 
 ## Architecture
 
@@ -92,7 +94,10 @@ validated, versioned SceneSpec
         |                         GPT-5.6 control plane
         |                         server-only compile / explanation
         v
-deterministic acoustic pipeline   (server-side, strict structured output)
+main-thread coordinator
+        |
+        v
+1–4 persistent source Workers (deterministic acoustic pipeline)
         |
         v
 persistent Web Audio graph
@@ -102,7 +107,9 @@ Raw bus <-> Simulated distance + browser HRTF bus
 headphones
 ```
 
-The persistent audio graph updates gain, low-pass, panner, first-order reflection taps, and Schroeder reverb parameters through automation. The Worker computes deterministic direct-path occlusion, portal routes, image-source reflections, and three-band Eyring RT60; the UI renders only the matching selected-source frame. The `SceneSpec.settings.hrtfEnabled` flag selects `HRTF` or `equalpower` panning without rebuilding source graphs.
+The persistent audio graph updates gain, low-pass, panner, first-order reflection taps, and Schroeder reverb parameters through automation. Each active mode uses a main-thread coordinator plus one to four persistent source Workers, capped at four and reserving two logical cores when possible. Per-source direct-path occlusion, Portal routes, and first-order image-source work is deterministically sharded, validated, and atomically merged; Classic room values remain frame-level. Each Hybrid Worker owns a cloned cached BVH, receives compact pose updates, and reinstalls geometry after a static edit. The UI renders only the matching selected-source frame and exposes pool wall latency, Worker count, and shard timing in **Debug**. If any pool member fails, partial work is discarded and complete deterministic serial fallback continues while the status reads `Fallback`.
+
+This is bounded CPU source sharding for an interactive acoustic approximation. It is not GPU acceleration and does not establish physical or architectural-acoustics accuracy. The `SceneSpec.settings.hrtfEnabled` flag selects `HRTF` or `equalpower` panning without rebuilding source graphs.
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/ACOUSTICS.md`](docs/ACOUSTICS.md), and [`docs/API_CONTRACTS.md`](docs/API_CONTRACTS.md) for the contracts and model boundaries.
 

@@ -1,5 +1,24 @@
 # Status
 
+## Multicore source-sharded Worker pools — 2026-07-21
+
+- implemented and reviewed across `bdb56bc`, `3f9d26d`, `079d09f`, `517f8fd`, `1010db3`, and `d3f0724`: deterministic source-shard extraction, Classic and Hybrid persistent pools, compatibility validation, complete serial fallback, and completed-frame timestamp hardening
+- each active mode now coordinates one to four persistent source Workers, capped at four while reserving two logical cores when possible; active completed-frame count is bounded by source count, so a one-source scene intentionally uses one Worker
+- the coordinator validates request/revision/fingerprint/compatibility/source assignment, merges every source shard atomically in stable order, publishes pool wall and shard metrics, and discards partial work if any pool member fails
+- each Hybrid Worker owns a cloned cached BVH, receives compact pose updates, and reinstalls geometry after a static edit; no acoustic formula, Worker result, audio parameter, or first-order reflection limit changed
+- pool constructor, protocol, message, or compute failure now activates complete deterministic serial fallback and the UI reports `Fallback`; authoring, matching audio, and overlays remain available
+- TDD browser RED — PASS: the old stress test disconnected its PerformanceObserver after interaction 8, and the new active-through-24 assertion failed with `Expected true, Received false`
+- focused production Chromium GREEN — PASS, 1/1 test in 8.9 s; this browser exposed 32 logical cores, so the exact four-source expected/visible Worker count was 4, all 24 Listener switches remained observed, every collected long task was at most 50 ms, and p95 pool wall latency remained below 12 ms
+- `pnpm lint` — PASS, zero warnings
+- `pnpm typecheck` — PASS
+- `pnpm test` — PASS, 69 files / 459 tests
+- `pnpm e2e` — PASS, production build plus 44/44 Chromium tests in 36.9 s
+- `pnpm build` — PASS, five static routes and two dynamic API routes compiled
+- `git diff --check` — PASS
+- environment warning: Playwright's Node processes reported that `NO_COLOR` was ignored because `FORCE_COLOR` was set; it did not affect build or browser results
+
+Current action: complete the isolated documentation commit. Public deployment and clean-profile/headphone Gate E remain external owner actions.
+
 ## Hybrid wall / basic-shape depth-order repair — 2026-07-21
 
 - reproduced the overlap defect as fixed SVG painter order: every primitive group was emitted

@@ -346,14 +346,32 @@ test("survives the full entity-limit project within Worker and interaction budge
   await expect(page.getByTestId("unified-workspace")).toHaveAttribute("data-audio-graphs", "4");
   await expect.poll(async () => page.locator(".workspace-statusbar").getAttribute("data-worker-compute-ms"))
     .not.toBe("");
+  const expectedWorkerCount = await page.evaluate(() => {
+    const sourceCount = 4;
+    const hardwareConcurrency = navigator.hardwareConcurrency;
+    const capacity = !Number.isFinite(hardwareConcurrency) || hardwareConcurrency <= 0
+      ? 1
+      : Math.min(4, Math.max(1, Math.floor(hardwareConcurrency) - 2));
+    return Math.min(sourceCount, capacity);
+  });
+  const statusbar = page.locator(".workspace-statusbar");
+  await expect(statusbar).toHaveAttribute("data-worker-count", String(expectedWorkerCount));
+  if (expectedWorkerCount >= 2) {
+    expect(Number(await statusbar.getAttribute("data-worker-count"))).toBeGreaterThanOrEqual(2);
+  }
 
   for (let index = 0; index < 3; index += 1) {
     await outliner.locator(".kind-listener").nth(index).click();
     await page.waitForTimeout(120);
   }
   await page.evaluate(() => {
-    const state = window as Window & { __echoLongTasks?: number[]; __echoLongTaskObserver?: PerformanceObserver };
+    const state = window as Window & {
+      __echoLongTasks?: number[];
+      __echoLongTaskObserver?: PerformanceObserver;
+      __echoLongTaskObserverActive?: boolean;
+    };
     state.__echoLongTasks = [];
+    state.__echoLongTaskObserverActive = true;
     state.__echoLongTaskObserver = new PerformanceObserver((list) => {
       state.__echoLongTasks?.push(...list.getEntries().map(({ duration }) => duration));
     });
@@ -365,16 +383,25 @@ test("survives the full entity-limit project within Worker and interaction budge
     await page.waitForTimeout(120);
     const value = Number(await page.locator(".workspace-statusbar").getAttribute("data-worker-compute-ms"));
     if (Number.isFinite(value)) timings.push(value);
-    if (index === 7) await page.evaluate(() => {
-      const state = window as Window & { __echoLongTasks?: number[]; __echoLongTaskObserver?: PerformanceObserver };
-      state.__echoLongTasks?.push(...(state.__echoLongTaskObserver?.takeRecords().map(({ duration }) => duration) ?? []));
-      state.__echoLongTaskObserver?.disconnect();
-    });
   }
+  expect(await page.evaluate(() => (
+    window as Window & { __echoLongTaskObserverActive?: boolean }
+  ).__echoLongTaskObserverActive)).toBe(true);
+  const longTasks = await page.evaluate(() => {
+    const state = window as Window & {
+      __echoLongTasks?: number[];
+      __echoLongTaskObserver?: PerformanceObserver;
+      __echoLongTaskObserverActive?: boolean;
+    };
+    state.__echoLongTasks?.push(...(state.__echoLongTaskObserver?.takeRecords().map(({ duration }) => duration) ?? []));
+    state.__echoLongTaskObserver?.disconnect();
+    state.__echoLongTaskObserverActive = false;
+    return state.__echoLongTasks ?? [];
+  });
   const sorted = timings.toSorted((a, b) => a - b);
   expect(sorted.length).toBeGreaterThan(0);
   expect(sorted[Math.ceil(sorted.length * 0.95) - 1]).toBeLessThan(12);
-  expect(await page.evaluate(() => (window as Window & { __echoLongTasks?: number[] }).__echoLongTasks ?? [])).toEqual([]);
+  expect(longTasks.every((duration) => duration <= 50)).toBe(true);
 
   await page.getByRole("button", { name: "2.5D", exact: true }).click();
   await page.getByRole("button", { name: "3D", exact: true }).click();

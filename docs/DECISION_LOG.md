@@ -1,5 +1,11 @@
 # Decision Log
 
+## D-050 — Shard bounded source work across persistent Worker pools
+
+Decision (2026-07-21): Replace the single-Worker execution model in both Classic and Hybrid modes with a main-thread coordinator and one to four persistent source Workers. Capacity is capped at four and reserves two logical cores when possible; active count is also capped by source count, so a one-source scene intentionally uses one Worker. Shards merge atomically only after revision, fingerprint, compatibility, assignment, and response validation. Any pool failure discards partial work and activates complete deterministic serial fallback, reported visibly as `Fallback`. This decision supersedes D-046's stopped-simulation policy.
+
+Reason: Direct/Portal/first-order per-source work is independent and deterministic, so source sharding reduces bounded four-source wall latency without changing acoustic formulas or expanding to higher-order reflections. Persistent Workers amortize startup and static compilation. The tradeoffs are up to four cloned static caches (including one cached BVH per Hybrid Worker), coordination/validation overhead, and no speedup for the intentionally single-Worker one-source case. This is CPU source sharding, not GPU acceleration or a claim of physical accuracy.
+
 ## D-049 — Add bounded faceted acoustic primitives after owner approval
 
 Decision: Add at most eight authorable Box, Cylinder, or Sphere acoustic primitives. Classic
@@ -46,6 +52,8 @@ Decision: Hybrid walls compile front/back panels plus top, bottom, and end caps.
 Reason: A front-face-only opening looked and behaved like a column rather than a wall. Closed/open states and first-order surface candidates must describe the same finite authoring geometry.
 
 ## D-046 — Stop active simulation when its Worker is unavailable
+
+Superseded by D-050 on 2026-07-21. Worker-pool denial now activates complete deterministic serial fallback and reports `Fallback`.
 
 Decision: The deterministic hook may compute an internal main-thread diagnostic fallback, but the workspace adapter does not send fallback frames to audio or path overlays. It reports `Stopped · Worker unavailable`; authoring and the other mode remain usable.
 

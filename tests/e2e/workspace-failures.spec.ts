@@ -33,7 +33,7 @@ test("keeps authoring available when Workers cannot start", async ({ page }) => 
     });
   });
   await page.goto("/lab");
-  await expect(page.locator(".workspace-statusbar")).toContainText("Stopped");
+  await expect(page.locator(".workspace-statusbar")).toContainText("Fallback");
   const x = page.getByRole("textbox", { name: "X position" });
   await x.fill("4.2");
   await x.press("Enter");
