@@ -9,6 +9,13 @@ test("authors basic acoustic shapes in Hybrid 3D", async ({ page }) => {
   await expect(page.getByRole("complementary", { name: "Scene Outliner" }).locator(".kind-primitive")).toHaveCount(1);
   await expect(page.locator('[data-testid^="hybrid-primitive-box_"]')).toBeVisible();
 
+  const surfaceLayer = page.getByTestId("hybrid-geometry-surface-layer");
+  await expect(surfaceLayer.locator('[data-surface-kind="wall"]')).not.toHaveCount(0);
+  await expect(surfaceLayer.locator('[data-surface-kind="primitive"]')).not.toHaveCount(0);
+  const depths = await surfaceLayer.locator("[data-surface-depth]").evaluateAll((nodes) =>
+    nodes.map((node) => Number(node.getAttribute("data-surface-depth"))));
+  expect(depths).toEqual([...depths].sort((left, right) => left - right));
+
   await page.getByRole("textbox", { name: "Width" }).fill("2.5 m");
   await page.getByRole("textbox", { name: "Width" }).press("Enter");
   await page.getByRole("textbox", { name: "Y position" }).fill("1.8 m");

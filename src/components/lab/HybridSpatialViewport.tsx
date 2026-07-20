@@ -3,7 +3,7 @@
 import { HybridPathOverlay, type HybridDisplayPath } from "@/components/workspace/HybridPathOverlay";
 import { clientPointToSvg, type Rect } from "@/domain/editor/coordinates";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { primitivePatches } from "@/acoustics/hybrid3d/primitives";
 import type { AcousticPrimitive } from "@/domain/workspace/types";
 
@@ -12,6 +12,7 @@ import {
   clampViewportCamera,
   frameViewportPoints,
   northViewportAngleDeg,
+  projectViewportDepth,
   projectViewportPoint,
   unprojectViewportPointAtHeight,
   zoomViewportCameraAtPoint,
@@ -92,10 +93,25 @@ type DragState =
 
 type ProjectedWall = Readonly<{
   wall: HybridViewportWall;
-  panels: readonly (readonly ScreenPoint[])[];
+  panels: readonly ProjectedSurfacePanel[];
   portalOutlines: readonly Readonly<{ portal: HybridViewportPortal; points: readonly ScreenPoint[]; center: ScreenPoint }>[];
   endpointA: ScreenPoint;
   endpointB: ScreenPoint;
+}>;
+
+type ProjectedSurfacePanel = Readonly<{
+  points: readonly ScreenPoint[];
+  depth: number;
+}>;
+
+type GeometrySurface = Readonly<{
+  key: string;
+  kind: "wall" | "primitive";
+  ownerId: string;
+  points: readonly ScreenPoint[];
+  depth: number;
+  closed?: boolean;
+  selected?: boolean;
 }>;
 
 const VIEW_BOX: Rect = { minX: 0, minY: 0, width: 1200, height: 720 };
@@ -108,6 +124,13 @@ function clamp(value: number, minimum: number, maximum: number): number {
 
 function points(value: readonly ScreenPoint[]): string {
   return value.map((point) => `${point.x},${point.y}`).join(" ");
+}
+
+function projectSurfacePanel(vertices: readonly ViewportVec3[], camera: ViewportCamera): ProjectedSurfacePanel {
+  return {
+    points: vertices.map((vertex) => projectViewportPoint(vertex, camera)),
+    depth: vertices.reduce((total, vertex) => total + projectViewportDepth(vertex, camera), 0) / vertices.length,
+  };
 }
 
 function lineDelta(origin: ScreenPoint, target: ScreenPoint): ScreenPoint {
@@ -153,23 +176,33 @@ function projectWall(wall: HybridViewportWall, camera: ViewportCamera): Projecte
   if (cursor < length) rectangles.push({ start: cursor, end: length, bottom: wall.bottomM, top: wall.topM });
   if (openings.length === 0) rectangles.push({ start: 0, end: length, bottom: wall.bottomM, top: wall.topM });
 
-  const panel = (start: number, end: number, bottom: number, top: number, offset: number) => {
+  const panelVertices = (start: number, end: number, bottom: number, top: number, offset: number): readonly ViewportVec3[] => {
     const a = wallPoint(wall, start, offset);
     const b = wallPoint(wall, end, offset);
     return [
-      projectViewportPoint({ x: a.x, y: bottom, z: a.z }, camera),
-      projectViewportPoint({ x: a.x, y: top, z: a.z }, camera),
-      projectViewportPoint({ x: b.x, y: top, z: b.z }, camera),
-      projectViewportPoint({ x: b.x, y: bottom, z: b.z }, camera),
+      { x: a.x, y: bottom, z: a.z },
+      { x: a.x, y: top, z: a.z },
+      { x: b.x, y: top, z: b.z },
+      { x: b.x, y: bottom, z: b.z },
     ];
   };
+  const panel = (start: number, end: number, bottom: number, top: number, offset: number) =>
+    projectSurfacePanel(panelVertices(start, end, bottom, top, offset), camera);
   const half = wall.thicknessM / 2;
   const panels = rectangles.flatMap((rectangle) => [
     panel(rectangle.start, rectangle.end, rectangle.bottom, rectangle.top, -half),
     panel(rectangle.start, rectangle.end, rectangle.bottom, rectangle.top, half),
   ]);
-  panels.push(panel(0, 0, wall.bottomM, wall.topM, -half).slice(0, 2).concat(panel(0, 0, wall.bottomM, wall.topM, half).slice(0, 2).reverse()));
-  panels.push(panel(length, length, wall.bottomM, wall.topM, -half).slice(0, 2).concat(panel(length, length, wall.bottomM, wall.topM, half).slice(0, 2).reverse()));
+  for (const distance of [0, length]) {
+    const front = wallPoint(wall, distance, -half);
+    const back = wallPoint(wall, distance, half);
+    panels.push(projectSurfacePanel([
+      { x: front.x, y: wall.bottomM, z: front.z },
+      { x: front.x, y: wall.topM, z: front.z },
+      { x: back.x, y: wall.topM, z: back.z },
+      { x: back.x, y: wall.bottomM, z: back.z },
+    ], camera));
+  }
 
   const portalOutlines = wall.portals.map((portal) => {
     const interval = portalInterval(wall, portal);
@@ -196,27 +229,6 @@ function projectWall(wall: HybridViewportWall, camera: ViewportCamera): Projecte
     endpointB: projectViewportPoint({ x: wall.b.x, y: wall.bottomM, z: wall.b.z }, camera),
   };
 }
-
-const HybridWallSurfaceLayer = memo(function HybridWallSurfaceLayer({
-  projectedWalls,
-  onSelectTarget,
-}: Readonly<{
-  projectedWalls: readonly ProjectedWall[];
-  onSelectTarget: Props["onSelectTarget"];
-}>) {
-  return projectedWalls.flatMap(({ wall, panels }) => panels.map((panel, index) => (
-    <polygon
-      aria-hidden="true"
-      className={`hybrid-viewport-wall-panel${wall.portals.some(({ open }) => open) ? "" : " is-closed"}`}
-      key={`${wall.id}-panel-${index}`}
-      onClick={(event) => {
-        event.stopPropagation();
-        onSelectTarget({ type: "wall", id: wall.id });
-      }}
-      points={points(panel)}
-    />
-  )));
-});
 
 export function HybridSpatialViewport({
   roomDimensions: room,
@@ -259,9 +271,30 @@ export function HybridSpatialViewport({
     walls: walls.map((wall) => projectWall(wall, camera)),
     primitives: primitives.map((primitive) => ({
       primitive,
-      panels: primitivePatches(primitive).map((patch) => patch.vertices.map((vertex) => projectViewportPoint(vertex, camera))),
+      panels: primitivePatches(primitive).map((patch) => projectSurfacePanel(patch.vertices, camera)),
     })),
   }), [camera, primitives, room, walls]);
+  const geometrySurfaces = useMemo<readonly GeometrySurface[]>(() => [
+    ...projected.walls.flatMap(({ wall, panels }) => panels.map((panel, index) => ({
+      key: `${wall.id}-panel-${index}`,
+      kind: "wall" as const,
+      ownerId: wall.id,
+      points: panel.points,
+      depth: panel.depth,
+      closed: !wall.portals.some(({ open }) => open),
+      selected: selectedTarget?.type === "wall" && selectedTarget.id === wall.id,
+    }))),
+    ...projected.primitives.flatMap(({ primitive, panels }) => panels.map((panel, index) => ({
+      key: `${primitive.id}-panel-${index}`,
+      kind: "primitive" as const,
+      ownerId: primitive.id,
+      points: panel.points,
+      depth: panel.depth,
+      selected: selectedTarget?.type === "primitive" && selectedTarget.id === primitive.id,
+    }))),
+  ].sort((left, right) => left.depth - right.depth || (
+    left.kind === right.kind ? left.key.localeCompare(right.key) : left.kind === "wall" ? -1 : 1
+  )), [projected.primitives, projected.walls, selectedTarget]);
   const axis = useMemo(() => {
     const origin = projectViewportPoint({ x: room.widthM / 2, y: 0, z: room.depthM / 2 }, camera);
     return {
@@ -445,6 +478,22 @@ export function HybridSpatialViewport({
         {projected.floor.map((point, index) => <line className="hybrid-viewport-room-edge" key={`edge-${index}`} x1={point.x} x2={projected.ceiling[index]!.x} y1={point.y} y2={projected.ceiling[index]!.y} />)}
         <polyline className="hybrid-viewport-room-edge" fill="none" points={points([...projected.floor, projected.floor[0]!])} />
         {ceilingVisible ? <polyline className="hybrid-viewport-ceiling-edge" fill="none" points={points([...projected.ceiling, projected.ceiling[0]!])} /> : null}
+        <g data-testid="hybrid-geometry-surface-layer">
+          {geometrySurfaces.map((surface) => <polygon
+            aria-hidden="true"
+            className={surface.kind === "wall"
+              ? `hybrid-viewport-wall-panel${surface.closed ? " is-closed" : ""}${surface.selected ? " is-selected" : ""}`
+              : `hybrid-viewport-primitive-panel${surface.selected ? " is-selected" : ""}`}
+            data-surface-depth={surface.depth}
+            data-surface-kind={surface.kind}
+            key={surface.key}
+            onClick={surface.kind === "wall" ? (event) => {
+              event.stopPropagation();
+              onSelectTarget({ type: "wall", id: surface.ownerId });
+            } : undefined}
+            points={points(surface.points)}
+          />)}
+        </g>
         {projected.primitives.map(({ primitive, panels }) => {
           const selected = selectedTarget?.type === "primitive" && selectedTarget.id === primitive.id;
           return <g
@@ -466,11 +515,10 @@ export function HybridSpatialViewport({
             role="button"
             tabIndex={0}
           >
-            {panels.map((panel, index) => <polygon key={`${primitive.id}-${index}`} points={points(panel)} />)}
+            {panels.map((panel, index) => <polygon className="hybrid-viewport-primitive-hit-panel" key={`${primitive.id}-${index}`} points={points(panel.points)} />)}
             <text x={projectViewportPoint(primitive.position, camera).x} y={projectViewportPoint(primitive.position, camera).y - 18} textAnchor="middle">{primitive.name}</text>
           </g>;
         })}
-        <HybridWallSurfaceLayer onSelectTarget={onSelectTarget} projectedWalls={projected.walls} />
         {projected.walls.flatMap(({ portalOutlines }) => portalOutlines.map(({ portal, points: outline, center }) => (
           <g key={portal.id}>
             <polyline className="hybrid-viewport-portal" fill="none" points={points(outline)} />

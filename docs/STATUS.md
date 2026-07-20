@@ -1,5 +1,22 @@
 # Status
 
+## Hybrid wall / basic-shape depth-order repair — 2026-07-21
+
+- reproduced the overlap defect as fixed SVG painter order: every primitive group was emitted
+  before every Wall panel, so Walls covered shapes regardless of camera-space depth
+- moved Wall and primitive faces into one far-to-near camera-depth-sorted surface layer; a stable
+  Wall-before-primitive tie break keeps coincident authoring geometry discoverable
+- retained a transparent primitive interaction layer above painted surfaces so a partially hidden
+  shape remains directly selectable and draggable without changing deterministic acoustics
+- red/green camera-depth unit verification — PASS, including 180-degree orbit reversal
+- focused production-Chromium overlap/ordering verification — PASS, 1 test
+- final `pnpm verify` — PASS: lint, typecheck, 63 unit files / 376 tests, production build, and
+  44/44 production Chromium tests
+- `git diff --check` — PASS
+
+Current action: commit the isolated viewport repair and restart the local development candidate
+for human acceptance.
+
 ## Basic acoustic shapes — 2026-07-21
 
 - added selectable Box, Cylinder, and Sphere obstacles to the shared modelling workspace, with a

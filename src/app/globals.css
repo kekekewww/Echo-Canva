@@ -1953,12 +1953,15 @@ select {
   stroke-width: 4;
 }
 .hybrid-viewport-wall-panel.is-closed { fill: rgba(128, 144, 146, 0.88); }
+.hybrid-viewport-wall-panel.is-selected { stroke: #fff0dc; stroke-width: 5; }
+.hybrid-viewport-primitive-panel { fill: rgba(143, 122, 194, .44); stroke: rgba(214, 201, 245, .78); stroke-width: 2; }
+.hybrid-viewport-primitive-panel.is-selected { fill: rgba(169, 150, 216, .62); stroke: #f0eaff; stroke-width: 3; }
 .hybrid-viewport-primitive { cursor: move; outline: none; }
-.hybrid-viewport-primitive polygon { fill: rgba(143, 122, 194, .36); stroke: rgba(214, 201, 245, .72); stroke-width: 2; }
+.hybrid-viewport-primitive-hit-panel { fill: rgba(0, 0, 0, .001); pointer-events: all; stroke: transparent; stroke-width: 8; }
 .hybrid-viewport-primitive text { fill: #ded5f4; font: 15px var(--mono); pointer-events: none; }
-.hybrid-viewport-primitive:hover polygon,
-.hybrid-viewport-primitive:focus-visible polygon,
-.hybrid-viewport-primitive.is-selected polygon { filter: url(#hybrid-viewport-glow); fill: rgba(169, 150, 216, .58); stroke: #f0eaff; stroke-width: 4; }
+.hybrid-viewport-primitive:hover .hybrid-viewport-primitive-hit-panel,
+.hybrid-viewport-primitive:focus-visible .hybrid-viewport-primitive-hit-panel,
+.hybrid-viewport-primitive.is-selected .hybrid-viewport-primitive-hit-panel { filter: url(#hybrid-viewport-glow); stroke: #f0eaff; }
 .hybrid-viewport-svg[data-placing-wall="true"] .hybrid-viewport-wall-panel { pointer-events: none; }
 .hybrid-viewport-portal { stroke: var(--signal); stroke-dasharray: 8 7; stroke-width: 7; }
 

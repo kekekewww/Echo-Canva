@@ -5,6 +5,7 @@ import {
   clampViewportCamera,
   frameViewportPoints,
   northViewportAngleDeg,
+  projectViewportDepth,
   projectViewportPoint,
   unprojectViewportPointAtHeight,
   zoomViewportCameraAtPoint,
@@ -77,6 +78,16 @@ describe("Hybrid Lab viewport math", () => {
 
   it("provides a finite screen-space bearing for declared +Z north", () => {
     expect(Number.isFinite(northViewportAngleDeg(DEFAULT_VIEWPORT_CAMERA))).toBe(true);
+  });
+
+  it("orders orthographic surfaces by camera-space depth and reverses after a half orbit", () => {
+    const near = { x: 6, y: 1, z: 6 };
+    const far = { x: 6, y: 1, z: 2 };
+    const forwardCamera = { yawDeg: 0, pitchDeg: 30, zoom: 1, panX: 0, panY: 0 };
+    const reverseCamera = { ...forwardCamera, yawDeg: 180 };
+
+    expect(projectViewportDepth(near, forwardCamera)).toBeGreaterThan(projectViewportDepth(far, forwardCamera));
+    expect(projectViewportDepth(near, reverseCamera)).toBeLessThan(projectViewportDepth(far, reverseCamera));
   });
 
   it("keeps fixed-height dragging finite through a horizon-level camera view", () => {

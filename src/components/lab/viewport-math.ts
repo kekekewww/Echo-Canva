@@ -72,6 +72,16 @@ export function projectViewportPoint(point: ViewportVec3, camera: ViewportCamera
   };
 }
 
+/** Camera-space depth for far-to-near SVG painter ordering. Larger values are nearer. */
+export function projectViewportDepth(point: ViewportVec3, camera: ViewportCamera): number {
+  const normalizedCamera = clampViewportCamera(camera);
+  const relative = relativeToRoomCenter(point);
+  const yaw = radians(normalizedCamera.yawDeg);
+  const pitch = radians(normalizedCamera.pitchDeg);
+  const yawZ = -Math.sin(yaw) * relative.x + Math.cos(yaw) * relative.z;
+  return Math.sin(pitch) * relative.y + Math.cos(pitch) * yawZ;
+}
+
 /** Inverse ground-plane projection for direct object dragging at a fixed elevation. */
 export function unprojectViewportPointAtHeight(
   screen: ScreenPoint,
