@@ -85,7 +85,7 @@ class FakeShardWorker {
     this.terminateCalls += 1;
   }
 
-  emit(response: ClassicSourceWorkerResponse): void {
+  emit(response: unknown): void {
     this.onmessage?.({ data: response } as MessageEvent<ClassicSourceWorkerResponse>);
   }
 
@@ -412,6 +412,47 @@ describe("Classic source Worker pool", () => {
     expect(responses).toEqual([expect.objectContaining({
       type: "ERROR",
       revision: 50,
+      code: "CLASSIC_POOL_FAILED",
+    })]);
+    expect(workers.map(({ terminateCalls }) => terminateCalls)).toEqual([1, 1]);
+  });
+
+  it.each([
+    ["null source IDs", (response: Extract<ClassicSourceWorkerResponse, { type: "SHARD_RESULT" }>) => ({ ...response, sourceIds: null })],
+    ["null results", (response: Extract<ClassicSourceWorkerResponse, { type: "SHARD_RESULT" }>) => ({ ...response, results: null })],
+    ["null result", (response: Extract<ClassicSourceWorkerResponse, { type: "SHARD_RESULT" }>) => ({ ...response, results: [null] })],
+    ["null nested frame", (response: Extract<ClassicSourceWorkerResponse, { type: "SHARD_RESULT" }>) => ({ ...response, results: [{ ...response.results[0], frame: null }] })],
+    ["non-finite nested frame", (response: Extract<ClassicSourceWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{
+        ...response.results[0],
+        frame: { ...response.results[0]!.frame, physicalDistanceM: Number.NaN },
+      }],
+    })],
+  ] as const)("fails closed on a shard with %s", (_, alter) => {
+    const timers = new FakeTimers();
+    const workers: FakeShardWorker[] = [];
+    const responses: AcousticWorkerResponse[] = [];
+    const pool = createClassicSourcePool({
+      cancel: (timer) => timers.cancel(timer as number),
+      createWorker: () => {
+        const worker = new FakeShardWorker();
+        workers.push(worker);
+        return worker;
+      },
+      hardwareConcurrency: 8,
+      schedule: timers.schedule,
+    });
+    pool.onmessage = (event) => responses.push(event.data);
+    pool.postMessage({ type: "UPDATE_SCENE", scene: sceneWithSources(2, 55) });
+    timers.flush();
+
+    expect(() => workers[0]!.emit(alter(workers[0]!.shardResponse(1)))).not.toThrow();
+    workers[1]!.resolve(1);
+
+    expect(responses).toEqual([expect.objectContaining({
+      type: "ERROR",
+      revision: 55,
       code: "CLASSIC_POOL_FAILED",
     })]);
     expect(workers.map(({ terminateCalls }) => terminateCalls)).toEqual([1, 1]);

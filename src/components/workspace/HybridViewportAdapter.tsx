@@ -132,9 +132,6 @@ export function HybridViewportAdapter({ project, dispatch, audioEngine, wallPlac
       rt60MidS: workerAccepted ? room.rt60S.mid : null,
       worker: workerAccepted ? "Worker" : "Stopped",
       computeMs: workerAccepted ? direct.computeMs : null,
-      workerCount: null,
-      sourceComputeMsMax: null,
-      sourceComputeMsTotal: null,
     });
   }, [audible.paths, direct.computeMs, disabled, onAcousticStatus, project.activeListenerId, project.listeners, scene, selectedSourceId, workerAccepted]);
 

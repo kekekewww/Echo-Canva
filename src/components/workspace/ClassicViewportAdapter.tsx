@@ -9,9 +9,24 @@ import type { EditorAction } from "@/domain/editor/reducer";
 import type { EditorSelection } from "@/domain/editor/state";
 import { projectClassicScene } from "@/domain/workspace/projections";
 import type { ProjectAction, WorkspaceProject } from "@/domain/workspace/types";
-import { useAcousticFrame } from "@/hooks/useAcousticFrame";
+import { useAcousticFrame, type AcousticFrameResult } from "@/hooks/useAcousticFrame";
 import type { AudioEngine } from "@/audio/AudioEngine";
 import type { WorkspaceAcousticStatus } from "@/components/workspace/WorkspaceStatusBar";
+
+export function resolveClassicAcousticPresentation(acoustic: AcousticFrameResult): Readonly<{
+  frame: AcousticFrameResult["frame"];
+  worker: WorkspaceAcousticStatus["worker"];
+  headerStatus: string;
+}> {
+  const fallback = acoustic.metrics?.source === "fallback" || acoustic.fallbackNotice !== null;
+  return {
+    frame: acoustic.frame,
+    worker: acoustic.frame ? fallback ? "Fallback" : "Worker" : "Stopped",
+    headerStatus: acoustic.fallbackNotice
+      ? `Fallback · ${acoustic.fallbackNotice}`
+      : acoustic.frame ? "Worker" : "Starting",
+  };
+}
 
 export function ClassicViewportAdapter({ project, dispatch, audioEngine, wallPlacementFirst, onWallPlacementPoint, onAcousticStatus }: Readonly<{
   project: WorkspaceProject;
@@ -23,7 +38,8 @@ export function ClassicViewportAdapter({ project, dispatch, audioEngine, wallPla
 }>) {
   const scene = useMemo(() => projectClassicScene(project), [project]);
   const acoustic = useAcousticFrame(scene);
-  const acceptedFrame = acoustic.fallbackNotice ? null : acoustic.frame;
+  const presentation = resolveClassicAcousticPresentation(acoustic);
+  const acceptedFrame = presentation.frame;
   useEffect(() => {
     if (acceptedFrame) audioEngine.applyAcousticFrame(acceptedFrame);
   }, [acceptedFrame, audioEngine]);
@@ -36,13 +52,13 @@ export function ClassicViewportAdapter({ project, dispatch, audioEngine, wallPla
       route: source?.routeType ?? "none",
       gainDb: source?.dryGainDb ?? null,
       rt60MidS: acceptedFrame?.room.rt60S.mid ?? null,
-      worker: acceptedFrame ? "Worker" : "Stopped",
+      worker: acceptedFrame ? presentation.worker : "Stopped",
       computeMs: acceptedFrame ? acoustic.metrics?.computeMs ?? null : null,
       workerCount: acceptedFrame ? acoustic.metrics?.workerCount ?? null : null,
       sourceComputeMsMax: acceptedFrame ? acoustic.metrics?.sourceComputeMsMax ?? null : null,
       sourceComputeMsTotal: acceptedFrame ? acoustic.metrics?.sourceComputeMsTotal ?? null : null,
     });
-  }, [acceptedFrame, acoustic.metrics, onAcousticStatus, project.activeListenerId, project.listeners, project.selection, scene.sources]);
+  }, [acceptedFrame, acoustic.metrics, onAcousticStatus, presentation.worker, project.activeListenerId, project.listeners, project.selection, scene.sources]);
   const selection: EditorSelection = project.selection?.type === "listener"
     ? { type: "listener" }
     : project.selection?.type === "source" || project.selection?.type === "wall" || project.selection?.type === "portal"
@@ -114,7 +130,7 @@ export function ClassicViewportAdapter({ project, dispatch, audioEngine, wallPla
     <section className="workspace-viewport-panel" data-testid="classic-workspace-viewport">
       <header className="viewport-tools">
         <span>{scene.name}</span>
-        <span>{acoustic.fallbackNotice ? "Stopped · Worker unavailable" : acceptedFrame ? "Worker" : "Starting"}</span>
+        <span>{presentation.headerStatus}</span>
         <button onClick={() => onCameraChange({ ...project.view.camera, zoom: 1, panX: 0, panY: 0 })} type="button">Home</button>
         <button onClick={frameAll} type="button">Frame All</button>
       </header>

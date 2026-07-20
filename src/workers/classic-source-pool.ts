@@ -60,6 +60,64 @@ type InFlightJob = {
   computeMsByWorker: Map<number, number>;
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((entry) => typeof entry === "string");
+}
+
+function isVec2(value: unknown): boolean {
+  return isRecord(value) && isFiniteNumber(value.x) && isFiniteNumber(value.y);
+}
+
+function isEarlyReflection(value: unknown): boolean {
+  return isRecord(value)
+    && typeof value.wallId === "string"
+    && isFiniteNumber(value.pathLengthM)
+    && isFiniteNumber(value.delayMs)
+    && isFiniteNumber(value.gainDb)
+    && isFiniteNumber(value.lowpassHz)
+    && isVec2(value.reflectionPoint);
+}
+
+function isAcousticFrameSource(value: unknown, sourceId: string): boolean {
+  return isRecord(value)
+    && value.sourceId === sourceId
+    && (value.routeType === "direct" || value.routeType === "portal" || value.routeType === "blocked")
+    && typeof value.directVisible === "boolean"
+    && isFiniteNumber(value.physicalDistanceM)
+    && isFiniteNumber(value.effectiveDistanceM)
+    && isFiniteNumber(value.dryGainDb)
+    && isFiniteNumber(value.lowpassHz)
+    && isFiniteNumber(value.reverbSendDb)
+    && isVec2(value.virtualPosition)
+    && isStringArray(value.occluderWallIds)
+    && isStringArray(value.portalIds)
+    && Array.isArray(value.routePolyline)
+    && value.routePolyline.every(isVec2)
+    && Array.isArray(value.earlyReflections)
+    && value.earlyReflections.every(isEarlyReflection);
+}
+
+function isClassicSourceResult(
+  value: unknown,
+  sourceId: string,
+  revision: number,
+  staticFingerprint: string,
+): value is ClassicSourceResult {
+  return isRecord(value)
+    && value.sourceId === sourceId
+    && value.revision === revision
+    && value.staticFingerprint === staticFingerprint
+    && isAcousticFrameSource(value.frame, sourceId);
+}
+
 export function createClassicSourcePool(
   options: ClassicSourcePoolOptions = {},
 ): ClassicSourcePoolLike {
@@ -192,46 +250,52 @@ export function createClassicSourcePool(
   const sameSourceIds = (left: readonly string[], right: readonly string[]): boolean =>
     left.length === right.length && left.every((sourceId, index) => sourceId === right[index]);
 
-  const handleWorkerResponse = (workerIndex: number, response: ClassicSourceWorkerResponse): void => {
+  const handleWorkerResponse = (workerIndex: number, payload: unknown): void => {
     if (stopped) return;
-    const job = inFlight;
-    if (!job) {
-      fail(new Error("Classic source Worker responded without an in-flight job."));
-      return;
+    try {
+      if (!isRecord(payload) || typeof payload.type !== "string") {
+        throw new Error("Classic source Worker returned a malformed response.");
+      }
+      if (payload.type === "ERROR") {
+        throw new Error(typeof payload.message === "string" ? payload.message : "Classic source Worker failed.");
+      }
+      const job = inFlight;
+      if (!job) throw new Error("Classic source Worker responded without an in-flight job.");
+      if (
+        (payload.type !== "STATIC_INSTALLED" && payload.type !== "SHARD_RESULT")
+        || payload.requestId !== job.requestId
+        || payload.staticFingerprint !== job.snapshot.staticFingerprint
+        || workerIndex >= job.assignments.length
+      ) {
+        throw new Error("Classic source Worker response identity mismatch.");
+      }
+      if (payload.type === "STATIC_INSTALLED") return;
+      const assignment = job.assignments[workerIndex]!;
+      if (
+        payload.revision !== job.snapshot.revision
+        || !isStringArray(payload.sourceIds)
+        || !sameSourceIds(payload.sourceIds, assignment)
+        || job.resultsByWorker.has(workerIndex)
+        || !isFiniteNumber(payload.computeMs)
+        || payload.computeMs < 0
+        || !isFiniteNumber(payload.completedAtMs)
+        || !Array.isArray(payload.results)
+        || payload.results.length !== assignment.length
+        || !payload.results.every((result, index) => isClassicSourceResult(
+          result,
+          assignment[index]!,
+          job.snapshot.revision,
+          job.snapshot.staticFingerprint,
+        ))
+      ) {
+        throw new Error("Classic source Worker returned a malformed shard.");
+      }
+      job.resultsByWorker.set(workerIndex, payload.results);
+      job.computeMsByWorker.set(workerIndex, payload.computeMs);
+      finishIfComplete();
+    } catch (error) {
+      fail(error);
     }
-    if (response.type === "ERROR") {
-      fail(new Error(response.message));
-      return;
-    }
-    if (
-      response.requestId !== job.requestId
-      || response.staticFingerprint !== job.snapshot.staticFingerprint
-    ) {
-      fail(new Error("Classic source Worker response identity mismatch."));
-      return;
-    }
-    if (response.type === "STATIC_INSTALLED") return;
-    const assignment = job.assignments[workerIndex];
-    if (
-      !assignment
-      || response.revision !== job.snapshot.revision
-      || !sameSourceIds(response.sourceIds, assignment)
-      || job.resultsByWorker.has(workerIndex)
-      || !Number.isFinite(response.computeMs)
-      || response.computeMs < 0
-      || response.results.length !== assignment.length
-      || response.results.some((result, index) =>
-        result.sourceId !== assignment[index]
-        || result.revision !== job.snapshot.revision
-        || result.staticFingerprint !== job.snapshot.staticFingerprint
-        || result.frame.sourceId !== assignment[index])
-    ) {
-      fail(new Error("Classic source Worker returned a malformed shard."));
-      return;
-    }
-    job.resultsByWorker.set(workerIndex, response.results);
-    job.computeMsByWorker.set(workerIndex, response.computeMs);
-    finishIfComplete();
   };
 
   const dispatch = (scene: SceneSpec): void => {

@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
 
-import { formatAcousticPoolMetrics } from "@/components/workspace/WorkspaceStatusBar";
+import {
+  formatAcousticPoolMetrics,
+  type WorkspaceAcousticStatus,
+} from "@/components/workspace/WorkspaceStatusBar";
+
+const hybridCompatibleStatus: WorkspaceAcousticStatus = {
+  listenerName: "Listener",
+  route: "direct",
+  gainDb: 0,
+  rt60MidS: 1,
+  worker: "Worker",
+  computeMs: 2,
+};
 
 describe("workspace acoustic pool metrics", () => {
   it("formats active Worker and shard timing metrics", () => {
@@ -12,6 +24,7 @@ describe("workspace acoustic pool metrics", () => {
   });
 
   it("keeps old-shape metrics compatible", () => {
+    expect(hybridCompatibleStatus.worker).toBe("Worker");
     expect(formatAcousticPoolMetrics({})).toBe("Pool metrics unavailable");
   });
 });

@@ -7,9 +7,9 @@ export type WorkspaceAcousticStatus = Readonly<{
   rt60MidS: number | null;
   worker: "Worker" | "Fallback" | "Stopped";
   computeMs: number | null;
-  workerCount: number | null;
-  sourceComputeMsMax: number | null;
-  sourceComputeMsTotal: number | null;
+  workerCount?: number | null;
+  sourceComputeMsMax?: number | null;
+  sourceComputeMsTotal?: number | null;
 }>;
 
 export function formatAcousticPoolMetrics(metrics: Readonly<{
