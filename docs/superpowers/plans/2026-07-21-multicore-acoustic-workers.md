@@ -111,4 +111,3 @@
 - [ ] Add an automated browser assertion that a multi-source scene reports at least two active workers when Chromium exposes sufficient logical cores, otherwise reports the deterministic single-worker result.
 - [ ] Run `pnpm lint`, `pnpm typecheck`, `pnpm test`, `pnpm e2e`, `pnpm build`, and `git diff --check`.
 - [ ] Commit as `docs(acoustics): record multicore worker architecture`.
-

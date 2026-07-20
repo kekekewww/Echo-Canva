@@ -6,6 +6,7 @@ import {
   type ClassicStaticContext,
 } from "@/acoustics/compute-frame";
 import { CONCRETE_PARTITION_PRESET } from "@/domain/presets/concrete-partition";
+import { HARD_ROOM_PRESET } from "@/domain/presets/hard-room";
 import type { SceneSpec } from "@/domain/scene/types";
 import type {
   AcousticWorkerResponse,
@@ -552,6 +553,107 @@ describe("Classic source Worker pool", () => {
     expect(responses).toEqual([expect.objectContaining({
       type: "ERROR",
       revision: 56,
+      code: "CLASSIC_POOL_FAILED",
+    })]);
+    expect(workers[0]!.terminateCalls).toBe(1);
+  });
+
+  it.each([
+    ["physical distance", (response: Extract<ClassicSourceWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{
+        ...response.results[0],
+        frame: {
+          ...response.results[0]!.frame,
+          physicalDistanceM: response.results[0]!.frame.physicalDistanceM + 0.25,
+          effectiveDistanceM: response.results[0]!.frame.effectiveDistanceM + 0.25,
+        },
+      }],
+    })],
+    ["route endpoint", (response: Extract<ClassicSourceWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{
+        ...response.results[0],
+        frame: {
+          ...response.results[0]!.frame,
+          routePolyline: response.results[0]!.frame.routePolyline.map((point, index) =>
+            index === 0 ? { x: point.x + 0.25, y: point.y } : point),
+        },
+      }],
+    })],
+    ["reflection path length", (response: Extract<ClassicSourceWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{
+        ...response.results[0],
+        frame: {
+          ...response.results[0]!.frame,
+          earlyReflections: response.results[0]!.frame.earlyReflections.map((reflection, index) =>
+            index === 0 ? { ...reflection, pathLengthM: reflection.pathLengthM + 0.25 } : reflection),
+        },
+      }],
+    })],
+    ["reflection delay", (response: Extract<ClassicSourceWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{
+        ...response.results[0],
+        frame: {
+          ...response.results[0]!.frame,
+          earlyReflections: response.results[0]!.frame.earlyReflections.map((reflection, index) =>
+            index === 0 ? { ...reflection, delayMs: reflection.delayMs + 0.5 } : reflection),
+        },
+      }],
+    })],
+    ["non-specular reflection point", (response: Extract<ClassicSourceWorkerResponse, { type: "SHARD_RESULT" }>) => {
+      const point = { x: 5, y: 0 };
+      const pathLengthM = Math.hypot(7.5 - point.x, 4 - point.y)
+        + Math.hypot(point.x - 3, point.y - 4);
+      return {
+        ...response,
+        results: [{
+          ...response.results[0],
+          frame: {
+            ...response.results[0]!.frame,
+            earlyReflections: response.results[0]!.frame.earlyReflections.map((reflection, index) =>
+              index === 0
+                ? {
+                    ...reflection,
+                    reflectionPoint: point,
+                    pathLengthM,
+                    delayMs: ((pathLengthM - 4.5) / 343) * 1_000,
+                  }
+                : reflection),
+          },
+        }],
+      };
+    }],
+  ] as const)("fails closed on plausible but inconsistent %s", (_, alter) => {
+    const timers = new FakeTimers();
+    const workers: FakeShardWorker[] = [];
+    const responses: AcousticWorkerResponse[] = [];
+    const pool = createClassicSourcePool({
+      cancel: (timer) => timers.cancel(timer as number),
+      createWorker: () => {
+        const worker = new FakeShardWorker();
+        workers.push(worker);
+        return worker;
+      },
+      hardwareConcurrency: 1,
+      schedule: timers.schedule,
+    });
+    pool.onmessage = (event) => responses.push(event.data);
+    const scene = structuredClone(HARD_ROOM_PRESET);
+    scene.revision = 57;
+    pool.postMessage({ type: "UPDATE_SCENE", scene });
+    timers.flush();
+    workers[0]!.ackInstall();
+    const valid = workers[0]!.shardResponse(1);
+    expect(valid.results[0]!.frame.earlyReflections.length).toBeGreaterThan(0);
+
+    workers[0]!.emit(alter(valid) as unknown);
+
+    expect(responses).toEqual([expect.objectContaining({
+      type: "ERROR",
+      revision: 57,
       code: "CLASSIC_POOL_FAILED",
     })]);
     expect(workers[0]!.terminateCalls).toBe(1);

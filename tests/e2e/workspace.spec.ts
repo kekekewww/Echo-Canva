@@ -387,20 +387,30 @@ test("survives the full entity-limit project within Worker and interaction budge
   expect(Number.isFinite(previousRevision)).toBe(true);
   for (let index = 0; index < 24; index += 1) {
     await outliner.locator(".kind-listener").nth(index % 8).click();
-    await expect.poll(async () => statusbar.evaluate((element, previous) => {
+    await expect.poll(async () => statusbar.evaluate((element, expected) => {
       const timing = element.getAttribute("data-worker-compute-ms");
       const revision = element.getAttribute("data-acoustic-revision");
       const sequence = element.getAttribute("data-acoustic-sequence");
-      return timing !== null && timing !== "" && Number.isFinite(Number(timing))
+      const workerCount = element.getAttribute("data-worker-count");
+      const workerSource = element.getAttribute("data-worker-source");
+      return workerSource === "Worker"
+        && workerCount !== null && workerCount !== "" && Number(workerCount) === expected.workerCount
+        && timing !== null && timing !== "" && Number.isFinite(Number(timing))
         && revision !== null && revision !== "" && Number.isFinite(Number(revision))
-        && Number(revision) > previous.revision
+        && Number(revision) > expected.revision
         && sequence !== null && sequence !== "" && Number.isFinite(Number(sequence))
-        && Number(sequence) > previous.sequence;
-    }, { revision: previousRevision, sequence: previousSequence })).toBe(true);
+        && Number(sequence) > expected.sequence;
+    }, {
+      revision: previousRevision,
+      sequence: previousSequence,
+      workerCount: expectedWorkerCount,
+    })).toBe(true);
     const sample = await statusbar.evaluate((element) => ({
       timing: element.getAttribute("data-worker-compute-ms"),
       revision: element.getAttribute("data-acoustic-revision"),
       sequence: element.getAttribute("data-acoustic-sequence"),
+      workerCount: element.getAttribute("data-worker-count"),
+      workerSource: element.getAttribute("data-worker-source"),
     }));
     expect(sample.timing).not.toBeNull();
     expect(sample.timing).not.toBe("");
@@ -408,6 +418,8 @@ test("survives the full entity-limit project within Worker and interaction budge
     expect(sample.revision).not.toBe("");
     expect(sample.sequence).not.toBeNull();
     expect(sample.sequence).not.toBe("");
+    expect(sample.workerSource).toBe("Worker");
+    expect(sample.workerCount).toBe(String(expectedWorkerCount));
     const timing = Number(sample.timing);
     const revision = Number(sample.revision);
     const sequence = Number(sample.sequence);

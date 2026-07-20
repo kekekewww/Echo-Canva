@@ -2,6 +2,13 @@
 
 ## Multicore source-sharded Worker pools — 2026-07-21
 
+- second independent-review hardening now reconstructs Classic and Hybrid source/listener distance, route endpoints, 343 m/s delay, direction/angle, finite-patch hit, and reflection-path relationships before accepting a Worker shard
+- new plausible-but-inconsistent regressions cover forged yet finite distance, route endpoint, direct/reflection delay, direction, azimuth, reflection point/path length, and arrival direction payloads
+- every one of the 24 maximum-entity stress samples must now report `Worker` and the exact expected active Worker count; a serial fallback can no longer satisfy the multicore performance proof
+- focused Classic/Hybrid pool verification — PASS, 92/92 tests including internally coherent but non-specular reflection-point payloads
+- final `pnpm lint`, `pnpm typecheck`, and `pnpm test` — PASS, 69 unit files / 487 tests
+- final `pnpm e2e` — PASS: fresh production build plus 44/44 Chromium tests; the maximum-entity Worker proof passed in 4.8 s
+- final worktree `git diff --check` — PASS (Windows line-ending notices only)
 - final-review hardening now adds per-job watchdogs, exact per-Worker static-install acknowledgement state, typed Hybrid unsupported-request errors, and semantic/bounds validation for every Classic/Hybrid shard before merge
 - silent, malformed, unexpected-ack, duplicate-ack, constructor, protocol, compute, and disposal paths all terminate the complete pool; Classic delegates to its latest-scene serial client fallback and Hybrid computes the latest complete geometry fallback
 - Classic fallback metrics now truthfully report zero Workers and zero shard time; accepted acoustic revision/request sequence are exposed for browser evidence
@@ -27,7 +34,7 @@
 - `git diff --check` — PASS
 - environment warning: Playwright's Node processes reported that `NO_COLOR` was ignored because `FORCE_COLOR` was set; it did not affect build or browser results
 
-Current action: submit the final-review hardening commit for independent re-review. Public deployment and clean-profile/headphone Gate E remain external owner actions.
+Current action: submit the completed independent-review repairs and range diff-check for final re-review. Public deployment and clean-profile/headphone Gate E remain external owner actions.
 
 ## Hybrid wall / basic-shape depth-order repair — 2026-07-21
 

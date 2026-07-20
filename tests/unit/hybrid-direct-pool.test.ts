@@ -9,6 +9,7 @@ import {
   computeHybridDirectSources,
 } from "@/acoustics/hybrid3d/direct";
 import { CONCRETE_PARTITION_PRESET } from "@/domain/presets/concrete-partition";
+import { HARD_ROOM_PRESET } from "@/domain/presets/hard-room";
 import { createSceneDocumentV2 } from "@/domain/scene-document/serialize";
 import type { SceneDocumentV2 } from "@/domain/scene-document/types";
 import type { SceneSpec } from "@/domain/scene/types";
@@ -158,6 +159,20 @@ function documentWithSources(count: number, revision = 1): SceneDocumentV2 {
 
 function pair(count: number, revision = 1): readonly [SceneDocumentV2, HybridGeometry] {
   const document = documentWithSources(count, revision);
+  return [document, compileHybridGeometry(document)];
+}
+
+function reflectionPair(revision = 1): readonly [SceneDocumentV2, HybridGeometry] {
+  const scene = structuredClone(HARD_ROOM_PRESET);
+  scene.revision = revision;
+  const document = createSceneDocumentV2(scene, {
+    spatial3d: {
+      coordinateSystem: "x-right-y-up-z-forward",
+      floorElevationM: 0,
+      listenerHeightM: 1.5,
+      sourceHeightsM: { hard_radio: 1.2 },
+    },
+  });
   return [document, compileHybridGeometry(document)];
 }
 
@@ -476,6 +491,126 @@ describe("Hybrid direct Worker pool", () => {
 
     expect(results).toHaveLength(1);
     expect(results[0]).toMatchObject({ source: "fallback", frame: { revision: 52 } });
+    expect(workers[0]!.terminateCalls).toBe(1);
+  });
+
+  it.each([
+    ["distance", (response: Extract<HybridDirectWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{ ...response.results[0], path: { ...response.results[0]!.path, distanceM: response.results[0]!.path.distanceM + 0.25 } }],
+    })],
+    ["delay", (response: Extract<HybridDirectWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{ ...response.results[0], path: { ...response.results[0]!.path, delayMs: response.results[0]!.path.delayMs + 0.5 } }],
+    })],
+    ["direction", (response: Extract<HybridDirectWorkerResponse, { type: "SHARD_RESULT" }>) => {
+      const direction = response.results[0]!.path.directionToSource;
+      const inverted = { x: -direction.x, y: -direction.y, z: -direction.z };
+      return {
+        ...response,
+        results: [{
+          ...response.results[0],
+          path: {
+            ...response.results[0]!.path,
+            directionToSource: inverted,
+            propagationDirection: direction,
+          },
+        }],
+      };
+    }],
+    ["azimuth", (response: Extract<HybridDirectWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{
+        ...response.results[0],
+        path: {
+          ...response.results[0]!.path,
+          azimuthDeg: response.results[0]!.path.azimuthDeg > 170
+            ? response.results[0]!.path.azimuthDeg - 5
+            : response.results[0]!.path.azimuthDeg + 5,
+        },
+      }],
+    })],
+    ["reflection path length", (response: Extract<HybridDirectWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{
+        ...response.results[0],
+        firstOrderReflections: response.results[0]!.firstOrderReflections.map((reflection, index) =>
+          index === 0 ? { ...reflection, pathLengthM: reflection.pathLengthM + 0.25 } : reflection),
+      }],
+    })],
+    ["reflection delay", (response: Extract<HybridDirectWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{
+        ...response.results[0],
+        firstOrderReflections: response.results[0]!.firstOrderReflections.map((reflection, index) =>
+          index === 0 ? { ...reflection, delayMs: reflection.delayMs + 0.5 } : reflection),
+      }],
+    })],
+    ["reflection arrival direction", (response: Extract<HybridDirectWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{
+        ...response.results[0],
+        firstOrderReflections: response.results[0]!.firstOrderReflections.map((reflection, index) =>
+          index === 0
+            ? {
+                ...reflection,
+                arrivalDirection: {
+                  x: -reflection.arrivalDirection.x,
+                  y: -reflection.arrivalDirection.y,
+                  z: -reflection.arrivalDirection.z,
+                },
+              }
+            : reflection),
+      }],
+    })],
+    ["non-specular reflection point", (response: Extract<HybridDirectWorkerResponse, { type: "SHARD_RESULT" }>) => {
+      const directDistanceM = response.results[0]!.path.distanceM;
+      return {
+        ...response,
+        results: [{
+          ...response.results[0],
+          firstOrderReflections: response.results[0]!.firstOrderReflections.map((reflection, index) => {
+            if (index !== 0) return reflection;
+            const point = { ...reflection.reflectionPoint, x: reflection.reflectionPoint.x + 0.1 };
+            const source = { x: 7.5, y: 1.2, z: 4 };
+            const listener = { x: 3, y: 1.5, z: 4 };
+            const pathLengthM = Math.hypot(source.x - point.x, source.y - point.y, source.z - point.z)
+              + Math.hypot(point.x - listener.x, point.y - listener.y, point.z - listener.z);
+            const arrival = {
+              x: point.x - listener.x,
+              y: point.y - listener.y,
+              z: point.z - listener.z,
+            };
+            const arrivalLength = Math.hypot(arrival.x, arrival.y, arrival.z);
+            return {
+              ...reflection,
+              reflectionPoint: point,
+              pathLengthM,
+              delayMs: (pathLengthM / 343) * 1_000,
+              excessDelayMs: ((pathLengthM - directDistanceM) / 343) * 1_000,
+              arrivalDirection: {
+                x: arrival.x / arrivalLength,
+                y: arrival.y / arrivalLength,
+                z: arrival.z / arrivalLength,
+              },
+            };
+          }),
+        }],
+      };
+    }],
+  ] as const)("falls back on plausible but inconsistent %s", (_, alter) => {
+    const { pool, results, timers, workers } = createHarness(1);
+    const current = reflectionPair(54);
+    pool.update(...current);
+    timers.flush();
+    workers[0]!.ackInstall();
+    const valid = workers[0]!.shardResponse();
+    expect(valid.results[0]!.firstOrderReflections.length).toBeGreaterThan(0);
+
+    workers[0]!.emit(alter(valid) as unknown);
+
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ source: "fallback", frame: { revision: 54 } });
     expect(workers[0]!.terminateCalls).toBe(1);
   });
 

@@ -8,8 +8,21 @@ import {
   type HybridDirectPoseSnapshot,
   type HybridDirectSourceResult,
 } from "@/acoustics/hybrid3d/direct";
-import type { SegmentPatchHit, Vec3 } from "@/acoustics/hybrid3d/geometry";
-import type { FirstOrderReflection3D } from "@/acoustics/hybrid3d/reflections";
+import {
+  dot3,
+  length3,
+  pointInPatch3,
+  subtract3,
+  SOUND_SPEED_MPS,
+  type AcousticPatch3,
+  type SegmentPatchHit,
+  type Vec3,
+} from "@/acoustics/hybrid3d/geometry";
+import {
+  imageRayIntersection,
+  reflectedPoint,
+  type FirstOrderReflection3D,
+} from "@/acoustics/hybrid3d/reflections";
 import { acousticUpdateIntervalMs } from "@/acoustics/update-rate";
 import type { SceneDocumentV2 } from "@/domain/scene-document/types";
 import type {
@@ -88,6 +101,8 @@ const MAX_COORDINATE_M = 100;
 const MAX_DISTANCE_M = 250;
 const MAX_DELAY_MS = 2_000;
 const MAX_TIMING_MS = 60_000;
+const ABSOLUTE_TOLERANCE = 1e-5;
+const RELATIVE_TOLERANCE = 1e-6;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -127,28 +142,81 @@ function isUnitVector(value: unknown): value is Vec3 {
   return isVec3(value) && Math.abs(Math.hypot(value.x, value.y, value.z) - 1) <= 1e-3;
 }
 
+function nearlyEqual(left: number, right: number): boolean {
+  return Math.abs(left - right) <= Math.max(
+    ABSOLUTE_TOLERANCE,
+    RELATIVE_TOLERANCE * Math.max(Math.abs(left), Math.abs(right)),
+  );
+}
+
+function sameVector3(left: Vec3, right: Vec3): boolean {
+  return nearlyEqual(left.x, right.x)
+    && nearlyEqual(left.y, right.y)
+    && nearlyEqual(left.z, right.z);
+}
+
+function patchContainsPoint(point: Vec3, patch: AcousticPatch3): boolean {
+  return Math.abs(dot3(subtract3(point, patch.vertices[0]!), patch.normal)) <= ABSOLUTE_TOLERANCE
+    && pointInPatch3(point, patch);
+}
+
 function isSegmentPatchHit(
   value: unknown,
   geometry: HybridGeometry,
   pathDistanceM: number,
+  sourcePosition: Vec3,
+  listenerPosition: Vec3,
 ): value is SegmentPatchHit {
   if (!isRecord(value) || !isBoundedString(value.patchId)) return false;
   const patch = geometry.patches.find(({ id }) => id === value.patchId);
-  return patch !== undefined
+  if (!(patch !== undefined
     && value.wallId === patch.wallId
     && value.surfaceId === patch.surfaceId
     && value.materialId === patch.materialId
     && isBoundedNumber(value.thicknessM, 0, 50)
     && isBoundedNumber(value.distanceM, 0, pathDistanceM)
-    && isVec3(value.point);
+    && isVec3(value.point))) return false;
+  const segment = subtract3(listenerPosition, sourcePosition);
+  const fraction = value.distanceM / pathDistanceM;
+  const expectedPoint = {
+    x: sourcePosition.x + segment.x * fraction,
+    y: sourcePosition.y + segment.y * fraction,
+    z: sourcePosition.z + segment.z * fraction,
+  };
+  return nearlyEqual(value.thicknessM, patch.thicknessM)
+    && patchContainsPoint(value.point, patch)
+    && sameVector3(value.point, expectedPoint);
 }
 
-function isDirectPath(value: unknown, sourceId: string, geometry: HybridGeometry): value is DirectPath3D {
+function isDirectPath(
+  value: unknown,
+  sourceId: string,
+  snapshot: HybridDirectPoseSnapshot,
+  geometry: HybridGeometry,
+): value is DirectPath3D {
   if (!isRecord(value) || !isBoundedNumber(value.distanceM, 0, MAX_DISTANCE_M)) return false;
+  const source = snapshot.sources.find(({ id }) => id === sourceId);
+  if (!source) return false;
   const distanceM = value.distanceM;
+  const toSource = subtract3(source.position, snapshot.listenerPosition);
+  const expectedDistanceM = length3(toSource);
+  if (expectedDistanceM <= 0 || !nearlyEqual(distanceM, expectedDistanceM)) return false;
+  const expectedDirection = {
+    x: toSource.x / expectedDistanceM,
+    y: toSource.y / expectedDistanceM,
+    z: toSource.z / expectedDistanceM,
+  };
   const occluderIds = new Set(geometry.patches.map(({ wallId, surfaceId }) => wallId ?? surfaceId));
   if (!Array.isArray(value.hits) || value.hits.length > geometry.patches.length) return false;
-  if (!value.hits.every((hit) => isSegmentPatchHit(hit, geometry, distanceM))) return false;
+  if (!value.hits.every((hit) => isSegmentPatchHit(
+    hit,
+    geometry,
+    distanceM,
+    source.position,
+    snapshot.listenerPosition,
+  ))) return false;
+  const hits = value.hits as SegmentPatchHit[];
+  if (hits.some((hit, index) => index > 0 && hit.distanceM < hits[index - 1]!.distanceM)) return false;
   const expectedOccluders = [...new Set((value.hits as SegmentPatchHit[]).map(({ wallId, surfaceId }) => wallId ?? surfaceId))];
   const routeConsistent = value.routeType === "direct"
     ? value.directVisible === true && value.hits.length === 0 && expectedOccluders.length === 0
@@ -158,8 +226,15 @@ function isDirectPath(value: unknown, sourceId: string, geometry: HybridGeometry
   return routeConsistent
     && value.sourceId === sourceId
     && isBoundedNumber(value.delayMs, 0, MAX_DELAY_MS)
+    && nearlyEqual(value.delayMs, (expectedDistanceM / SOUND_SPEED_MPS) * 1_000)
     && isUnitVector(value.directionToSource)
+    && sameVector3(value.directionToSource, expectedDirection)
     && isUnitVector(value.propagationDirection)
+    && sameVector3(value.propagationDirection, {
+      x: -expectedDirection.x,
+      y: -expectedDirection.y,
+      z: -expectedDirection.z,
+    })
     && Math.abs(
       value.directionToSource.x * value.propagationDirection.x
       + value.directionToSource.y * value.propagationDirection.y
@@ -167,25 +242,58 @@ function isDirectPath(value: unknown, sourceId: string, geometry: HybridGeometry
       + 1
     ) <= 1e-3
     && isBoundedNumber(value.azimuthDeg, -180, 180)
+    && nearlyEqual(value.azimuthDeg, (Math.atan2(expectedDirection.x, expectedDirection.z) * 180) / Math.PI)
     && isBoundedNumber(value.elevationDeg, -90, 90)
+    && nearlyEqual(value.elevationDeg, (Math.asin(expectedDirection.y) * 180) / Math.PI)
     && isUniqueKnownStringArray(value.occluderWallIds, geometry.patches.length, occluderIds)
     && value.occluderWallIds.length === expectedOccluders.length
     && value.occluderWallIds.every((id, index) => id === expectedOccluders[index]);
 }
 
-function isReflection(value: unknown, geometry: HybridGeometry): value is FirstOrderReflection3D {
+function isReflection(
+  value: unknown,
+  sourcePosition: Vec3,
+  listenerPosition: Vec3,
+  directDistanceM: number,
+  geometry: HybridGeometry,
+): value is FirstOrderReflection3D {
   if (!isRecord(value) || !isBoundedString(value.patchId)) return false;
   const patch = geometry.patches.find(({ id }) => id === value.patchId);
   const expectedSurfaceId = patch?.wallId ?? patch?.id;
-  return patch !== undefined
+  if (!(patch !== undefined
     && isBoundedString(value.id)
+    && value.id === `first:${expectedSurfaceId}`
     && value.surfaceId === expectedSurfaceId
     && value.materialId === patch.materialId
     && isVec3(value.reflectionPoint)
     && isBoundedNumber(value.pathLengthM, 0, MAX_DISTANCE_M * 2)
     && isBoundedNumber(value.delayMs, 0, MAX_DELAY_MS)
     && isBoundedNumber(value.excessDelayMs, 0, MAX_DELAY_MS)
-    && isUnitVector(value.arrivalDirection);
+    && isUnitVector(value.arrivalDirection))) return false;
+  if (!patchContainsPoint(value.reflectionPoint, patch)) return false;
+  const expectedReflectionPoint = imageRayIntersection(
+    reflectedPoint(sourcePosition, patch),
+    listenerPosition,
+    patch,
+  );
+  if (!expectedReflectionPoint || !sameVector3(value.reflectionPoint, expectedReflectionPoint)) return false;
+  const expectedPathLengthM = length3(subtract3(sourcePosition, value.reflectionPoint))
+    + length3(subtract3(value.reflectionPoint, listenerPosition));
+  const arrival = subtract3(value.reflectionPoint, listenerPosition);
+  const arrivalLength = length3(arrival);
+  if (arrivalLength <= 0) return false;
+  const expectedArrivalDirection = {
+    x: arrival.x / arrivalLength,
+    y: arrival.y / arrivalLength,
+    z: arrival.z / arrivalLength,
+  };
+  return nearlyEqual(value.pathLengthM, expectedPathLengthM)
+    && nearlyEqual(value.delayMs, (expectedPathLengthM / SOUND_SPEED_MPS) * 1_000)
+    && nearlyEqual(
+      value.excessDelayMs,
+      ((expectedPathLengthM - directDistanceM) / SOUND_SPEED_MPS) * 1_000,
+    )
+    && sameVector3(value.arrivalDirection, expectedArrivalDirection);
 }
 
 function isSourceResult(
@@ -194,15 +302,23 @@ function isSourceResult(
   snapshot: HybridDirectPoseSnapshot,
   geometry: HybridGeometry,
 ): value is HybridDirectSourceResult {
+  const source = snapshot.sources.find(({ id }) => id === sourceId);
+  if (!source || !isRecord(value) || !isDirectPath(value.path, sourceId, snapshot, geometry)) return false;
+  const directDistanceM = value.path.distanceM;
   return isRecord(value)
     && value.sourceId === sourceId
     && value.revision === snapshot.revision
     && value.staticFingerprint === snapshot.staticFingerprint
     && value.classicProjectionHash === snapshot.classicProjectionHash
-    && isDirectPath(value.path, sourceId, geometry)
     && Array.isArray(value.firstOrderReflections)
     && value.firstOrderReflections.length <= geometry.patches.length
-    && value.firstOrderReflections.every((reflection) => isReflection(reflection, geometry));
+    && value.firstOrderReflections.every((reflection) => isReflection(
+      reflection,
+      source.position,
+      snapshot.listenerPosition,
+      directDistanceM,
+      geometry,
+    ));
 }
 
 function sameSourceIds(left: readonly string[], right: readonly string[]): boolean {

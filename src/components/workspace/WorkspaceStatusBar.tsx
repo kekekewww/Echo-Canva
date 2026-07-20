@@ -41,6 +41,7 @@ export function WorkspaceStatusBar({ mode, revision, persistence, acoustic }: Re
       data-acoustic-sequence={acoustic?.requestSequence ?? ""}
       data-worker-compute-ms={acoustic?.computeMs ?? ""}
       data-worker-count={acoustic?.workerCount ?? ""}
+      data-worker-source={acoustic?.worker ?? "Stopped"}
     >
       <span><i /> {acoustic?.worker === "Stopped" ? "Stopped" : "Ready"}</span>
       <span>Listener {acoustic?.listenerName ?? "—"}</span>
