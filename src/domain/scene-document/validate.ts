@@ -7,6 +7,7 @@ import type {
 } from "@/domain/scene-document/types";
 import type { SceneSpec } from "@/domain/scene/types";
 import { validateScene } from "@/domain/scene/validate";
+import { primitiveFootprint } from "@/domain/workspace/primitives";
 
 function issue(path: string, code: string, message: string): SceneDocumentValidationIssue {
   return { path, code, message };
@@ -104,6 +105,39 @@ function validateV2Semantics(document: SceneDocumentV2): readonly SceneDocumentV
           "Source height must be strictly between the configured floor and room ceiling.",
         ),
       );
+    }
+  }
+  const primitiveIds = new Set<string>();
+  const roomXs = base.scene.room.outerPolygon.map(({ x }) => x);
+  const roomZs = base.scene.room.outerPolygon.map(({ y }) => y);
+  const roomBounds = {
+    minX: Math.min(...roomXs),
+    maxX: Math.max(...roomXs),
+    minZ: Math.min(...roomZs),
+    maxZ: Math.max(...roomZs),
+  };
+  for (const [index, primitive] of (spatial.primitives ?? []).entries()) {
+    if (primitiveIds.has(primitive.id)) {
+      errors.push(issue(
+        `extensions.spatial3d.primitives.${index}.id`,
+        "duplicate_primitive_id",
+        `Basic shape ID must be unique: ${primitive.id}`,
+      ));
+      continue;
+    }
+    primitiveIds.add(primitive.id);
+    const halfHeight = primitive.dimensions.y / 2;
+    const footprint = primitiveFootprint(primitive);
+    const outsidePlan = footprint.some(({ x, y: z }) =>
+      x < roomBounds.minX || x > roomBounds.maxX || z < roomBounds.minZ || z > roomBounds.maxZ);
+    const outsideHeight = primitive.position.y - halfHeight < spatial.floorElevationM ||
+      primitive.position.y + halfHeight > ceilingM;
+    if (outsidePlan || outsideHeight) {
+      errors.push(issue(
+        `extensions.spatial3d.primitives.${index}`,
+        "primitive_out_of_room",
+        "Basic shape extents must remain inside the room.",
+      ));
     }
   }
   return errors;

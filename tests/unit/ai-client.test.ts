@@ -13,6 +13,15 @@ describe("requestSceneCompilation", () => {
       sourceHeights: scene.sources.map(({ id }, index) => ({ sourceId: id, heightM: index === 0 ? 1.4 : 3.2 })),
       wallVerticalBounds: scene.walls.map(({ id }) => ({ wallId: id, bottomM: 0, topM: 4.5 })),
       portalVerticalBounds: scene.portals.map(({ id }) => ({ portalId: id, bottomM: 0, topM: 2.1, thicknessM: 0.2 })),
+      primitives: [{
+        id: "ai_box",
+        name: "AI Box",
+        kind: "box" as const,
+        position: { x: 7, y: 0.5, z: 5 },
+        dimensions: { x: 1, y: 1, z: 1 },
+        rotationYDeg: 0,
+        materialId: "wood_medium",
+      }],
     };
     let requestBody: unknown;
     const fetcher = async (_input: RequestInfo | URL, init?: RequestInit) => {

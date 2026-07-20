@@ -79,6 +79,9 @@ export function SceneOutliner({ project, onSelect, mobileOpen = false }: Props) 
         {project.scene.portals.map((portal) => row(
           { type: "portal", id: portal.id }, portal.id.replaceAll("_", " "), "portal", false, !disabled.has(portal.id),
         ))}
+        {project.primitives.map((primitive) => row(
+          { type: "primitive", id: primitive.id }, primitive.name, "primitive", false, !disabled.has(primitive.id),
+        ))}
         <p>Room</p>
         {row({ type: "surface", id: "room" }, "Room dimensions", "surface")}
         {project.mode === "hybrid-3d" ? (

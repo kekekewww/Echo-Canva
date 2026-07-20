@@ -24,7 +24,7 @@ const listenerSchema = z.object({
   enabled: z.boolean(),
 }).strict();
 const selectionSchema = z.object({
-  type: z.enum(["listener", "source", "wall", "portal", "surface"]),
+  type: z.enum(["listener", "source", "wall", "portal", "primitive", "surface"]),
   id: z.string().min(1),
 }).strict().nullable();
 const viewSchema = z.object({
@@ -73,6 +73,15 @@ const projectEnvelopeSchema = z.object({
     topM: z.number().finite(),
     thicknessM: z.number().finite(),
   }).strict()),
+  primitives: z.array(z.object({
+    id: z.string().min(1),
+    name: z.string().min(1).max(80),
+    kind: z.enum(["box", "cylinder", "sphere"]),
+    position: vec3Schema,
+    dimensions: vec3Schema,
+    rotationYDeg: z.number().finite(),
+    materialId: z.string().min(1),
+  }).strict()).max(8).optional(),
   missingAudioAssetIds: z.array(z.string()).optional(),
   localAudioMetadata: z.record(z.string(), z.object({
     id: z.string().min(1),
@@ -209,6 +218,7 @@ function migrateProjectCandidate(input: unknown, mode: WorkspaceMode): Workspace
       view: migrateView(parsedProject.data.view, mode),
       missingAudioAssetIds: parsedProject.data.missingAudioAssetIds ?? [],
       localAudioMetadata: parsedProject.data.localAudioMetadata ?? {},
+      primitives: parsedProject.data.primitives ?? [],
       notice: null,
     };
   }
@@ -244,6 +254,7 @@ function migrateProjectCandidate(input: unknown, mode: WorkspaceMode): Workspace
         }];
       })),
       disabledEntityIds: spatial.disabledSurfaceIds ?? [],
+      primitives: spatial.primitives ?? [],
     };
   }
   if (mode !== "classic-2d5d") return null;

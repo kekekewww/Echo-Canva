@@ -111,6 +111,7 @@ export function HybridViewportAdapter({ project, dispatch, audioEngine, wallPlac
     if (selection.type === "listener" || selection.type === "source") return { type: "object", id: selection.id };
     if (selection.type === "wall") return { type: "wall", id: selection.id };
     if (selection.type === "portal") return { type: "portal", id: selection.id };
+    if (selection.type === "primitive") return { type: "primitive", id: selection.id };
     return null;
   }, [project.selection]);
 
@@ -141,6 +142,10 @@ export function HybridViewportAdapter({ project, dispatch, audioEngine, wallPlac
       return;
     }
     if (project.scene.sources.some((source) => source.id === id)) dispatch({ type: "MOVE_SOURCE", id, position });
+  }
+
+  function movePrimitive(id: string, position: Vec3): void {
+    dispatch({ type: "UPDATE_PRIMITIVE", id, changes: { position } });
   }
 
   function moveWallEndpoint(id: string, endpoint: "a" | "b", position: Readonly<{ x: number; z: number }>): void {
@@ -176,7 +181,7 @@ export function HybridViewportAdapter({ project, dispatch, audioEngine, wallPlac
     }
     dispatch({
       type: "SELECT_ENTITY",
-      selection: { type: target.type === "wall" ? "wall" : "portal", id: target.id },
+      selection: { type: target.type === "wall" ? "wall" : target.type === "portal" ? "portal" : "primitive", id: target.id },
     });
   }, [dispatch, project.listeners]);
 
@@ -190,6 +195,7 @@ export function HybridViewportAdapter({ project, dispatch, audioEngine, wallPlac
         ceilingVisible={ceilingVisible && !disabled.has("ceiling")}
         objects={objects}
         onMoveObject={moveObject}
+        onMovePrimitive={movePrimitive}
         onCameraChange={(camera) => dispatch({ type: "SET_VIEW_STATE", changes: { camera } })}
         onMovePortalCenter={movePortal}
         onMoveWallEndpoint={moveWallEndpoint}
@@ -200,6 +206,7 @@ export function HybridViewportAdapter({ project, dispatch, audioEngine, wallPlac
         paths={workerAccepted ? displayPaths : []}
         pathsVisible={pathsVisible}
         roomDimensions={project.room3d}
+        primitives={project.primitives.filter(({ id }) => !disabled.has(id))}
         selectedTarget={selectedTarget}
         showAllPaths={showAllPaths}
         wallPlacementFirst={wallPlacementFirst}

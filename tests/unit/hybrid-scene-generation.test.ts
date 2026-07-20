@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { compileScene } from "@/ai/scene-compiler";
+import { validateGeneratedHybridScene } from "@/ai/hybrid-scene";
 import { CONCRETE_PARTITION_PRESET } from "@/domain/presets/concrete-partition";
 import { createDefaultClassicProject, createDefaultHybridProject } from "@/domain/workspace/defaults";
 import { projectReducer } from "@/domain/workspace/project-reducer";
@@ -36,6 +37,15 @@ function generatedSpatial3d() {
     portalVerticalBounds: [
       { portalId: "partition_door", bottomM: 0, topM: 2, thicknessM: 0.3 },
     ],
+    primitives: [{
+      id: "gallery_plinth",
+      name: "Gallery plinth",
+      kind: "box" as const,
+      position: { x: 7, y: 0.5, z: 5 },
+      dimensions: { x: 2, y: 1, z: 2 },
+      rotationYDeg: 15,
+      materialId: "concrete_hard",
+    }],
   };
 }
 
@@ -59,6 +69,9 @@ describe("mode-aware AI scene generation", () => {
           { sourceId: "radio", heightM: 1.4 },
           { sourceId: "rain", heightM: 3.2 },
         ]),
+        primitives: expect.arrayContaining([
+          expect.objectContaining({ id: "gallery_plinth", kind: "box" }),
+        ]),
       },
     });
     expect(generateScene).toHaveBeenCalledTimes(1);
@@ -76,6 +89,20 @@ describe("mode-aware AI scene generation", () => {
     expect(next.sourceHeightsM).toMatchObject({ radio: 1.4, rain: 3.2 });
     expect(next.wall3dById.partition_center).toMatchObject({ bottomM: 0, topM: 3.2 });
     expect(next.portal3dById.partition_door).toEqual({ bottomM: 0, topM: 2, thicknessM: 0.3 });
+    expect(next.primitives).toEqual(generatedSpatial3d().primitives);
+  });
+
+  it("rejects generated primitives outside the Hybrid room", () => {
+    const spatial3d = generatedSpatial3d();
+    spatial3d.primitives[0] = {
+      ...spatial3d.primitives[0]!,
+      position: { x: 14, y: 0.5, z: 5 },
+    };
+
+    const result = validateGeneratedHybridScene({ scene: generatedScene(), spatial3d });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.errors.some(({ code }) => code === "primitive_out_of_room")).toBe(true);
   });
 
   it("synchronizes Classic room controls with the generated floor-plan bounds", () => {

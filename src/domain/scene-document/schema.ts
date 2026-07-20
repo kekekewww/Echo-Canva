@@ -1,6 +1,17 @@
 import { z } from "zod";
 
 import { sceneSpecSchema } from "@/domain/scene/schema";
+import { MATERIALS } from "@/domain/materials/registry";
+
+const primitiveSchema = z.object({
+  id: z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/),
+  name: z.string().min(1).max(80),
+  kind: z.enum(["box", "cylinder", "sphere"]),
+  position: z.object({ x: z.number().finite(), y: z.number().finite(), z: z.number().finite() }).strict(),
+  dimensions: z.object({ x: z.number().min(0.1).max(50), y: z.number().min(0.1).max(12), z: z.number().min(0.1).max(50) }).strict(),
+  rotationYDeg: z.number().finite(),
+  materialId: z.enum(MATERIALS.map(({ id }) => id) as [string, ...string[]]),
+}).strict();
 
 const spatial3dSchema = z
   .object({
@@ -18,6 +29,7 @@ const spatial3dSchema = z
       thicknessM: z.number().min(0.02).max(2),
     }).strict()).optional(),
     disabledSurfaceIds: z.array(z.string()).optional(),
+    primitives: z.array(primitiveSchema).max(8).optional(),
   })
   .strict();
 

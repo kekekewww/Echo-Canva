@@ -1,4 +1,5 @@
 import type { SceneSpec } from "@/domain/scene/types";
+import type { AcousticPrimitive } from "@/domain/workspace/types";
 
 export type Spatial3DExtension = Readonly<{
   coordinateSystem: "x-right-y-up-z-forward";
@@ -8,6 +9,7 @@ export type Spatial3DExtension = Readonly<{
   wallVerticalBoundsM?: Readonly<Record<string, Readonly<{ bottomM: number; topM: number }>>>;
   portalVerticalBoundsM?: Readonly<Record<string, Readonly<{ bottomM: number; topM: number; thicknessM: number }>>>;
   disabledSurfaceIds?: readonly string[];
+  primitives?: readonly AcousticPrimitive[];
 }>;
 
 export type Propagation3DConfig = Readonly<{

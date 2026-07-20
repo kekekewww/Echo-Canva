@@ -12,7 +12,7 @@ UnifiedWorkspace
   └─ browser-only IndexedDB local-audio library
 ```
 
-`WorkspaceProject` owns the listener collection, active listener, authoring selection, disabled IDs, rectangular room dimensions/materials, source heights, finite wall/Portal settings, local-audio metadata, and per-mode camera/overlay/panel state. Projectors produce narrower, valid-by-construction `SceneSpec` or `SceneDocumentV2` views, omit disabled geometry and dependent Portals, and expose exactly one active listener to deterministic computation. External import, AI candidate, migration, and scene-replacement boundaries retain full Schema/domain validation; the hot internal Hybrid projection relies on reducer invariants instead of repeating those external-boundary checks for every pose selection.
+`WorkspaceProject` owns the listener collection, active listener, authoring selection, disabled IDs, rectangular room dimensions/materials, source heights, finite wall/Portal settings, bounded Box/Cylinder/Sphere acoustic primitives, local-audio metadata, and per-mode camera/overlay/panel state. Projectors produce narrower, valid-by-construction `SceneSpec` or `SceneDocumentV2` views, omit disabled geometry and dependent Portals, and expose exactly one active listener to deterministic computation. Classic projection converts enabled primitive footprints to synthetic full-height walls; Hybrid projection retains complete primitive records. External import, AI candidate, migration, and scene-replacement boundaries retain full Schema/domain validation; the hot internal Hybrid projection relies on reducer invariants instead of repeating those external-boundary checks for every pose selection.
 
 The 3D viewport receives every enabled listener, source, wall, and Portal. Its path overlay is derived from the accepted Hybrid Worker frame and rejects stale revisions. Both modes apply a reversible virtual-pixel camera pan after projection; Classic reverses pan/zoom before world editing and Hybrid reverses it before fixed-height X/Z unprojection. Middle-button and Shift-empty panning, cursor-anchored wheel zoom, Home, and Frame All update only the per-mode view state. Camera orbit/pan/zoom, ceiling presentation, and path visibility never enter Undo/Redo, increment the acoustic revision, or change acoustic state. The persistent Web Audio graph receives smoothed parameters from the same accepted result.
 
@@ -20,7 +20,7 @@ Project cache keys are `echo-canvas:project:classic:v1`, `echo-canvas:project:hy
 
 One `AudioEngine` belongs to `UnifiedWorkspace`, outside both mode adapters. A mode switch flushes the departing cache and updates the same graph; it does not construct another `AudioContext` or duplicate source graphs. Numeric pointer scrubbing begins a history transaction, updates the deterministic projection continuously, and commits one reversible patch on pointer release.
 
-Hybrid patch/BVH caching uses a static-geometry fingerprint containing room surfaces, enabled wall/Portal geometry, materials, and vertical bounds. Listener/source poses, selection, presentation camera, and revision do not invalidate that structure. The Worker and main-thread fallback compiler rebind only pose data until the static fingerprint changes.
+Hybrid patch/BVH caching uses a static-geometry fingerprint containing room surfaces, enabled wall/Portal geometry, primitive facets, materials, and vertical bounds. Listener/source poses, selection, presentation camera, and revision do not invalidate that structure. The Worker and main-thread fallback compiler rebind only pose data until the static fingerprint changes.
 
 ## Context diagram
 
@@ -63,7 +63,7 @@ User
 Responsibilities:
 
 - render 2D world coordinates;
-- edit walls, portals, source/listener positions, room height, and material presets;
+- edit walls, portals, Box/Cylinder/Sphere acoustic obstacles, source/listener positions, room height, and material presets;
 - display routes, reflection paths, occluders, meters, and estimated RT60;
 - manage Raw/Simulated and Start/Stop Audio;
 - import/export JSON;
@@ -184,7 +184,7 @@ Behavior:
 6. optionally call once more with machine-readable validation errors;
 7. return a validated Classic `SceneSpec` or Hybrid `{scene, spatial3d}` candidate, or a deterministic fallback.
 
-Classic output uses planar x/y. Hybrid output explicitly maps world X/Z to planar x/y and carries world Y in bounded Listener/source height and Wall/Portal vertical records. Applying a candidate replaces the active mode's room bounds, materials, positions, and vertical geometry in one history command; it never alters the other mode.
+Classic output uses planar x/y. Hybrid output explicitly maps world X/Z to planar x/y, carries world Y in bounded Listener/source height and Wall/Portal vertical records, and may include up to eight validated acoustic primitives. Applying a candidate replaces the active mode's room bounds, materials, positions, vertical geometry, and primitive collection in one history command; it never alters the other mode.
 
 The prompt must expose only allowed:
 

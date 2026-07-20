@@ -39,7 +39,7 @@ function degrees(radians: number): number {
 }
 
 function uniqueWallIds(hits: readonly SegmentPatchHit[]): readonly string[] {
-  return [...new Set(hits.flatMap(({ wallId }) => (wallId ? [wallId] : [])))];
+  return [...new Set(hits.map(({ wallId, surfaceId }) => wallId ?? surfaceId))];
 }
 
 export function solveDirectPath3D(

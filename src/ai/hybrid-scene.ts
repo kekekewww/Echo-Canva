@@ -3,9 +3,30 @@ import { z } from "zod";
 import { sceneSpecSchema } from "@/domain/scene/schema";
 import type { SceneValidationIssue, SceneSpec } from "@/domain/scene/types";
 import { validateScene } from "@/domain/scene/validate";
+import { isSafeModelLabel } from "@/ai/content-policy";
+import { MATERIALS } from "@/domain/materials/registry";
+import { primitiveFootprint } from "@/domain/workspace/primitives";
 import type { GeneratedSpatial3D } from "@/domain/workspace/types";
 
 const idSchema = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}$/);
+const materialIdSchema = z.enum(MATERIALS.map(({ id }) => id) as [string, ...string[]]);
+const primitiveSchema = z.object({
+  id: idSchema,
+  name: z.string().min(1).max(64),
+  kind: z.enum(["box", "cylinder", "sphere"]),
+  position: z.object({
+    x: z.number().min(0).max(50),
+    y: z.number().min(0).max(12),
+    z: z.number().min(0).max(50),
+  }).strict(),
+  dimensions: z.object({
+    x: z.number().min(0.1).max(50),
+    y: z.number().min(0.1).max(12),
+    z: z.number().min(0.1).max(50),
+  }).strict(),
+  rotationYDeg: z.number().min(-360).max(360),
+  materialId: materialIdSchema,
+}).strict();
 
 export const generatedSpatial3dSchema = z.object({
   listenerHeightM: z.number().min(0.1).max(12),
@@ -24,6 +45,7 @@ export const generatedSpatial3dSchema = z.object({
     topM: z.number().min(0.1).max(12),
     thicknessM: z.number().min(0.02).max(2),
   }).strict()).max(8),
+  primitives: z.array(primitiveSchema).max(8),
 }).strict();
 
 export const generatedHybridSceneSchema = z.object({
@@ -119,6 +141,30 @@ export function validateGeneratedHybridScene(input: unknown): GeneratedHybridSce
     const host = hostId ? wallBounds.get(hostId) : undefined;
     if (!host || portal.bottomM < host.bottomM || portal.topM > host.topM || portal.topM - portal.bottomM < 0.4) {
       errors.push(issue(`spatial3d.portalVerticalBounds.${index}`, "invalid_portal_bounds", "Portal bounds must fit inside the host wall and be at least 0.4 m tall."));
+    }
+  }
+  const primitiveIds = new Set<string>();
+  const roomWidthM = Math.max(...scene.room.outerPolygon.map(({ x }) => x));
+  const roomDepthM = Math.max(...scene.room.outerPolygon.map(({ y }) => y));
+  for (const [index, primitive] of spatial3d.primitives.entries()) {
+    if (primitiveIds.has(primitive.id)) {
+      errors.push(issue(`spatial3d.primitives.${index}.id`, "duplicate_id", "Primitive IDs must be unique."));
+    }
+    primitiveIds.add(primitive.id);
+    if (!isSafeModelLabel(primitive.name)) {
+      errors.push(issue(`spatial3d.primitives.${index}.name`, "unsafe_model_text", "Primitive name must be a safe display label."));
+    }
+    const footprintInside = primitiveFootprint(primitive).every(({ x, y }) => (
+      x >= 0 && x <= roomWidthM && y >= 0 && y <= roomDepthM
+    ));
+    const bottomM = primitive.position.y - primitive.dimensions.y / 2;
+    const topM = primitive.position.y + primitive.dimensions.y / 2;
+    if (!footprintInside || bottomM < 0 || topM > ceiling) {
+      errors.push(issue(
+        `spatial3d.primitives.${index}`,
+        "primitive_out_of_room",
+        "Primitive extents must fit completely inside the generated room.",
+      ));
     }
   }
 

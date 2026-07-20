@@ -43,6 +43,7 @@ function createDefaultProject(mode: WorkspaceMode): WorkspaceProject {
       topM: heightM,
       thicknessM: 0.12,
     }])),
+    primitives: [],
     missingAudioAssetIds: [],
     localAudioMetadata: {},
     view: {

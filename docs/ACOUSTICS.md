@@ -321,6 +321,24 @@ Rank candidates by estimated energy and keep at most six taps per source. Reject
 
 The reflection panner direction should point from listener to reflection point \(q\).
 
+## 9.1 Bounded basic-shape obstacles
+
+Authoring supports at most eight Box, Cylinder, or Sphere obstacles. In Classic 2.5D, every
+enabled shape becomes a full-height closed footprint made from four or twelve synthetic wall
+segments. Direct occlusion, portal visibility, and first-order footprint reflections therefore
+reuse the deterministic planar engine.
+
+Hybrid uses finite surface patches in the existing BVH: six for a Box, fourteen for a twelve-side
+Cylinder including caps, and thirty-two for an 8-by-4 faceted Sphere. Direct-path hits retain the
+primitive surface ID, registered material, local thickness estimate, and incidence. First-order
+reflection candidates use the same finite patches and remain subject to the existing per-source
+six-tap ranking cap. Cylinder and Sphere behavior is explicitly a faceted acoustic approximation,
+not analytic curved-surface or wave-acoustic simulation.
+
+Disabled shapes contribute neither visible geometry nor acoustic surfaces. Shape volume is not
+subtracted from the Eyring room volume in this bounded version; materials affect intercepted
+direct paths and ranked early-reflection surfaces only.
+
 ## 10. RT60 estimation
 
 For band \(b\), equivalent absorption area:

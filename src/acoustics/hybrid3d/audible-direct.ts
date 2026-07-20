@@ -47,7 +47,7 @@ function estimateFinitePatchOcclusion(path: DirectPath3D, geometry: HybridGeomet
   lowpassHz: number;
 }> {
   const direction = path.directionToSource;
-  const losses = uniqueWallIds(path).reduce(
+  const wallLosses = uniqueWallIds(path).reduce(
     (total, wallId) => {
       const wall = geometry.document.baseScene.walls.find((candidate) => candidate.id === wallId);
       if (!wall) return total;
@@ -69,6 +69,29 @@ function estimateFinitePatchOcclusion(path: DirectPath3D, geometry: HybridGeomet
     },
     { low: 0, mid: 0, high: 0 },
   );
+  const primitiveLosses = [...new Map(path.hits
+    .filter(({ wallId }) => !wallId)
+    .map((hit) => [hit.surfaceId, hit])).values()]
+    .reduce((total, hit) => {
+      const material = MATERIALS.find((candidate) => candidate.id === hit.materialId);
+      const patch = geometry.bvh.patches.find(({ id }) => id === hit.patchId);
+      if (!material || !patch) return total;
+      const incidence = Math.abs(
+        patch.normal.x * direction.x + patch.normal.y * direction.y + patch.normal.z * direction.z,
+      );
+      const effectiveThicknessM = hit.thicknessM / Math.max(incidence, 0.25);
+      const thicknessAdjustmentDb = 6 * Math.log2(effectiveThicknessM / material.referenceThicknessM);
+      return {
+        low: total.low + Math.max(0, material.transmissionLossDb.low + thicknessAdjustmentDb),
+        mid: total.mid + Math.max(0, material.transmissionLossDb.mid + thicknessAdjustmentDb),
+        high: total.high + Math.max(0, material.transmissionLossDb.high + thicknessAdjustmentDb),
+      };
+    }, { low: 0, mid: 0, high: 0 });
+  const losses = {
+    low: wallLosses.low + primitiveLosses.low,
+    mid: wallLosses.mid + primitiveLosses.mid,
+    high: wallLosses.high + primitiveLosses.high,
+  };
   const highObstruction = clamp(losses.high / 36, 0, 1);
 
   return {

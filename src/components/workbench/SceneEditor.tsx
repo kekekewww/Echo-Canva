@@ -25,6 +25,8 @@ import type { EditorSelection } from "@/domain/editor/state";
 import type { SceneSpec, Vec2 } from "@/domain/scene/types";
 import type { AcousticFrame } from "@/acoustics/compute-frame";
 import type { WorkspaceCamera } from "@/domain/workspace/types";
+import type { AcousticPrimitive } from "@/domain/workspace/types";
+import { primitiveFootprint, primitiveIdFromFootprintWall } from "@/domain/workspace/primitives";
 
 const SVG_WIDTH = CLASSIC_SVG_VIEW_BOX.width;
 const SVG_HEIGHT = CLASSIC_SVG_VIEW_BOX.height;
@@ -41,6 +43,7 @@ const IGNORE_CAMERA_CHANGE = () => undefined;
 type DragTarget =
   | { type: "listener" }
   | { type: "source"; id: string }
+  | { type: "primitive"; id: string }
   | { type: "wall-endpoint"; id: string; endpoint: "a" | "b" };
 
 type ViewDrag = Readonly<{
@@ -58,6 +61,10 @@ type SceneEditorProps = Readonly<{
   onCameraChange?: (camera: WorkspaceCamera) => void;
   wallPlacementFirst?: Vec2 | null;
   onWallPlacementPoint?: (point: Vec2) => void;
+  primitives?: readonly AcousticPrimitive[];
+  selectedPrimitiveId?: string | null;
+  onSelectPrimitive?: (id: string) => void;
+  onMovePrimitive?: (id: string, position: Vec2) => void;
 }>;
 
 function getWorldBounds(scene: SceneSpec): Rect {
@@ -95,7 +102,7 @@ export function portalForRouteMarker(
   return portals.find(({ id }) => id === listenerFacingPortalId);
 }
 
-export function SceneEditor({ scene, selection, acousticFrame, camera = FALLBACK_CLASSIC_CAMERA, dispatch, onCameraChange = IGNORE_CAMERA_CHANGE, wallPlacementFirst = null, onWallPlacementPoint }: SceneEditorProps) {
+export function SceneEditor({ scene, selection, acousticFrame, camera = FALLBACK_CLASSIC_CAMERA, dispatch, onCameraChange = IGNORE_CAMERA_CHANGE, wallPlacementFirst = null, onWallPlacementPoint, primitives = [], selectedPrimitiveId = null, onSelectPrimitive, onMovePrimitive }: SceneEditorProps) {
   const [dragTarget, setDragTarget] = useState<DragTarget | null>(null);
   const [viewDrag, setViewDrag] = useState<ViewDrag | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -196,6 +203,8 @@ export function SceneEditor({ scene, selection, acousticFrame, camera = FALLBACK
       dispatch({ type: "MOVE_LISTENER", position });
     } else if (target.type === "source") {
       dispatch({ type: "MOVE_SOURCE", sourceId: target.id, position });
+    } else if (target.type === "primitive") {
+      onMovePrimitive?.(target.id, position);
     } else {
       dispatch({
         type: "MOVE_WALL_ENDPOINT",
@@ -359,7 +368,52 @@ export function SceneEditor({ scene, selection, acousticFrame, camera = FALLBACK
           );
         })() : null}
 
-        {scene.walls.map((wall) => {
+        {primitives.map((primitive) => {
+          const footprint = primitiveFootprint(primitive).map(project);
+          const selected = selectedPrimitiveId === primitive.id;
+          return (
+            <g
+              aria-label={`Move ${primitive.name}`}
+              aria-pressed={selected}
+              className={`classic-primitive classic-primitive-${primitive.kind}${selected ? " is-selected" : ""}`}
+              data-testid={`classic-primitive-${primitive.id}`}
+              key={primitive.id}
+              onClick={() => onSelectPrimitive?.(primitive.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onSelectPrimitive?.(primitive.id);
+                  return;
+                }
+                const offset = event.key === "ArrowLeft" ? { x: -KEYBOARD_STEP_M, y: 0 }
+                  : event.key === "ArrowRight" ? { x: KEYBOARD_STEP_M, y: 0 }
+                    : event.key === "ArrowUp" ? { x: 0, y: KEYBOARD_STEP_M }
+                      : event.key === "ArrowDown" ? { x: 0, y: -KEYBOARD_STEP_M }
+                        : null;
+                if (!offset) return;
+                event.preventDefault();
+                onSelectPrimitive?.(primitive.id);
+                onMovePrimitive?.(primitive.id, { x: primitive.position.x + offset.x, y: primitive.position.z + offset.y });
+              }}
+              onPointerCancel={stopDrag}
+              onPointerDown={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onSelectPrimitive?.(primitive.id);
+                startDrag(event, { type: "primitive", id: primitive.id });
+              }}
+              onPointerMove={moveDrag}
+              onPointerUp={stopDrag}
+              role="button"
+              tabIndex={0}
+            >
+              <polygon points={footprint.map(({ x, y }) => `${x},${y}`).join(" ")} />
+              <text x={project({ x: primitive.position.x, y: primitive.position.z }).x} y={project({ x: primitive.position.x, y: primitive.position.z }).y - 14}>{primitive.name}</text>
+            </g>
+          );
+        })}
+
+        {scene.walls.filter(({ id }) => !primitiveIdFromFootprintWall(id)).map((wall) => {
           const a = project(wall.a);
           const b = project(wall.b);
           const selected = selection?.type === "wall" && selection.id === wall.id;

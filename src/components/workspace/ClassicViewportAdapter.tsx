@@ -115,7 +115,23 @@ export function ClassicViewportAdapter({ project, dispatch, audioEngine, wallPla
         <button onClick={() => onCameraChange({ ...project.view.camera, zoom: 1, panX: 0, panY: 0 })} type="button">Home</button>
         <button onClick={frameAll} type="button">Frame All</button>
       </header>
-      <SceneEditor acousticFrame={acceptedFrame} camera={project.view.camera} dispatch={adapt} onCameraChange={onCameraChange} onWallPlacementPoint={onWallPlacementPoint} scene={scene} selection={selection} wallPlacementFirst={wallPlacementFirst} />
+      <SceneEditor
+        acousticFrame={acceptedFrame}
+        camera={project.view.camera}
+        dispatch={adapt}
+        onCameraChange={onCameraChange}
+        onMovePrimitive={(id, position) => {
+          const primitive = project.primitives.find((candidate) => candidate.id === id);
+          if (primitive) dispatch({ type: "UPDATE_PRIMITIVE", id, changes: { position: { ...primitive.position, x: position.x, z: position.y } } });
+        }}
+        onSelectPrimitive={(id) => dispatch({ type: "SELECT_ENTITY", selection: { type: "primitive", id } })}
+        onWallPlacementPoint={onWallPlacementPoint}
+        primitives={project.primitives.filter(({ id }) => !project.disabledEntityIds.includes(id))}
+        scene={scene}
+        selectedPrimitiveId={project.selection?.type === "primitive" ? project.selection.id : null}
+        selection={selection}
+        wallPlacementFirst={wallPlacementFirst}
+      />
     </section>
   );
 }

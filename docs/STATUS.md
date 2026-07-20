@@ -1,5 +1,28 @@
 # Status
 
+## Basic acoustic shapes — 2026-07-21
+
+- added selectable Box, Cylinder, and Sphere obstacles to the shared modelling workspace, with a
+  strict eight-shape limit, finite XYZ transforms, Y rotation, registered materials, Disable,
+  Delete, Undo/Redo, cache migration, and authoring JSON round-trip
+- Classic 2.5D compiles enabled shapes to full-height closed footprints; Hybrid compiles Box to
+  six finite patches, Cylinder to fourteen patches, and Sphere to thirty-two faceted patches in
+  the deterministic BVH
+- added direct occlusion, first-order surface candidates, material/thickness propagation, 2.5D
+  and 3D selection/dragging, compact Inspector controls, and explicit faceted-approximation hints
+- extended strict Hybrid GPT output and one-command candidate application with zero to eight
+  bounded primitives; unregistered materials, unsafe labels, duplicate IDs, and out-of-room
+  extents are rejected before authoring state changes
+- focused unit verification — PASS, including rotated-room constraints, projection, persistence,
+  schema rejection, patch counts, and acoustic hit metadata
+- focused production-Chromium authoring verification — PASS, 2 tests
+- final `pnpm verify` — PASS: lint, typecheck, 63 unit files / 375 tests, production build, and
+  44/44 production Chromium tests
+- `git diff --check` — PASS
+
+Current action: commit the completed vertical slice and restart the local development candidate
+for human acceptance.
+
 ## Floor and ceiling material authoring — 2026-07-21
 
 - exposed context-specific Material controls when selecting Floor or Ceiling in the Hybrid 3D Outliner

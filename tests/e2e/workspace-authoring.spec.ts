@@ -98,6 +98,7 @@ test("applies a mode-aware AI candidate to Hybrid room and object heights", asyn
         sourceHeights: scene.sources.map(({ id }, index) => ({ sourceId: id, heightM: index === 0 ? 1.4 : 3.2 })),
         wallVerticalBounds: scene.walls.map(({ id }) => ({ wallId: id, bottomM: 0, topM: id === "partition_center" ? 3.2 : 4.5 })),
         portalVerticalBounds: scene.portals.map(({ id }) => ({ portalId: id, bottomM: 0, topM: 2, thicknessM: 0.3 })),
+        primitives: [],
       },
       model: "openai/gpt-5.6-luna",
       repairAttempted: false,

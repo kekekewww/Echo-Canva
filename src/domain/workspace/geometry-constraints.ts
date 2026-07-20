@@ -1,6 +1,7 @@
 import { MIN_WALL_LENGTH_M, distance, portalFitsWall } from "@/domain/scene/geometry-validation";
 import { validateScene } from "@/domain/scene/validate";
 import { projectReducer } from "@/domain/workspace/project-reducer";
+import { constrainPrimitiveToRoom } from "@/domain/workspace/primitives";
 import type {
   EntityRef,
   Portal3DSettings,
@@ -121,6 +122,7 @@ export function resizeRoomAndClamp(project: WorkspaceProject, dimensions: Room3D
       sourceHeightsM: Object.fromEntries(Object.entries(project.sourceHeightsM).map(([id, height]) => [id, clamp(height, 0.1, dimensions.heightM)])),
       wall3dById,
       portal3dById,
+      primitives: project.primitives.map((primitive) => constrainPrimitiveToRoom(primitive, dimensions)),
       notice: clampedCount > 0 ? { code: "geometry_clamped", message: `${clampedCount} object${clampedCount === 1 ? " was" : "s were"} clamped to the resized room.` } : null,
     },
   };

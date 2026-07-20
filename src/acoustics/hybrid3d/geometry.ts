@@ -15,13 +15,15 @@ export type PortalOpening3 = Readonly<{
   heightM: number;
 }>;
 
-export type AcousticPatchKind = "floor" | "ceiling" | "wall";
+export type AcousticPatchKind = "floor" | "ceiling" | "wall" | "primitive";
 
 export type AcousticPatch3 = Readonly<{
   id: string;
   kind: AcousticPatchKind;
   materialId: string;
   wallId?: string;
+  surfaceId: string;
+  thicknessM: number;
   vertices: readonly Vec3[];
   normal: Vec3;
   aabb: Aabb3;
@@ -31,6 +33,9 @@ export type AcousticPatch3 = Readonly<{
 export type SegmentPatchHit = Readonly<{
   patchId: string;
   wallId?: string;
+  surfaceId: string;
+  materialId: string;
+  thicknessM: number;
   distanceM: number;
   point: Vec3;
 }>;
@@ -175,7 +180,7 @@ export function makePatch3(
   kind: AcousticPatchKind,
   materialId: string,
   vertices: readonly Vec3[],
-  options: Readonly<{ wallId?: string; openings?: readonly PortalOpening3[] }> = {},
+  options: Readonly<{ wallId?: string; surfaceId?: string; thicknessM?: number; openings?: readonly PortalOpening3[] }> = {},
 ): AcousticPatch3 {
   if (vertices.length < 3) throw new Error("An acoustic patch needs at least three vertices.");
   const normal = normalize3(cross3(subtract3(vertices[1]!, vertices[0]!), subtract3(vertices[2]!, vertices[0]!)));
@@ -184,6 +189,8 @@ export function makePatch3(
     kind,
     materialId,
     ...(options.wallId ? { wallId: options.wallId } : {}),
+    surfaceId: options.surfaceId ?? options.wallId ?? id,
+    thicknessM: options.thicknessM ?? 0.1,
     vertices: [...vertices],
     normal,
     aabb: aabbForPoints(vertices),
@@ -211,6 +218,9 @@ export function intersectSegmentPatch(start: Vec3, end: Vec3, patch: AcousticPat
   return {
     patchId: patch.id,
     ...(patch.wallId ? { wallId: patch.wallId } : {}),
+    surfaceId: patch.surfaceId,
+    materialId: patch.materialId,
+    thicknessM: patch.thicknessM,
     distanceM: length3(delta) * t,
     point,
   };
@@ -237,6 +247,9 @@ export function intersectRayPatch(
   return {
     patchId: patch.id,
     ...(patch.wallId ? { wallId: patch.wallId } : {}),
+    surfaceId: patch.surfaceId,
+    materialId: patch.materialId,
+    thicknessM: patch.thicknessM,
     distanceM,
     point,
   };

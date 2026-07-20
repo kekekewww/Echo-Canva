@@ -102,7 +102,12 @@ export function WorkspaceProjectTools({ project, dispatch, localAssets = [] }: R
         <label>Scene description<textarea aria-label="Describe a scene" maxLength={2000} onChange={(event) => setPrompt(event.target.value)} value={prompt} /></label>
         <button disabled={!prompt.trim()} onClick={() => void generate()} type="button">Generate scene</button>
         {candidate ? <button onClick={() => {
-          dispatch({ type: "REPLACE_SCENE", scene: candidate.scene, spatial3d: candidate.spatial3d });
+          dispatch({
+            type: "REPLACE_SCENE",
+            scene: candidate.scene,
+            spatial3d: candidate.spatial3d,
+            primitives: candidate.spatial3d?.primitives,
+          });
           setCandidate(null);
         }} type="button">Apply {candidate.scene.name}</button> : null}
         <button onClick={() => void explain()} type="button">Explain selected acoustics</button>

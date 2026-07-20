@@ -27,11 +27,12 @@ export function ContextInspector({ project, dispatch, localAssets = [], onRelink
   const source = selection?.type === "source" ? project.scene.sources.find(({ id }) => id === selection.id) : null;
   const wall = selection?.type === "wall" ? project.scene.walls.find(({ id }) => id === selection.id) : null;
   const portal = selection?.type === "portal" ? project.scene.portals.find(({ id }) => id === selection.id) : null;
+  const primitive = selection?.type === "primitive" ? project.primitives.find(({ id }) => id === selection.id) : null;
   const portalHostWall = portal ? project.scene.walls.find(({ id }) => id === portal.wallId) : null;
   const disabled = selection ? project.disabledEntityIds.includes(selection.id) : false;
   const wallVertical = wall ? project.wall3dById[wall.id] ?? { bottomM: 0, topM: project.room3d.heightM, thicknessM: wall.thicknessM } : null;
   const portalVertical = portal ? project.portal3dById[portal.id] ?? { bottomM: 0, topM: portal.heightM, thicknessM: 0.12 } : null;
-  const position = listener?.position ?? (source ? {
+  const position = listener?.position ?? primitive?.position ?? (source ? {
     x: source.position.x,
     y: project.sourceHeightsM[source.id] ?? 1.5,
     z: source.position.y,
@@ -45,6 +46,7 @@ export function ContextInspector({ project, dispatch, localAssets = [], onRelink
     const next = { ...position, [axis]: value };
     if (listener) dispatch({ type: "UPDATE_LISTENER", id: listener.id, changes: { position: next } });
     if (source) dispatch({ type: "MOVE_SOURCE", id: source.id, position: next });
+    if (primitive) dispatch({ type: "UPDATE_PRIMITIVE", id: primitive.id, changes: { position: next } });
   }
 
   function applyConstraint(result: ReturnType<typeof resizeRoomAndClamp>): void {
@@ -62,6 +64,7 @@ export function ContextInspector({ project, dispatch, localAssets = [], onRelink
     if (entity.type === "source") dispatch({ type: "DELETE_SOURCE", id: entity.id });
     if (entity.type === "wall") dispatch({ type: "DELETE_WALL", id: entity.id });
     if (entity.type === "portal") dispatch({ type: "DELETE_PORTAL", id: entity.id });
+    if (entity.type === "primitive") dispatch({ type: "DELETE_PRIMITIVE", id: entity.id });
     setConfirmDelete(null);
   }
 
@@ -79,6 +82,7 @@ export function ContextInspector({ project, dispatch, localAssets = [], onRelink
             const reset = { x: project.room3d.widthM / 2, y: Math.min(1.5, project.room3d.heightM), z: project.room3d.depthM / 2 };
             if (listener) dispatch({ type: "UPDATE_LISTENER", id: listener.id, changes: { position: reset } });
             if (source) dispatch({ type: "MOVE_SOURCE", id: source.id, position: reset });
+            if (primitive) dispatch({ type: "UPDATE_PRIMITIVE", id: primitive.id, changes: { position: reset } });
           }} type="button">Reset position</button>
           {listener ? <NumericScrubField fineStep={0.1} label="Heading" max={360} min={-360} onCommit={(headingDeg) => dispatch({ type: "UPDATE_LISTENER", id: listener.id, changes: { headingDeg } })} step={1} unit="°" value={listener.headingDeg} /> : null}
         </section>
@@ -131,6 +135,40 @@ export function ContextInspector({ project, dispatch, localAssets = [], onRelink
               : <button onClick={() => setConfirmAudioRemoval(true)} type="button">Remove local audio</button>
           ) : null}
           {audioEditStatus ? <p role="status">{audioEditStatus}</p> : null}
+        </section>
+      ) : null}
+      {primitive ? (
+        <section className="inspector-section">
+          <h3>{primitive.kind[0]!.toUpperCase() + primitive.kind.slice(1)}</h3>
+          <label className="text-field">Name
+            <input
+              aria-label="Primitive name"
+              defaultValue={primitive.name}
+              key={`${primitive.id}-${primitive.name}`}
+              onBlur={(event) => {
+                const name = event.currentTarget.value.trim();
+                if (name && name !== primitive.name) dispatch({ type: "UPDATE_PRIMITIVE", id: primitive.id, changes: { name } });
+                else event.currentTarget.value = primitive.name;
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") event.currentTarget.blur();
+                if (event.key === "Escape") { event.currentTarget.value = primitive.name; event.currentTarget.blur(); }
+              }}
+            />
+          </label>
+          {primitive.kind === "box" ? <>
+            <NumericScrubField fineStep={0.01} label="Width" max={project.room3d.widthM} min={0.1} onCommit={(x) => dispatch({ type: "UPDATE_PRIMITIVE", id: primitive.id, changes: { dimensions: { ...primitive.dimensions, x } } })} step={0.1} unit="m" value={primitive.dimensions.x} />
+            <NumericScrubField fineStep={0.01} label="Height" max={project.room3d.heightM} min={0.1} onCommit={(y) => dispatch({ type: "UPDATE_PRIMITIVE", id: primitive.id, changes: { dimensions: { ...primitive.dimensions, y } } })} step={0.1} unit="m" value={primitive.dimensions.y} />
+            <NumericScrubField fineStep={0.01} label="Depth" max={project.room3d.depthM} min={0.1} onCommit={(z) => dispatch({ type: "UPDATE_PRIMITIVE", id: primitive.id, changes: { dimensions: { ...primitive.dimensions, z } } })} step={0.1} unit="m" value={primitive.dimensions.z} />
+          </> : null}
+          {primitive.kind === "cylinder" ? <>
+            <NumericScrubField fineStep={0.01} label="Diameter" max={Math.min(project.room3d.widthM, project.room3d.depthM)} min={0.1} onCommit={(diameter) => dispatch({ type: "UPDATE_PRIMITIVE", id: primitive.id, changes: { dimensions: { ...primitive.dimensions, x: diameter, z: diameter } } })} step={0.1} unit="m" value={primitive.dimensions.x} />
+            <NumericScrubField fineStep={0.01} label="Height" max={project.room3d.heightM} min={0.1} onCommit={(y) => dispatch({ type: "UPDATE_PRIMITIVE", id: primitive.id, changes: { dimensions: { ...primitive.dimensions, y } } })} step={0.1} unit="m" value={primitive.dimensions.y} />
+          </> : null}
+          {primitive.kind === "sphere" ? <NumericScrubField fineStep={0.01} label="Diameter" max={Math.min(project.room3d.widthM, project.room3d.depthM, project.room3d.heightM)} min={0.1} onCommit={(diameter) => dispatch({ type: "UPDATE_PRIMITIVE", id: primitive.id, changes: { dimensions: { x: diameter, y: diameter, z: diameter } } })} step={0.1} unit="m" value={primitive.dimensions.x} /> : null}
+          <NumericScrubField fineStep={0.1} label="Rotation Y" max={360} min={-360} onCommit={(rotationYDeg) => dispatch({ type: "UPDATE_PRIMITIVE", id: primitive.id, changes: { rotationYDeg } })} step={1} unit="°" value={primitive.rotationYDeg} />
+          <label className="select-field">Material<select aria-label="Primitive material" onChange={(event) => dispatch({ type: "UPDATE_PRIMITIVE", id: primitive.id, changes: { materialId: event.currentTarget.value } })} value={primitive.materialId}>{Object.values(MATERIALS).map((material) => <option key={material.id} value={material.id}>{material.displayName}</option>)}</select></label>
+          {primitive.kind === "box" ? null : <HintCard title="Faceted acoustic approximation">Curved surfaces use bounded planar facets for deterministic obstruction and first-order reflections.</HintCard>}
         </section>
       ) : null}
       {wall ? (

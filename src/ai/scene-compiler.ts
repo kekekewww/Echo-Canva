@@ -88,6 +88,7 @@ export function buildCompilePrompt(
         "The room outerPolygon must be a four-corner rectangle anchored at (0,0); its X and Y extents are the room width and depth, while room.heightM is vertical height.",
         "Include exactly one sourceHeights entry per source, one wallVerticalBounds entry per wall, and one portalVerticalBounds entry per portal, using matching IDs.",
         "Keep every height strictly inside the room; each Portal vertical opening must fit inside its host Wall.",
+        "Include zero to eight acoustic primitives. Each primitive must be a box, cylinder, or sphere, use a supplied material ID, and fit completely inside the room.",
       ]
     : ["Use scene x/y as the editable 2.5D floor-plan coordinates."];
   return {

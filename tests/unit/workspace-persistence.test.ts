@@ -94,6 +94,21 @@ describe("workspace persistence", () => {
     expect(restored.warning).toBeNull();
   });
 
+  it("migrates projects cached before acoustic primitives existed", () => {
+    const storage = new MemoryStorage();
+    const legacyProject = structuredClone(createDefaultHybridProject()) as unknown as { primitives?: unknown[] };
+    delete legacyProject.primitives;
+    storage.setItem(HYBRID_PROJECT_KEY, JSON.stringify({
+      cacheVersion: "3.0",
+      mode: "hybrid-3d",
+      present: legacyProject,
+      past: [],
+      future: [],
+    }));
+
+    expect(loadWorkspaceCache(storage, "hybrid-3d").project.primitives).toEqual([]);
+  });
+
   it("migrates legacy snapshot history into compact patches", () => {
     const storage = new MemoryStorage();
     const before = createDefaultClassicProject();

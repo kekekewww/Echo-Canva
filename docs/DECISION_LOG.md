@@ -1,5 +1,20 @@
 # Decision Log
 
+## D-049 — Add bounded faceted acoustic primitives after owner approval
+
+Decision: Add at most eight authorable Box, Cylinder, or Sphere acoustic primitives. Classic
+projects compile each enabled shape to a full-height planar footprint; Hybrid projects compile a
+Box to six finite patches, a Cylinder to twelve side patches plus two caps, and a Sphere to a
+fixed 8-by-4 faceted surface. Every shape has finite XYZ position and dimensions, Y rotation, a
+registered perceptually tuned material, persistence, import/export, reversible Disable, direct
+selection, and one-command deletion. GPT Hybrid output may include the same bounded records.
+
+Reason: The owner explicitly expanded the accepted authoring scope beyond walls after the unified
+2.5D/3D gates passed. Fixed topology preserves deterministic BVH cost and strict validation while
+providing useful obstacle volumes without accepting arbitrary meshes or claiming full geometric
+or wave-acoustic accuracy. Cylinder and Sphere controls explicitly disclose the faceted acoustic
+approximation.
+
 ## D-048 — Separate specular early-reflection energy from scattering
 
 Decision: First-order image-source taps use only the specular share of reflected energy, `rho * (1 - scattering)`, in both Classic and Hybrid rendering. Retune the perceptually tuned Acoustic Treatment preset so its Mid/High specular energy remains at or below 5%/2% respectively. Diffuse energy remains available to the experimental receiver/late-field path and is not duplicated into the discrete tap bank.

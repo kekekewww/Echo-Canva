@@ -12,6 +12,18 @@ export type Vec3 = Readonly<{
   z: number;
 }>;
 
+export type PrimitiveKind = "box" | "cylinder" | "sphere";
+
+export type AcousticPrimitive = Readonly<{
+  id: string;
+  name: string;
+  kind: PrimitiveKind;
+  position: Vec3;
+  dimensions: Vec3;
+  rotationYDeg: number;
+  materialId: string;
+}>;
+
 export type AuthoringListener = Readonly<{
   id: string;
   name: string;
@@ -20,7 +32,7 @@ export type AuthoringListener = Readonly<{
   enabled: boolean;
 }>;
 
-export type EntityType = "listener" | "source" | "wall" | "portal" | "surface";
+export type EntityType = "listener" | "source" | "wall" | "portal" | "primitive" | "surface";
 
 export type EntityRef = Readonly<{
   type: EntityType;
@@ -84,6 +96,7 @@ export type GeneratedSpatial3D = Readonly<{
     topM: number;
     thicknessM: number;
   }>[];
+  primitives: readonly AcousticPrimitive[];
 }>;
 
 export type LocalAudioAssetMetadata = Readonly<{
@@ -107,6 +120,7 @@ export type WorkspaceProject = Readonly<{
   sourceHeightsM: Readonly<Record<string, number>>;
   wall3dById: Readonly<Record<string, Wall3DSettings>>;
   portal3dById: Readonly<Record<string, Portal3DSettings>>;
+  primitives: readonly AcousticPrimitive[];
   missingAudioAssetIds: readonly string[];
   localAudioMetadata: Readonly<Record<string, LocalAudioAssetMetadata>>;
   view: WorkspaceViewState;
@@ -133,9 +147,12 @@ export type ProjectAction =
   | Readonly<{ type: "ADD_PORTAL"; portal: Portal; vertical?: Portal3DSettings }>
   | Readonly<{ type: "UPDATE_PORTAL"; id: string; changes: Partial<Portal>; vertical?: Partial<Portal3DSettings> }>
   | Readonly<{ type: "DELETE_PORTAL"; id: string }>
+  | Readonly<{ type: "ADD_PRIMITIVE"; primitive: AcousticPrimitive }>
+  | Readonly<{ type: "UPDATE_PRIMITIVE"; id: string; changes: Partial<Omit<AcousticPrimitive, "id" | "kind">> }>
+  | Readonly<{ type: "DELETE_PRIMITIVE"; id: string }>
   | Readonly<{ type: "SET_ROOM_3D"; changes: Partial<Room3D> }>
   | Readonly<{ type: "SET_VIEW_STATE"; changes: Partial<WorkspaceViewState> }>
   | Readonly<{ type: "SET_NOTICE"; notice: WorkspaceNotice }>
-  | Readonly<{ type: "REPLACE_SCENE"; scene: SceneSpec; spatial3d?: GeneratedSpatial3D }>
+  | Readonly<{ type: "REPLACE_SCENE"; scene: SceneSpec; spatial3d?: GeneratedSpatial3D; primitives?: readonly AcousticPrimitive[] }>
   | Readonly<{ type: "REPLACE_PROJECT"; project: WorkspaceProject }>
   | Readonly<{ type: "CLEAR_NOTICE" }>;

@@ -5,6 +5,7 @@ import type {
   WorkspaceProject,
 } from "@/domain/workspace/types";
 import { validateScene } from "@/domain/scene/validate";
+import { constrainPrimitiveToRoom, MAX_PRIMITIVES } from "@/domain/workspace/primitives";
 
 const MAX_LISTENERS = 8;
 
@@ -369,6 +370,47 @@ export function projectReducer(
       return { ...next, portal3dById, disabledEntityIds: project.disabledEntityIds.filter((id) => id !== action.id), selection: null };
     }
 
+    case "ADD_PRIMITIVE": {
+      if (project.primitives.length >= MAX_PRIMITIVES) return withNotice(project, {
+        code: "limit_reached",
+        message: `A project can contain at most ${MAX_PRIMITIVES} basic shapes.`,
+      });
+      const primitive = constrainPrimitiveToRoom(action.primitive, project.room3d);
+      return {
+        ...project,
+        revision: nextRevision(project),
+        primitives: [...project.primitives, primitive],
+        selection: { type: "primitive", id: primitive.id },
+        notice: null,
+      };
+    }
+
+    case "UPDATE_PRIMITIVE": {
+      const primitive = project.primitives.find(({ id }) => id === action.id);
+      if (!primitive) return withNotice(project, { code: "entity_missing", message: "Basic shape not found." });
+      const updated = constrainPrimitiveToRoom({ ...primitive, ...action.changes }, project.room3d);
+      return {
+        ...project,
+        revision: nextRevision(project),
+        primitives: project.primitives.map((candidate) => candidate.id === action.id ? updated : candidate),
+        notice: null,
+      };
+    }
+
+    case "DELETE_PRIMITIVE": {
+      if (!project.primitives.some(({ id }) => id === action.id)) {
+        return withNotice(project, { code: "entity_missing", message: "Basic shape not found." });
+      }
+      return {
+        ...project,
+        revision: nextRevision(project),
+        primitives: project.primitives.filter(({ id }) => id !== action.id),
+        disabledEntityIds: project.disabledEntityIds.filter((id) => id !== action.id),
+        selection: null,
+        notice: null,
+      };
+    }
+
     case "SET_ROOM_3D": {
       const room3d = { ...project.room3d, ...action.changes };
       return {
@@ -447,6 +489,11 @@ export function projectReducer(
           topM: heightM,
           thicknessM: 0.12,
         }])),
+        primitives: (action.primitives ?? spatial3d?.primitives ?? []).map((primitive) => constrainPrimitiveToRoom(primitive, {
+          ...project.room3d,
+          ...dimensions,
+          heightM: scene.room.heightM,
+        })),
         disabledEntityIds: [],
         selection: null,
         notice: null,

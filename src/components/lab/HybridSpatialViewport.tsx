@@ -4,6 +4,8 @@ import { HybridPathOverlay, type HybridDisplayPath } from "@/components/workspac
 import { clientPointToSvg, type Rect } from "@/domain/editor/coordinates";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { primitivePatches } from "@/acoustics/hybrid3d/primitives";
+import type { AcousticPrimitive } from "@/domain/workspace/types";
 
 import {
   DEFAULT_VIEWPORT_CAMERA,
@@ -47,10 +49,13 @@ export type HybridViewportWall = Readonly<{
   portals: readonly HybridViewportPortal[];
 }>;
 
+export type HybridViewportPrimitive = AcousticPrimitive;
+
 export type HybridViewportSelection =
   | Readonly<{ type: "object"; id: string }>
   | Readonly<{ type: "wall"; id: string; endpoint?: "a" | "b" }>
   | Readonly<{ type: "portal"; id: string }>
+  | Readonly<{ type: "primitive"; id: string }>
   | null;
 
 type Props = Readonly<{
@@ -58,6 +63,7 @@ type Props = Readonly<{
   ceilingVisible?: boolean;
   objects: readonly HybridViewportObject[];
   walls: readonly HybridViewportWall[];
+  primitives?: readonly HybridViewportPrimitive[];
   paths?: readonly HybridDisplayPath[];
   pathsVisible?: boolean;
   showAllPaths?: boolean;
@@ -66,6 +72,7 @@ type Props = Readonly<{
   onMoveObject: (id: string, position: ViewportVec3) => void;
   onMoveWallEndpoint: (id: string, endpoint: "a" | "b", position: PlanPosition) => void;
   onMovePortalCenter: (id: string, center: PlanPosition) => void;
+  onMovePrimitive?: (id: string, position: ViewportVec3) => void;
   onSelectTarget: (target: NonNullable<HybridViewportSelection>) => void;
   onTogglePaths?: () => void;
   onToggleShowAllPaths?: () => void;
@@ -80,7 +87,8 @@ type DragState =
   | Readonly<{ kind: "pan"; pointer: ScreenPoint; camera: ViewportCamera }>
   | Readonly<{ kind: "object"; id: string; pointer: ScreenPoint; position: ViewportVec3 }>
   | Readonly<{ kind: "wall"; id: string; endpoint: "a" | "b" }>
-  | Readonly<{ kind: "portal"; id: string; heightM: number }>;
+  | Readonly<{ kind: "portal"; id: string; heightM: number }>
+  | Readonly<{ kind: "primitive"; id: string; pointer: ScreenPoint; position: ViewportVec3 }>;
 
 type ProjectedWall = Readonly<{
   wall: HybridViewportWall;
@@ -215,6 +223,7 @@ export function HybridSpatialViewport({
   ceilingVisible = true,
   objects,
   walls,
+  primitives = [],
   paths = [],
   pathsVisible = true,
   showAllPaths = false,
@@ -222,6 +231,7 @@ export function HybridSpatialViewport({
   onMoveObject,
   onMoveWallEndpoint,
   onMovePortalCenter,
+  onMovePrimitive,
   onSelectTarget,
   onTogglePaths,
   onToggleShowAllPaths,
@@ -247,7 +257,11 @@ export function HybridSpatialViewport({
       projectViewportPoint({ x: 0, y: room.heightM, z: room.depthM }, camera),
     ],
     walls: walls.map((wall) => projectWall(wall, camera)),
-  }), [camera, room, walls]);
+    primitives: primitives.map((primitive) => ({
+      primitive,
+      panels: primitivePatches(primitive).map((patch) => patch.vertices.map((vertex) => projectViewportPoint(vertex, camera))),
+    })),
+  }), [camera, primitives, room, walls]);
   const axis = useMemo(() => {
     const origin = projectViewportPoint({ x: room.widthM / 2, y: 0, z: room.depthM / 2 }, camera);
     return {
@@ -267,6 +281,7 @@ export function HybridSpatialViewport({
     { x: room.widthM, y: room.heightM, z: room.depthM },
     { x: 0, y: room.heightM, z: room.depthM },
     ...objects.map(({ position }) => position),
+    ...primitives.flatMap((primitive) => primitivePatches(primitive).flatMap(({ vertices }) => vertices)),
     ...walls.flatMap((wall) => [
       { x: wall.a.x, y: wall.bottomM, z: wall.a.z },
       { x: wall.a.x, y: wall.topM, z: wall.a.z },
@@ -284,7 +299,7 @@ export function HybridSpatialViewport({
         ];
       }),
     ]),
-  ], [objects, room.depthM, room.heightM, room.widthM, walls]);
+  ], [objects, primitives, room.depthM, room.heightM, room.widthM, walls]);
 
   useEffect(() => {
     const viewport = svgRef.current;
@@ -376,6 +391,15 @@ export function HybridSpatialViewport({
     });
   }
 
+  function dragPrimitive(event: ReactPointerEvent<SVGGElement>): void {
+    if (dragState?.kind !== "primitive" || !event.currentTarget.hasPointerCapture(event.pointerId)) return;
+    const pointer = clientToViewport(event);
+    const position = event.shiftKey
+      ? { ...dragState.position, y: dragState.position.y - (pointer.y - dragState.pointer.y) / (48 * camera.zoom) }
+      : unprojectViewportPointAtHeight(pointer, dragState.position.y, camera);
+    onMovePrimitive?.(dragState.id, position);
+  }
+
   function dragGeometry(event: ReactPointerEvent<SVGGElement>): void {
     if (!event.currentTarget.hasPointerCapture(event.pointerId) || !dragState) return;
     if (dragState.kind === "wall") {
@@ -421,6 +445,31 @@ export function HybridSpatialViewport({
         {projected.floor.map((point, index) => <line className="hybrid-viewport-room-edge" key={`edge-${index}`} x1={point.x} x2={projected.ceiling[index]!.x} y1={point.y} y2={projected.ceiling[index]!.y} />)}
         <polyline className="hybrid-viewport-room-edge" fill="none" points={points([...projected.floor, projected.floor[0]!])} />
         {ceilingVisible ? <polyline className="hybrid-viewport-ceiling-edge" fill="none" points={points([...projected.ceiling, projected.ceiling[0]!])} /> : null}
+        {projected.primitives.map(({ primitive, panels }) => {
+          const selected = selectedTarget?.type === "primitive" && selectedTarget.id === primitive.id;
+          return <g
+            aria-label={`Drag ${primitive.name} in 3D scene`}
+            aria-pressed={selected}
+            className={`hybrid-viewport-primitive hybrid-viewport-primitive-${primitive.kind}${selected ? " is-selected" : ""}`}
+            data-testid={`hybrid-primitive-${primitive.id}`}
+            key={primitive.id}
+            onPointerCancel={endDrag}
+            onPointerDown={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onSelectTarget({ type: "primitive", id: primitive.id });
+              event.currentTarget.setPointerCapture(event.pointerId);
+              setDragState({ kind: "primitive", id: primitive.id, pointer: clientToViewport(event), position: primitive.position });
+            }}
+            onPointerMove={dragPrimitive}
+            onPointerUp={endDrag}
+            role="button"
+            tabIndex={0}
+          >
+            {panels.map((panel, index) => <polygon key={`${primitive.id}-${index}`} points={points(panel)} />)}
+            <text x={projectViewportPoint(primitive.position, camera).x} y={projectViewportPoint(primitive.position, camera).y - 18} textAnchor="middle">{primitive.name}</text>
+          </g>;
+        })}
         <HybridWallSurfaceLayer onSelectTarget={onSelectTarget} projectedWalls={projected.walls} />
         {projected.walls.flatMap(({ portalOutlines }) => portalOutlines.map(({ portal, points: outline, center }) => (
           <g key={portal.id}>

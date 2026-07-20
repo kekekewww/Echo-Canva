@@ -10,6 +10,7 @@ import {
 } from "@/acoustics/hybrid3d/geometry";
 import { isSceneDocumentV2 } from "@/domain/scene-document/validate";
 import type { SceneDocumentV2 } from "@/domain/scene-document/types";
+import { primitivePatches } from "@/acoustics/hybrid3d/primitives";
 
 export type HybridGeometry = Readonly<{
   document: SceneDocumentV2;
@@ -65,6 +66,7 @@ export function hybridStaticGeometryHash(document: SceneDocumentV2): string {
       open: portal.open,
       vertical: spatial.portalVerticalBoundsM?.[portal.id] ?? null,
     })),
+    primitives: spatial.primitives ?? [],
   }));
 }
 
@@ -194,6 +196,7 @@ export function compileHybridStaticGeometry(document: SceneDocumentV2): HybridSt
     makePatch3("floor", "floor", scene.room.floorMaterialId, floor),
     ...(disabledSurfaces.has("ceiling") ? [] : [makePatch3("ceiling", "ceiling", scene.room.ceilingMaterialId, ceiling)]),
     ...wallPatches(document),
+    ...(spatial.primitives ?? []).flatMap(primitivePatches),
   ];
   return {
     staticGeometryHash: hybridStaticGeometryHash(document),

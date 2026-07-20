@@ -2,9 +2,14 @@
 
 ## Workspace authoring contract
 
-The browser-only `WorkspaceProject` schema is versioned independently from API-facing `SceneSpec`. It stores mode, revision, listener collection and active listener, authoring selection, reversible disabled IDs, rectangular room dimensions and materials, source heights, finite wall/Portal settings, missing/local-audio metadata, and per-mode view state.
+The browser-only `WorkspaceProject` schema is versioned independently from API-facing `SceneSpec`. It stores mode, revision, listener collection and active listener, authoring selection, reversible disabled IDs, rectangular room dimensions and materials, source heights, finite wall/Portal settings, bounded acoustic primitives, missing/local-audio metadata, and per-mode view state.
 
-Limits are eight listeners, four sources, one hundred walls, eight Portals, 50 m room width/depth, and 12 m room height. At least one enabled listener and the floor are mandatory. Disabled host walls suspend attached Portals. Projectors filter disabled entities before either deterministic worker runs.
+Limits are eight listeners, four sources, one hundred walls, eight Portals, eight basic acoustic shapes, 50 m room width/depth, and 12 m room height. At least one enabled listener and the floor are mandatory. Disabled host walls suspend attached Portals. Projectors filter disabled entities before either deterministic worker runs.
+
+`AcousticPrimitive` is restricted to `box`, `cylinder`, or `sphere` and stores an ID, safe display
+name, XYZ centre, XYZ dimensions, Y rotation, and a registered material ID. All extents must fit
+inside the room. Classic projection emits the shape footprint as deterministic synthetic wall
+segments. Hybrid projection retains the complete record for finite faceted compilation.
 
 Local audio IDs use the `local_` prefix and resolve only from browser IndexedDB. WAV/MP3/Ogg files are limited to 25 MB each and 100 MB total, decoded as mono before source creation, and never accepted as arbitrary remote URLs. Authoring JSON records `{id,name,mimeType,size,createdAt}` but never embeds blobs. Missing imported assets remain silent and retain their Source transform until a same-ID relink succeeds.
 
@@ -171,10 +176,19 @@ type GeneratedSpatial3D = {
     topM: number;
     thicknessM: number;
   }>;
+  primitives: Array<{
+    id: string;
+    name: string;
+    kind: "box" | "cylinder" | "sphere";
+    position: { x: number; y: number; z: number };
+    dimensions: { x: number; y: number; z: number };
+    rotationYDeg: number;
+    materialId: string;
+  }>;
 };
 ```
 
-Every Hybrid array must cover the matching generated IDs exactly once. The room polygon must be an origin-anchored rectangle; its planar bounds and `heightM` atomically replace the selected mode's authoring room controls.
+Every Hybrid coverage array must cover the matching generated IDs exactly once. Primitive IDs must be unique, labels safe, materials registered, and complete rotated extents inside the room. The room polygon must be an origin-anchored rectangle; its planar bounds and `heightM` atomically replace the selected mode's authoring room controls.
 
 Response success:
 

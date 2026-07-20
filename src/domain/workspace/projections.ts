@@ -2,6 +2,7 @@ import type { SceneSpec } from "@/domain/scene/types";
 import { classicProjectionHash } from "@/domain/scene-document/validate";
 import type { SceneDocumentV2 } from "@/domain/scene-document/types";
 import type { WorkspaceProject } from "@/domain/workspace/types";
+import { primitiveFootprintWalls } from "@/domain/workspace/primitives";
 
 function activeListener(project: WorkspaceProject) {
   return (
@@ -17,11 +18,14 @@ export function projectClassicScene(project: WorkspaceProject): SceneSpec {
   const listener = activeListener(project);
   const walls = scene.walls.filter(({ id }) => !disabled.has(id));
   const wallIds = new Set(walls.map(({ id }) => id));
+  const primitiveWalls = project.mode === "classic-2d5d"
+    ? project.primitives.filter(({ id }) => !disabled.has(id)).flatMap(primitiveFootprintWalls)
+    : [];
 
   return {
     ...scene,
     revision: project.revision,
-    walls,
+    walls: [...walls, ...primitiveWalls],
     portals: scene.portals.filter(
       ({ id, wallId }) => !disabled.has(id) && wallIds.has(wallId),
     ),
@@ -66,6 +70,7 @@ export function projectHybridDocument(project: WorkspaceProject): SceneDocumentV
         thicknessM: project.portal3dById[id]?.thicknessM ?? 0.12,
       }])),
       disabledSurfaceIds: project.room3d.ceilingEnabled ? [] : ["ceiling"],
+      primitives: project.primitives.filter(({ id }) => !project.disabledEntityIds.includes(id)),
     },
     propagation3d: {
       maxReflectionOrder: 1,

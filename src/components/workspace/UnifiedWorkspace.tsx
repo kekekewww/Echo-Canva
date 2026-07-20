@@ -12,6 +12,8 @@ import { WorkspaceStatusBar, type WorkspaceAcousticStatus } from "@/components/w
 import { WorkspaceToolbar } from "@/components/workspace/WorkspaceToolbar";
 import type { WorkspaceMode } from "@/domain/workspace/types";
 import type { EntityRef } from "@/domain/workspace/types";
+import type { PrimitiveKind } from "@/domain/workspace/types";
+import { MAX_PRIMITIVES } from "@/domain/workspace/primitives";
 import { useWorkspaceProjects } from "@/hooks/useWorkspaceProjects";
 import { useLocalAudioLibrary } from "@/hooks/useLocalAudioLibrary";
 import { installGateCAudioRenderValidation } from "@/audio/gate-c-render-validation";
@@ -106,7 +108,7 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
     URL.revokeObjectURL(url);
   }
 
-  function addObject(kind: "listener" | "source" | "wall" | "portal"): void {
+  function addObject(kind: "listener" | "source" | "wall" | "portal" | PrimitiveKind): void {
     const project = workspace.activeProject;
     const suffix = `${project.revision + 1}`;
     if (kind === "listener") {
@@ -128,6 +130,27 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
     }
     if (kind === "wall") {
       setWallPlacement({ mode: project.mode, first: null });
+      return;
+    }
+    if (kind === "box" || kind === "cylinder" || kind === "sphere") {
+      const count = project.primitives.filter((primitive) => primitive.kind === kind).length + 1;
+      const label = kind[0]!.toUpperCase() + kind.slice(1);
+      workspace.dispatch({
+        type: "ADD_PRIMITIVE",
+        primitive: {
+          id: `${kind}_${suffix}`,
+          name: `${label} ${count}`,
+          kind,
+          position: {
+            x: project.room3d.widthM / 2,
+            y: Math.min(0.75, project.room3d.heightM / 2),
+            z: project.room3d.depthM / 2,
+          },
+          dimensions: { x: 1.5, y: 1.5, z: 1.5 },
+          rotationYDeg: 0,
+          materialId: "wood_medium",
+        },
+      });
       return;
     }
     const selectedWall = project.selection?.type === "wall"
@@ -260,6 +283,9 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
           listener: { enabled: workspace.activeProject.listeners.length < 8, reason: workspace.activeProject.listeners.length >= 8 ? "Limit: 8 listeners" : undefined },
           source: { enabled: workspace.activeProject.scene.sources.length < 4, reason: workspace.activeProject.scene.sources.length >= 4 ? "Limit: 4 sources" : undefined },
           wall: { enabled: workspace.activeProject.scene.walls.length < 100, reason: workspace.activeProject.scene.walls.length >= 100 ? "Limit: 100 walls" : undefined },
+          box: { enabled: workspace.activeProject.primitives.length < MAX_PRIMITIVES, reason: workspace.activeProject.primitives.length >= MAX_PRIMITIVES ? `Limit: ${MAX_PRIMITIVES} shapes` : undefined },
+          cylinder: { enabled: workspace.activeProject.primitives.length < MAX_PRIMITIVES, reason: workspace.activeProject.primitives.length >= MAX_PRIMITIVES ? `Limit: ${MAX_PRIMITIVES} shapes` : undefined },
+          sphere: { enabled: workspace.activeProject.primitives.length < MAX_PRIMITIVES, reason: workspace.activeProject.primitives.length >= MAX_PRIMITIVES ? `Limit: ${MAX_PRIMITIVES} shapes` : undefined },
           portal: {
             enabled: workspace.activeProject.scene.portals.length < 8 && workspace.activeProject.selection?.type === "wall" && !workspace.activeProject.disabledEntityIds.includes(workspace.activeProject.selection.id),
             reason: workspace.activeProject.scene.portals.length >= 8
