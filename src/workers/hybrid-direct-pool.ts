@@ -233,8 +233,9 @@ export function createHybridDirectPool(
 
   function fallbackResult(pair: DocumentGeometryPair): HybridDirectPoolResult {
     const startedAtMs = now();
-    const frame = computeHybridDirectFrame(pair.geometry, startedAtMs);
+    const computedFrame = computeHybridDirectFrame(pair.geometry);
     const completedAtMs = now();
+    const frame = { ...computedFrame, computedAtMs: completedAtMs };
     return {
       frame,
       source: "fallback",
@@ -300,7 +301,7 @@ export function createHybridDirectPool(
       const frame = assembleFrame(
         job.snapshot,
         job.assignments.flatMap((_, index) => job.resultsByWorker.get(index) ?? []),
-        job.startedAtMs,
+        completedAtMs,
       );
       const shardTimes = [...job.computeMsByWorker.values()];
       const result: HybridDirectPoolResult = {

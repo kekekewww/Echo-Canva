@@ -197,7 +197,7 @@ describe("Hybrid direct Worker pool", () => {
     workers[0]!.resolve(3);
 
     expect(results).toEqual([{
-      frame: computeHybridDirectFrame(geometry, 0),
+      frame: computeHybridDirectFrame(geometry, 20),
       source: "worker",
       notice: null,
       metrics: {
@@ -431,6 +431,39 @@ describe("Hybrid direct Worker pool", () => {
     expect(results).toHaveLength(1);
     expect(results[0]!.source).toBe("fallback");
     expect(results[0]!.frame).toEqual(computeHybridDirectFrame(latest[1], 0));
+  });
+
+  it("stamps serial fallback frames at post-computation completion time", () => {
+    const timers = new FakeTimers();
+    const worker = new FakeShardWorker();
+    const results: HybridDirectPoolResult[] = [];
+    const times = [0, 10, 100, 125];
+    const pool = createHybridDirectPool({
+      cancel: (timer) => timers.cancel(timer as number),
+      createWorker: () => worker,
+      hardwareConcurrency: 1,
+      now: () => times.shift() ?? 125,
+      schedule: timers.schedule,
+    });
+    pool.onresult = (result) => results.push(result);
+    const current = pair(1, 67);
+    pool.update(...current);
+    timers.flush();
+
+    worker.onerror?.(new Event("error") as ErrorEvent);
+
+    expect(results).toEqual([{
+      frame: computeHybridDirectFrame(current[1], 125),
+      source: "fallback",
+      notice: "Hybrid Worker pool unavailable; using deterministic serial fallback.",
+      metrics: {
+        computeMs: 25,
+        completedAtMs: 125,
+        workerCount: 0,
+        sourceComputeMsMax: 0,
+        sourceComputeMsTotal: 0,
+      },
+    }]);
   });
 
   it("turns constructor and assembly failures into one complete deterministic fallback", () => {

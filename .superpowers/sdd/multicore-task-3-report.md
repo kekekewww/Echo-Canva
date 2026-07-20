@@ -73,3 +73,16 @@
 - Static BVH data is cloned once per active Worker whenever its fingerprint changes; this is intentional and bounded by four Workers. Pose interaction sends only compact snapshots.
 - The serial fallback runs on the main thread by design only after the Worker pool becomes unavailable, while retaining the bounded 10–15 Hz cadence.
 - No formulas, BVH intersection behavior, reflection ranking, public `HybridDirectFrame`, Web Audio topology, or Classic runtime code changed.
+
+## Reviewer timestamp correction
+
+- Review found that successful pool frames used job start time for `computedAtMs`, and serial fallback frames used fallback start time. Both contradicted the public completion-timestamp semantics.
+- RED: `pnpm test -- hybrid-direct-pool` failed exactly two tests: Worker completion expected `20` but received `0`; fallback completion expected `125` but received `100`.
+- GREEN implementation:
+  - successful shard assembly now passes the final whole-frame `completedAtMs` to `assembleHybridDirectFrame`;
+  - serial fallback computes once, samples completion afterward, and immutably replaces only `computedAtMs`, avoiding a second expensive acoustic computation;
+  - `computeMs` remains `completedAtMs - startedAtMs`.
+- GREEN verification:
+  - `pnpm test -- hybrid-direct-pool`: PASS, 69 files / 459 tests;
+  - `pnpm typecheck`: PASS.
+- Fix commit subject: `fix(acoustics): stamp completed hybrid frames`.
