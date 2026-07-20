@@ -21,6 +21,31 @@ import { useHybridDirectPaths } from "@/hooks/useHybridDirectPaths";
 import type { AudioEngine } from "@/audio/AudioEngine";
 import type { WorkspaceAcousticStatus } from "@/components/workspace/WorkspaceStatusBar";
 import { estimateRoomAcoustics } from "@/acoustics/room-acoustics";
+import type { SceneDocumentV2 } from "@/domain/scene-document/types";
+import type { HybridDirectPathsState } from "@/hooks/useHybridDirectPaths";
+
+export function resolveHybridAcousticPresentation(
+  direct: HybridDirectPathsState,
+  document: SceneDocumentV2,
+): Readonly<{
+  accepted: boolean;
+  worker: WorkspaceAcousticStatus["worker"];
+  headerStatus: string;
+}> {
+  const accepted = direct.frame.revision === document.baseScene.revision
+    && direct.frame.classicProjectionHash === document.compatibility.classicProjectionHash;
+  if (!accepted) return {
+    accepted: false,
+    worker: "Stopped",
+    headerStatus: "Stopped · Waiting for matching acoustic frame",
+  };
+  if (direct.source === "fallback") return {
+    accepted: true,
+    worker: "Fallback",
+    headerStatus: direct.notice ? `Fallback · ${direct.notice}` : "Fallback",
+  };
+  return { accepted: true, worker: "Worker", headerStatus: "Worker" };
+}
 
 export function HybridViewportAdapter({ project, dispatch, audioEngine, wallPlacementFirst, onWallPlacementPoint, onAcousticStatus }: Readonly<{
   project: WorkspaceProject;
@@ -36,9 +61,8 @@ export function HybridViewportAdapter({ project, dispatch, audioEngine, wallPlac
   const document = useMemo(() => projectHybridDocument(project), [project]);
   const geometry = useMemo(() => geometryCompiler.compile(document), [document, geometryCompiler]);
   const direct = useHybridDirectPaths(document, geometry);
-  const frameMatchesProject = direct.frame.revision === document.baseScene.revision &&
-    direct.frame.classicProjectionHash === document.compatibility.classicProjectionHash;
-  const workerAccepted = direct.source === "worker" && frameMatchesProject;
+  const presentation = resolveHybridAcousticPresentation(direct, document);
+  const accepted = presentation.accepted;
   const audible = useMemo(() => resolveHybridAudibleDirectState(geometry, direct.frame), [direct.frame, geometry]);
   const reflectionState = useMemo(() => ({
     listenerPosition: geometry.listenerPosition,
@@ -116,24 +140,27 @@ export function HybridViewportAdapter({ project, dispatch, audioEngine, wallPlac
   }, [project.selection]);
 
   useEffect(() => {
-    if (workerAccepted) audioEngine.applyHybridDirectState(audible.audioState);
-  }, [audioEngine, audible, workerAccepted]);
+    if (accepted) audioEngine.applyHybridDirectState(audible.audioState);
+  }, [accepted, audioEngine, audible]);
   useEffect(() => {
-    if (workerAccepted) audioEngine.applyHybridReflectionState(reflectionState);
-  }, [audioEngine, reflectionState, workerAccepted]);
+    if (accepted) audioEngine.applyHybridReflectionState(reflectionState);
+  }, [accepted, audioEngine, reflectionState]);
   useEffect(() => {
     const active = project.listeners.find(({ id }) => id === project.activeListenerId);
     const path = audible.paths.find(({ sourceId }) => sourceId === selectedSourceId) ?? audible.paths[0];
     const room = estimateRoomAcoustics(scene, { ceilingEnabled: !disabled.has("ceiling") });
     onAcousticStatus?.({
       listenerName: active?.name ?? "Listener",
-      route: workerAccepted ? path?.routeType ?? "none" : "none",
-      gainDb: workerAccepted ? path?.dryGainDb ?? null : null,
-      rt60MidS: workerAccepted ? room.rt60S.mid : null,
-      worker: workerAccepted ? "Worker" : "Stopped",
-      computeMs: workerAccepted ? direct.computeMs : null,
+      route: accepted ? path?.routeType ?? "none" : "none",
+      gainDb: accepted ? path?.dryGainDb ?? null : null,
+      rt60MidS: accepted ? room.rt60S.mid : null,
+      worker: accepted ? presentation.worker : "Stopped",
+      computeMs: accepted ? direct.computeMs : null,
+      workerCount: accepted ? direct.workerCount : null,
+      sourceComputeMsMax: accepted ? direct.sourceComputeMsMax : null,
+      sourceComputeMsTotal: accepted ? direct.sourceComputeMsTotal : null,
     });
-  }, [audible.paths, direct.computeMs, disabled, onAcousticStatus, project.activeListenerId, project.listeners, scene, selectedSourceId, workerAccepted]);
+  }, [accepted, audible.paths, direct.computeMs, direct.sourceComputeMsMax, direct.sourceComputeMsTotal, direct.workerCount, disabled, onAcousticStatus, presentation.worker, project.activeListenerId, project.listeners, scene, selectedSourceId]);
 
   function moveObject(id: string, position: Vec3): void {
     const listener = project.listeners.find((candidate) => candidate.id === id);
@@ -188,7 +215,7 @@ export function HybridViewportAdapter({ project, dispatch, audioEngine, wallPlac
   return (
     <section className="workspace-viewport-panel" data-testid="hybrid-workspace-viewport">
       <header className="viewport-tools">
-        <span>{project.scene.name}</span><span>{workerAccepted ? "Worker" : "Stopped · Worker unavailable"}</span>
+        <span>{project.scene.name}</span><span>{presentation.headerStatus}</span>
       </header>
       <HybridSpatialViewport
         camera={project.view.camera}
@@ -203,7 +230,7 @@ export function HybridViewportAdapter({ project, dispatch, audioEngine, wallPlac
         onToggleCeiling={() => dispatch({ type: "SET_VIEW_STATE", changes: { overlays: { ...project.view.overlays, ceilingVisible: !ceilingVisible } } })}
         onTogglePaths={() => dispatch({ type: "SET_VIEW_STATE", changes: { overlays: { ...project.view.overlays, pathsVisible: !pathsVisible } } })}
         onToggleShowAllPaths={() => dispatch({ type: "SET_VIEW_STATE", changes: { overlays: { ...project.view.overlays, showAllPaths: !showAllPaths } } })}
-        paths={workerAccepted ? displayPaths : []}
+        paths={accepted ? displayPaths : []}
         pathsVisible={pathsVisible}
         roomDimensions={project.room3d}
         primitives={project.primitives.filter(({ id }) => !disabled.has(id))}

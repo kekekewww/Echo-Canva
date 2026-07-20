@@ -5,7 +5,6 @@ import {
   compileHybridStaticGeometry,
 } from "@/acoustics/hybrid3d/compile";
 import {
-  computeHybridDirectFrame,
   computeHybridDirectSources,
   createHybridDirectPoseSnapshot,
 } from "@/acoustics/hybrid3d/direct";
@@ -31,59 +30,16 @@ function documentWithHeights(listenerHeightM: number, radioHeightM: number) {
 }
 
 describe("Hybrid direct source shard Worker controller", () => {
-  it("keeps legacy COMPUTE runtime-compatible and timestamps after frame calculation", () => {
+  it("does not retain the temporary legacy COMPUTE/FRAME runtime protocol", () => {
     const responses: HybridDirectWorkerResponse[] = [];
-    const events: string[] = [];
-    const times = [20, 29];
     const document = documentWithHeights(1.5, 1.3);
-    const controller = createHybridDirectWorkerController(
-      { postMessage: (response) => responses.push(response) },
-      {
-        computeFrame: (geometry, computedAtMs) => {
-          events.push("compute");
-          return computeHybridDirectFrame(geometry, computedAtMs);
-        },
-        now: () => {
-          events.push("now");
-          return times.shift() ?? 29;
-        },
-      },
-    );
-
-    controller.handle({ type: "COMPUTE", requestId: 1, document });
-
-    expect(events).toEqual(["now", "compute", "now"]);
-    expect(responses[0]).toMatchObject({
-      type: "FRAME",
-      requestId: 1,
-      computeMs: 9,
-      frame: {
-        revision: document.baseScene.revision,
-        computedAtMs: 29,
-      },
+    const controller = createHybridDirectWorkerController({
+      postMessage: (response) => responses.push(response),
     });
-  });
 
-  it("reuses legacy static compilation across pose-only COMPUTE updates", () => {
-    const responses: HybridDirectWorkerResponse[] = [];
-    let compileCount = 0;
-    const initial = documentWithHeights(1.5, 1.3);
-    const moved = documentWithHeights(2.1, 2.4);
-    const controller = createHybridDirectWorkerController(
-      { postMessage: (response) => responses.push(response) },
-      {
-        compileStatic: (document) => {
-          compileCount += 1;
-          return compileHybridStaticGeometry(document);
-        },
-      },
-    );
+    controller.handle({ type: "COMPUTE", requestId: 1, document } as never);
 
-    controller.handle({ type: "COMPUTE", requestId: 1, document: initial });
-    controller.handle({ type: "COMPUTE", requestId: 2, document: moved });
-
-    expect(compileCount).toBe(1);
-    expect(responses.map(({ type }) => type)).toEqual(["FRAME", "FRAME"]);
+    expect(responses).toEqual([]);
   });
 
   it("installs static geometry, computes requested IDs, and measures after calculation", () => {
