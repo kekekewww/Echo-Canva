@@ -1,5 +1,18 @@
 # Status
 
+## Human Gate E defect repair — 2026-07-20
+
+- reproduced the reported Listener deletion crash: deleting the final enabled Listener while a disabled Listener remained produced a project with no enabled receiver; deletion now preserves the project and reports the existing `listener_required` notice
+- reproduced the reported playing-Source deletion crash: a previous Worker frame could be combined with the new source geometry during React effect turnover; Hybrid output now accepts only matching revision/hash frames and ignores paths for removed source IDs
+- restored direct 3D Wall selection by enabling hit-testing on visible wall panels while preserving click-through behavior during two-point Wall placement
+- added red/green unit and production-Chromium regressions for all three failures
+- confirmed that Classic and Hybrid first-order reflection taps already apply full-path distance attenuation before fixed-bank gain automation; the release remains intentionally limited to at most six first-order taps per source
+- confirmed that Portal routing uses explicit deterministic visibility-graph edges rather than a finite random-ray sample; angle-dependent failure means the source/Portal/listener segments are geometrically obstructed, not that too few rays happened to hit the opening
+- final `pnpm verify` — PASS: lint, typecheck, 61 unit files / 361 tests, production build, and 41/41 production Chromium tests
+- `git diff --check` — PASS before documentation update
+
+Current action: restart the local development server and request focused human retest of Listener/Source deletion plus direct 3D Wall selection. Higher-order or denser reflection modelling remains a separate post-Gate-E scope decision.
+
 ## Build Week static release preparation — 2026-07-20
 
 - reconciled the supplied legacy 2D-only submission snapshot with the owner-accepted unified 2.5D / bounded Hybrid 3D release candidate; no verified 3D feature was rolled back

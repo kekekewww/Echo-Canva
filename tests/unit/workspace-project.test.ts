@@ -99,6 +99,38 @@ describe("workspace authoring projects", () => {
     expect(next.selection).toEqual({ type: "listener", id: next.listeners[0]!.id });
   });
 
+  it("rejects deleting the final enabled listener when disabled listeners remain", () => {
+    const added = projectReducer(createDefaultHybridProject(), {
+      type: "ADD_LISTENER",
+      listener: {
+        id: "listener_b",
+        name: "Listener B",
+        position: { x: 6, y: 1.6, z: 5 },
+        headingDeg: 0,
+        enabled: true,
+      },
+    });
+    const firstListenerId = added.listeners[0]!.id;
+    const selectedFirst = projectReducer(added, {
+      type: "SELECT_ENTITY",
+      selection: { type: "listener", id: firstListenerId },
+    });
+    const disabledFirst = projectReducer(selectedFirst, {
+      type: "SET_ENTITY_ENABLED",
+      entity: { type: "listener", id: firstListenerId },
+      enabled: false,
+    });
+
+    const next = projectReducer(disabledFirst, {
+      type: "DELETE_LISTENER",
+      id: "listener_b",
+    });
+
+    expect(next.listeners).toHaveLength(2);
+    expect(next.activeListenerId).toBe("listener_b");
+    expect(next.notice?.code).toBe("listener_required");
+  });
+
   it("updates source properties and clears a missing asset after relinking", () => {
     const initial = createDefaultClassicProject();
     const source = initial.scene.sources[0]!;

@@ -69,13 +69,15 @@ export function projectReducer(
     }
 
     case "DELETE_LISTENER": {
-      if (!project.listeners.some(({ id }) => id === action.id)) {
+      const target = project.listeners.find(({ id }) => id === action.id);
+      if (!target) {
         return withNotice(project, { code: "entity_missing", message: "Listener not found." });
       }
-      if (project.listeners.length === 1) {
+      const enabledCount = project.listeners.filter(({ enabled }) => enabled).length;
+      if (project.listeners.length === 1 || (target.enabled && enabledCount === 1)) {
         return withNotice(project, {
           code: "listener_required",
-          message: "Every project needs at least one listener.",
+          message: "At least one listener must remain enabled.",
         });
       }
       const listeners = project.listeners.filter(({ id }) => id !== action.id);

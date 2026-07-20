@@ -36,7 +36,9 @@ export function HybridViewportAdapter({ project, dispatch, audioEngine, wallPlac
   const document = useMemo(() => projectHybridDocument(project), [project]);
   const geometry = useMemo(() => geometryCompiler.compile(document), [document, geometryCompiler]);
   const direct = useHybridDirectPaths(document, geometry);
-  const workerAccepted = direct.source === "worker";
+  const frameMatchesProject = direct.frame.revision === document.baseScene.revision &&
+    direct.frame.classicProjectionHash === document.compatibility.classicProjectionHash;
+  const workerAccepted = direct.source === "worker" && frameMatchesProject;
   const audible = useMemo(() => resolveHybridAudibleDirectState(geometry, direct.frame), [direct.frame, geometry]);
   const reflectionState = useMemo(() => ({
     listenerPosition: geometry.listenerPosition,

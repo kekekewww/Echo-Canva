@@ -110,4 +110,29 @@ describe("resolveHybridAudibleDirectState", () => {
     expect(concrete?.dryGainDb).toBeLessThan(wood?.dryGainDb ?? 0);
     expect(concrete?.lowpassHz).toBeLessThan(wood?.lowpassHz ?? 20_000);
   });
+
+  it("ignores paths from a stale frame after its source has been deleted", () => {
+    const staleGeometry = buildGeometry({
+      listenerPlan: { x: 3, z: 4 },
+      radioPlan: { x: 9, z: 4 },
+    });
+    const staleFrame = computeHybridDirectFrame(staleGeometry);
+    const scene: SceneSpec = structuredClone(CONCRETE_PARTITION_PRESET);
+    scene.revision += 1;
+    scene.sources = scene.sources.filter(({ id }) => id !== "radio");
+    const document = createSceneDocumentV2(scene, {
+      spatial3d: {
+        coordinateSystem: "x-right-y-up-z-forward",
+        floorElevationM: 0,
+        listenerHeightM: 1.5,
+        sourceHeightsM: { rain: 1.5 },
+      },
+    });
+    const geometry = bindHybridPoses(compileHybridStaticGeometry(document), document);
+
+    const result = resolveHybridAudibleDirectState(geometry, staleFrame);
+
+    expect(result.paths.map(({ sourceId }) => sourceId)).toEqual(["rain"]);
+    expect(Object.keys(result.audioState.sourceStates)).toEqual(["rain"]);
+  });
 });

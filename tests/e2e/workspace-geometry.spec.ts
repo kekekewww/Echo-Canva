@@ -152,6 +152,50 @@ test("renders newly authored finite walls and hosted portals in the 3D viewport"
   await expect(bottom).toHaveValue("0.5");
 });
 
+test("selects a 3D Wall directly from its visible viewport panel", async ({ page }) => {
+  await page.goto("/lab");
+  const panel = page.locator("polygon.hybrid-viewport-wall-panel").last();
+
+  await panel.click();
+
+  await expect(page.getByRole("heading", { name: "Wall", exact: true })).toBeVisible();
+  await expect(page.getByTestId("hybrid-viewport-partition-a")).toBeVisible();
+});
+
+test("protects the final enabled Listener when disabled Listeners remain", async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.goto("/lab");
+  await page.getByTestId("add-object").click();
+  await page.getByTestId("add-listener").click();
+  const listeners = page.getByRole("complementary", { name: "Scene Outliner" }).locator(".kind-listener");
+  await listeners.first().click();
+  await page.getByRole("button", { name: "Disable", exact: true }).click();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await page.getByRole("button", { name: "Delete listener", exact: true }).click();
+
+  await expect(listeners).toHaveCount(2);
+  await expect(page.getByRole("status")).toContainText("At least one listener must remain enabled.");
+  await expect(page.getByTestId("unified-workspace")).toBeVisible();
+  expect(pageErrors).toEqual([]);
+});
+
+test("deletes a playing 3D Source without applying a stale acoustic frame", async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.goto("/lab");
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  const sources = page.getByRole("complementary", { name: "Scene Outliner" }).locator(".kind-source");
+  const before = await sources.count();
+  await sources.first().click();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await page.getByRole("button", { name: "Delete source", exact: true }).click();
+
+  await expect(sources).toHaveCount(before - 1);
+  await expect(page.getByTestId("hybrid-spatial-viewport")).toBeVisible();
+  expect(pageErrors).toEqual([]);
+});
+
 test("precision-edits Wall endpoints and Portal offset without detaching hosted geometry", async ({ page }) => {
   await page.goto("/lab");
   const outliner = page.getByRole("complementary", { name: "Scene Outliner" });

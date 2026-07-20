@@ -176,7 +176,10 @@ export function resolveHybridAudibleDirectState(
   const projections = new Map(
     computeAcousticFrame(geometry.document.baseScene).sources.map((source) => [source.sourceId, source]),
   );
-  const paths = directFrame.paths.map((path) => resolvePath(path, projections.get(path.sourceId!), geometry));
+  const paths = directFrame.paths.flatMap((path) => {
+    if (!path.sourceId || !geometry.sourcePositions[path.sourceId]) return [];
+    return [resolvePath(path, projections.get(path.sourceId), geometry)];
+  });
 
   return {
     audioState: {
