@@ -1,6 +1,13 @@
 import type { PatchBvh } from "@/acoustics/hybrid3d/bvh";
-import type { HybridStaticGeometry } from "@/acoustics/hybrid3d/compile";
 import {
+  bindHybridPoses,
+  compileHybridStaticGeometry,
+  hybridStaticGeometryHash,
+  type HybridGeometry,
+  type HybridStaticGeometry,
+} from "@/acoustics/hybrid3d/compile";
+import {
+  computeHybridDirectFrame,
   computeHybridDirectSources,
   type HybridDirectFrame,
   type HybridDirectPoseSnapshot,
@@ -18,7 +25,7 @@ export type HybridDirectWorkerRequest =
     sourceIds: readonly string[];
   }>
   | Readonly<{ type: "DISPOSE"; requestId?: number }>
-  /** Type-only compatibility until the pool coordinator replaces the existing hook. */
+  /** Temporary runtime compatibility until the pool coordinator replaces the existing hook. */
   | Readonly<{ type: "COMPUTE"; requestId: number; document: SceneDocumentV2 }>;
 
 export type HybridDirectWorkerResponse =
@@ -44,10 +51,10 @@ export type HybridDirectWorkerResponse =
       | "HYBRID_STATIC_NOT_INSTALLED"
       | "HYBRID_STATIC_FINGERPRINT_MISMATCH"
       | "HYBRID_SHARD_COMPUTE_FAILED"
-      | "HYBRID_DIRECT_PROTOCOL_UNSUPPORTED";
+      | "HYBRID_DIRECT_COMPUTE_FAILED";
     message: string;
   }>
-  /** Type-only compatibility; this shard Worker never emits a full frame. */
+  /** Temporary legacy response; COMPUTE_SHARD only emits source results. */
   | Readonly<{ type: "FRAME"; requestId: number; frame: HybridDirectFrame; computeMs: number }>;
 
 type WorkerSink = Readonly<{ postMessage: (response: HybridDirectWorkerResponse) => void }>;
@@ -59,6 +66,8 @@ type ComputeSources = (
 ) => readonly HybridDirectSourceResult[];
 
 type HybridDirectWorkerControllerOptions = Readonly<{
+  compileStatic?: (document: SceneDocumentV2) => HybridStaticGeometry;
+  computeFrame?: (geometry: HybridGeometry, computedAtMs?: number) => HybridDirectFrame;
   computeSources?: ComputeSources;
   now?: () => number;
 }>;
@@ -68,9 +77,12 @@ export function createHybridDirectWorkerController(
   options: HybridDirectWorkerControllerOptions = {},
 ): Readonly<{ handle: (request: HybridDirectWorkerRequest) => void }> {
   const now = options.now ?? Date.now;
+  const compileStatic = options.compileStatic ?? compileHybridStaticGeometry;
+  const computeFrame = options.computeFrame ?? computeHybridDirectFrame;
   const computeSources = options.computeSources ?? computeHybridDirectSources;
   let disposed = false;
   let installed: HybridStaticGeometry | null = null;
+  let legacyCached: HybridStaticGeometry | null = null;
 
   return {
     handle(request): void {
@@ -78,6 +90,7 @@ export function createHybridDirectWorkerController(
       if (request.type === "DISPOSE") {
         disposed = true;
         installed = null;
+        legacyCached = null;
         return;
       }
       if (request.type === "INSTALL_STATIC") {
@@ -90,12 +103,29 @@ export function createHybridDirectWorkerController(
         return;
       }
       if (request.type === "COMPUTE") {
-        sink.postMessage({
-          type: "ERROR",
-          requestId: request.requestId,
-          code: "HYBRID_DIRECT_PROTOCOL_UNSUPPORTED",
-          message: "Install static Hybrid geometry and send a pose-only COMPUTE_SHARD request.",
-        });
+        const startedAtMs = now();
+        try {
+          const staticFingerprint = hybridStaticGeometryHash(request.document);
+          if (!legacyCached || legacyCached.staticGeometryHash !== staticFingerprint) {
+            legacyCached = compileStatic(request.document);
+          }
+          const geometry = bindHybridPoses(legacyCached, request.document);
+          const computedFrame = computeFrame(geometry, 0);
+          const completedAtMs = now();
+          sink.postMessage({
+            type: "FRAME",
+            requestId: request.requestId,
+            frame: { ...computedFrame, computedAtMs: completedAtMs },
+            computeMs: completedAtMs - startedAtMs,
+          });
+        } catch (error) {
+          sink.postMessage({
+            type: "ERROR",
+            requestId: request.requestId,
+            code: "HYBRID_DIRECT_COMPUTE_FAILED",
+            message: error instanceof Error ? error.message : "Hybrid direct computation failed.",
+          });
+        }
         return;
       }
       if (!installed) {
