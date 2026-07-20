@@ -13,6 +13,8 @@ The Hybrid 3D programme is additive. The existing browser application remains th
 
 The tag was created before this P0 work. The two artifacts are versioned, reviewed inputs to later Hybrid release decisions rather than generated build output.
 
+The working-tree deterministic artifact advanced to version `1.1` under approved decision `D-048` after human Gate E transient testing. The original version `1.0` remains immutable at the recorded tag and commit; version `1.1` intentionally changes only the reviewed scattering/specular material mapping and its downstream RT60 values.
+
 ## Deterministic regression oracle
 
 `src/benchmarks/classic-baseline.ts` produces a rounded, stable projection of the existing `AcousticFrame`. `tests/unit/classic-baseline-capture.test.ts` requires an exact match to `mvp-baseline.json`.

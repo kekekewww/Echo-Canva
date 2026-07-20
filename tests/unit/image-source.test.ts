@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { findFirstOrderReflections } from "@/acoustics/image-source";
+import { MATERIALS } from "@/domain/materials/registry";
 import type { SceneSpec } from "@/domain/scene/types";
 
 function reflectionScene(walls: SceneSpec["walls"]): SceneSpec {
@@ -52,11 +53,28 @@ describe("findFirstOrderReflections", () => {
     });
     expect(bottom?.pathLengthM).toBeCloseTo(2 * Math.sqrt(13));
     expect(bottom?.delayMs).toBeCloseTo(((2 * Math.sqrt(13) - 6) / 343) * 1000);
-    const midReflectionAmplitude = Math.sqrt(1 - 0.04 - 10 ** (-34 / 10));
-    const highReflectionAmplitude = Math.sqrt(1 - 0.03 - 10 ** (-40 / 10));
+    const midReflectionAmplitude = Math.sqrt((1 - 0.04 - 10 ** (-34 / 10)) * (1 - 0.08));
+    const highReflectionAmplitude = Math.sqrt((1 - 0.03 - 10 ** (-40 / 10)) * (1 - 0.08));
     expect(bottom?.gainDb).toBeCloseTo(20 * Math.log10(midReflectionAmplitude / (2 * Math.sqrt(13))));
     expect(bottom?.lowpassHz).toBeCloseTo(
       700 * (20_000 / 700) ** Math.min(1, highReflectionAmplitude / midReflectionAmplitude),
+    );
+  });
+
+  it("uses only the material's specular energy for a treated-wall tap", () => {
+    const walls = RECTANGLE_WALLS.map((wall) => ({ ...wall, materialId: "acoustic_treatment" }));
+    const bottom = findFirstOrderReflections(
+      { x: 2, y: 2 },
+      { x: 8, y: 2 },
+      reflectionScene(walls),
+      6,
+    ).find((reflection) => reflection.wallId === "bottom");
+    const material = MATERIALS.find(({ id }) => id === "acoustic_treatment")!;
+    const reflectedEnergy = 1 - material.absorption.mid - 10 ** (-material.transmissionLossDb.mid / 10);
+    const specularAmplitude = Math.sqrt(reflectedEnergy * (1 - material.scattering));
+
+    expect(bottom?.gainDb).toBeCloseTo(
+      20 * Math.log10(specularAmplitude / (2 * Math.sqrt(13))),
     );
   });
 

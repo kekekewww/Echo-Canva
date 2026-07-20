@@ -1,5 +1,11 @@
 # Decision Log
 
+## D-048 — Separate specular early-reflection energy from scattering
+
+Decision: First-order image-source taps use only the specular share of reflected energy, `rho * (1 - scattering)`, in both Classic and Hybrid rendering. Retune the perceptually tuned Acoustic Treatment preset so its Mid/High specular energy remains at or below 5%/2% respectively. Diffuse energy remains available to the experimental receiver/late-field path and is not duplicated into the discrete tap bank.
+
+Reason: Human Gate E found strong transient reflections still prominent after every wall was changed to Acoustic Treatment. The material registry already carried a scattering coefficient, and the six-band energy model already split reflected energy into specular and diffuse shares, but the production first-order tap renderers incorrectly used total reflected energy as a fully coherent mirror reflection. The tighter treatment preset creates an audible authoring contrast without claiming anechoic or architectural accuracy.
+
 ## D-047 — Compile and apply mode-aware AI authoring candidates
 
 Decision: Keep Classic generation as a strict `SceneSpec`, but require Hybrid generation to return `{scene, spatial3d}`. The planar scene maps world X/Z to scene x/y; the companion record covers every generated Listener/source/Wall/Portal height by ID. Applying either candidate atomically synchronizes the selected mode's room dimensions and materials; applying Hybrid also replaces its vertical geometry.

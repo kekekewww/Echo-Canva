@@ -37,6 +37,16 @@ describe("material registry", () => {
     }
   });
 
+  it("keeps the treatment preset's Mid and High specular energy below transient-safe bounds", () => {
+    const treatment = MATERIALS.find(({ id }) => id === "acoustic_treatment")!;
+    const specularEnergy = (band: "mid" | "high") => (
+      1 - treatment.absorption[band] - 10 ** (-treatment.transmissionLossDb[band] / 10)
+    ) * (1 - treatment.scattering);
+
+    expect(specularEnergy("mid")).toBeLessThanOrEqual(0.05);
+    expect(specularEnergy("high")).toBeLessThanOrEqual(0.02);
+  });
+
   it("is deeply immutable", () => {
     expect(Object.isFrozen(MATERIALS)).toBe(true);
 

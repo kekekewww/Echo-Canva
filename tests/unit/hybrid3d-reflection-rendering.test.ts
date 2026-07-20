@@ -4,6 +4,7 @@ import {
   MAX_HYBRID_EARLY_REFLECTION_TAPS,
   renderHybridEarlyReflections,
 } from "@/acoustics/hybrid3d/reflection-rendering";
+import { MATERIALS } from "@/domain/materials/registry";
 import type { FirstOrderReflection3D } from "@/acoustics/hybrid3d/reflections";
 
 function reflection(
@@ -51,5 +52,16 @@ describe("Hybrid 3D reflection rendering", () => {
     expect(taps).toHaveLength(MAX_HYBRID_EARLY_REFLECTION_TAPS);
     expect(taps[0]?.id).toBe("first:wall-7");
     expect(taps.at(-1)?.id).toBe("first:wall-2");
+  });
+
+  it("uses the specular rather than total reflected energy for treated surfaces", () => {
+    const [tap] = renderHybridEarlyReflections([
+      reflection("first:treatment", "acoustic_treatment", 5),
+    ]);
+    const material = MATERIALS.find(({ id }) => id === "acoustic_treatment")!;
+    const reflectedEnergy = 1 - material.absorption.mid - 10 ** (-material.transmissionLossDb.mid / 10);
+    const specularAmplitude = Math.sqrt(reflectedEnergy * (1 - material.scattering));
+
+    expect(tap?.gainDb).toBeCloseTo(20 * Math.log10(specularAmplitude / 5));
   });
 });

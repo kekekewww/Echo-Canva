@@ -22,7 +22,8 @@ function materialFor(materialId: string): AcousticMaterial {
 function reflectionAmplitude(material: AcousticMaterial, band: "mid" | "high"): number {
   const absorption = material.absorption[band];
   const transmission = 10 ** (-material.transmissionLossDb[band] / 10);
-  return Math.sqrt(Math.max(0, 1 - absorption - transmission));
+  const reflectedEnergy = Math.max(0, 1 - absorption - transmission);
+  return Math.sqrt(reflectedEnergy * (1 - material.scattering));
 }
 
 function distanceAttenuation(pathLengthM: number): number {

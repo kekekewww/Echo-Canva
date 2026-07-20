@@ -1,5 +1,18 @@
 # Status
 
+## Gate E treated-surface transient repair — 2026-07-20
+
+- human headphone acceptance confirmed all prior Gate E repairs and identified overly prominent first-order reflections after every wall was changed to Acoustic Treatment
+- clarified the path count contract: six is the per-source cap; a rectangular Classic room normally yields four valid wall reflections, while Hybrid commonly reaches six by adding floor and ceiling
+- traced the transient contrast defect to production first-order taps using total reflected energy even though the material and six-band models already distinguish specular and scattered shares
+- Classic and Hybrid first-order taps now use `rho * (1 - scattering)` as specular energy; the Acoustic Treatment perceptual preset was tightened to Low/Mid/High absorption `0.55 / 0.90 / 0.96`
+- Treated Room Classic tap gains moved from approximately `-25.7..-27.5 dB` to `-32.4..-34.2 dB`; hard-room taps changed only about `-0.36 dB`
+- updated the deterministic Classic artifact to version 1.1 with explicit `approvedEvolution: D-048`; the original baseline remains recoverable at its recorded tag/commit
+- red/green focused verification — PASS, 17 tests
+- final `pnpm verify` — PASS: lint, typecheck, 61 unit files / 364 tests, production build, and 41/41 production Chromium tests
+
+Current action: request a focused headphone retest using a high-transient source in identical Hard concrete and Acoustic Treatment rooms.
+
 ## Human Gate E defect repair — 2026-07-20
 
 - reproduced the reported Listener deletion crash: deleting the final enabled Listener while a disabled Listener remained produced a project with no enabled receiver; deletion now preserves the project and reports the existing `listener_required` notice

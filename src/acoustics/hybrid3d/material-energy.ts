@@ -15,3 +15,10 @@ export function reflectionAmplitude(
   const transmittedEnergy = 10 ** (-material.transmissionLossDb[band] / 10);
   return Math.sqrt(Math.max(0, 1 - material.absorption[band] - transmittedEnergy));
 }
+
+export function specularReflectionAmplitude(
+  material: AcousticMaterial,
+  band: keyof Band3,
+): number {
+  return reflectionAmplitude(material, band) * Math.sqrt(1 - material.scattering);
+}

@@ -71,7 +71,7 @@ export const MATERIALS: readonly AcousticMaterial[] = Object.freeze([
   defineMaterial({
     id: "acoustic_treatment",
     displayName: "Acoustic treatment",
-    absorption: { low: 0.45, mid: 0.75, high: 0.9 },
+    absorption: { low: 0.55, mid: 0.9, high: 0.96 },
     transmissionLossDb: { low: 12, mid: 16, high: 20 },
     scattering: 0.35,
     referenceThicknessM: 0.1,
