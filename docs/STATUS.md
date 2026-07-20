@@ -1,5 +1,15 @@
 # Status
 
+## Floor and ceiling material authoring — 2026-07-21
+
+- exposed context-specific Material controls when selecting Floor or Ceiling in the Hybrid 3D Outliner
+- retained the existing Room dimensions overview controls, with both entry points updating the same persisted room state
+- confirmed Floor and Ceiling changes round-trip through the Inspector and therefore continue to drive the existing deterministic RT60 and first-order surface-reflection paths
+- red/green focused production-Chromium verification — PASS, 1 test
+- final `pnpm verify` — PASS: lint, typecheck, 61 unit files / 364 tests, production build, and 42/42 production Chromium tests
+
+Current action: restart the local development server and request a focused material-listening acceptance test.
+
 ## Gate E treated-surface transient repair — 2026-07-20
 
 - human headphone acceptance confirmed all prior Gate E repairs and identified overly prominent first-order reflections after every wall was changed to Acoustic Treatment

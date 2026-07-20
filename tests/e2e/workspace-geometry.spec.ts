@@ -116,6 +116,23 @@ test("edits room dimensions and protects the floor", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Disable" })).toHaveCount(0);
 });
 
+test("edits Floor and Ceiling materials from their own Inspector selections", async ({ page }) => {
+  await page.goto("/lab");
+  const outliner = page.getByRole("complementary", { name: "Scene Outliner" });
+
+  await outliner.getByRole("button", { name: "Floor", exact: true }).click();
+  await page.getByRole("combobox", { name: "Floor material" }).selectOption("acoustic_treatment");
+  await expect(page.getByRole("combobox", { name: "Floor material" })).toHaveValue("acoustic_treatment");
+
+  await outliner.getByRole("button", { name: "Ceiling", exact: true }).click();
+  await page.getByRole("combobox", { name: "Ceiling material" }).selectOption("acoustic_treatment");
+  await expect(page.getByRole("combobox", { name: "Ceiling material" })).toHaveValue("acoustic_treatment");
+
+  await outliner.getByRole("button", { name: "Room dimensions", exact: true }).click();
+  await expect(page.getByRole("combobox", { name: "Floor material" })).toHaveValue("acoustic_treatment");
+  await expect(page.getByRole("combobox", { name: "Ceiling material" })).toHaveValue("acoustic_treatment");
+});
+
 test("supports exact numeric input, arrows, and Escape cancel", async ({ page }) => {
   await page.goto("/");
   const x = page.getByRole("textbox", { name: "X position" });

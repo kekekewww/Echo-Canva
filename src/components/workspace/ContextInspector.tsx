@@ -181,6 +181,18 @@ export function ContextInspector({ project, dispatch, localAssets = [], onRelink
           {project.mode === "hybrid-3d" ? <NumericScrubField fineStep={0.01} label="Height" max={12} min={2} onCommit={(heightM) => applyConstraint(resizeRoomAndClamp(project, { ...project.room3d, heightM }))} step={0.1} unit="m" value={project.room3d.heightM} /> : null}
         </section>
       ) : null}
+      {selection?.type === "surface" && selection.id === "floor" ? (
+        <section className="inspector-section">
+          <h3>Floor</h3>
+          <label className="select-field">Material<select aria-label="Floor material" onChange={(event) => dispatch({ type: "SET_ROOM_3D", changes: { floorMaterialId: event.currentTarget.value } })} value={project.room3d.floorMaterialId}>{Object.values(MATERIALS).map((material) => <option key={material.id} value={material.id}>{material.displayName}</option>)}</select></label>
+        </section>
+      ) : null}
+      {selection?.type === "surface" && selection.id === "ceiling" ? (
+        <section className="inspector-section">
+          <h3>Ceiling</h3>
+          <label className="select-field">Material<select aria-label="Ceiling material" onChange={(event) => dispatch({ type: "SET_ROOM_3D", changes: { ceilingMaterialId: event.currentTarget.value } })} value={project.room3d.ceilingMaterialId}>{Object.values(MATERIALS).map((material) => <option key={material.id} value={material.id}>{material.displayName}</option>)}</select></label>
+        </section>
+      ) : null}
       {selection ? (
         <section className="inspector-actions">
           {!(selection.type === "surface" && (selection.id === "floor" || selection.id === "room")) ? <button onClick={() => dispatch({ type: "SET_ENTITY_ENABLED", entity: selection, enabled: disabled })} type="button">{disabled ? "Enable" : "Disable"}</button> : null}
