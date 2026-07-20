@@ -14,6 +14,7 @@ import { primitivePatches } from "@/acoustics/hybrid3d/primitives";
 
 export type HybridGeometry = Readonly<{
   document: SceneDocumentV2;
+  staticGeometryHash: string;
   patches: readonly AcousticPatch3[];
   bvh: PatchBvh;
   listenerPosition: Vec3;
@@ -222,6 +223,7 @@ export function bindHybridPoses(
   );
   return {
     document,
+    staticGeometryHash: structure.staticGeometryHash,
     patches: structure.patches,
     bvh: structure.bvh,
     listenerPosition: planPointToWorld(scene.listener.position, spatial.listenerHeightM),

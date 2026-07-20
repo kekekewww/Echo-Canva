@@ -34,6 +34,23 @@ export type HybridDirectFrame = Readonly<{
   firstOrderReflectionsBySource: Readonly<Record<string, readonly FirstOrderReflection3D[]>>;
 }>;
 
+export type HybridDirectPoseSnapshot = Readonly<{
+  revision: number;
+  staticFingerprint: string;
+  classicProjectionHash: string;
+  listenerPosition: Vec3;
+  sources: readonly Readonly<{ id: string; position: Vec3 }>[];
+}>;
+
+export type HybridDirectSourceResult = Readonly<{
+  sourceId: string;
+  revision: number;
+  staticFingerprint: string;
+  classicProjectionHash: string;
+  path: DirectPath3D;
+  firstOrderReflections: readonly FirstOrderReflection3D[];
+}>;
+
 function degrees(radians: number): number {
   return (radians * 180) / Math.PI;
 }
@@ -73,24 +90,105 @@ export function computeHybridDirectPaths(geometry: HybridGeometry): readonly Dir
   }));
 }
 
+export function createHybridDirectPoseSnapshot(
+  geometry: HybridGeometry,
+): HybridDirectPoseSnapshot {
+  return {
+    revision: geometry.document.baseScene.revision,
+    staticFingerprint: geometry.staticGeometryHash,
+    classicProjectionHash: geometry.document.compatibility.classicProjectionHash,
+    listenerPosition: geometry.listenerPosition,
+    sources: geometry.document.baseScene.sources.map((source) => ({
+      id: source.id,
+      position: geometry.sourcePositions[source.id]!,
+    })),
+  };
+}
+
+export function computeHybridDirectSources(
+  snapshot: HybridDirectPoseSnapshot,
+  bvh: PatchBvh,
+  sourceIds: readonly string[],
+): readonly HybridDirectSourceResult[] {
+  const requested = new Set<string>();
+  const sourcesById = new Map(snapshot.sources.map((source) => [source.id, source]));
+  return sourceIds.map((sourceId) => {
+    if (requested.has(sourceId)) throw new Error(`Duplicate Hybrid source ID requested: ${sourceId}`);
+    requested.add(sourceId);
+    const source = sourcesById.get(sourceId);
+    if (!source) throw new Error(`Unknown Hybrid source ID requested: ${sourceId}`);
+    return {
+      sourceId,
+      revision: snapshot.revision,
+      staticFingerprint: snapshot.staticFingerprint,
+      classicProjectionHash: snapshot.classicProjectionHash,
+      path: {
+        sourceId,
+        ...solveDirectPath3D(source.position, snapshot.listenerPosition, bvh),
+      },
+      firstOrderReflections: findFirstOrderReflections3D(
+        source.position,
+        snapshot.listenerPosition,
+        bvh,
+      ),
+    };
+  });
+}
+
+export function assembleHybridDirectFrame(
+  snapshot: HybridDirectPoseSnapshot,
+  results: readonly HybridDirectSourceResult[],
+  computedAtMs: number,
+): HybridDirectFrame {
+  const expectedIds = new Set(snapshot.sources.map(({ id }) => id));
+  const byId = new Map<string, HybridDirectSourceResult>();
+  for (const result of results) {
+    if (!expectedIds.has(result.sourceId)) {
+      throw new Error(`Unknown Hybrid source result: ${result.sourceId}`);
+    }
+    if (byId.has(result.sourceId)) {
+      throw new Error(`Duplicate Hybrid source result: ${result.sourceId}`);
+    }
+    if (result.revision !== snapshot.revision) {
+      throw new Error(`Hybrid source result revision mismatch for ${result.sourceId}.`);
+    }
+    if (result.staticFingerprint !== snapshot.staticFingerprint) {
+      throw new Error(`Hybrid source result static fingerprint mismatch for ${result.sourceId}.`);
+    }
+    if (result.classicProjectionHash !== snapshot.classicProjectionHash) {
+      throw new Error(`Hybrid source result projection hash mismatch for ${result.sourceId}.`);
+    }
+    if (result.path.sourceId !== result.sourceId) {
+      throw new Error(`Hybrid source result payload ID mismatch for ${result.sourceId}.`);
+    }
+    byId.set(result.sourceId, result);
+  }
+  const missingIds = snapshot.sources
+    .map(({ id }) => id)
+    .filter((sourceId) => !byId.has(sourceId));
+  if (missingIds.length > 0) {
+    throw new Error(`Missing Hybrid source results: ${missingIds.join(", ")}`);
+  }
+  return {
+    revision: snapshot.revision,
+    classicProjectionHash: snapshot.classicProjectionHash,
+    computedAtMs,
+    paths: snapshot.sources.map(({ id }) => byId.get(id)!.path),
+    firstOrderReflectionsBySource: Object.fromEntries(
+      snapshot.sources.map(({ id }) => [id, byId.get(id)!.firstOrderReflections]),
+    ),
+  };
+}
+
 export function computeHybridDirectFrame(
   geometry: HybridGeometry,
   computedAtMs = 0,
 ): HybridDirectFrame {
-  return {
-    revision: geometry.document.baseScene.revision,
-    classicProjectionHash: geometry.document.compatibility.classicProjectionHash,
-    computedAtMs,
-    paths: computeHybridDirectPaths(geometry),
-    firstOrderReflectionsBySource: Object.fromEntries(
-      geometry.document.baseScene.sources.map((source) => [
-        source.id,
-        findFirstOrderReflections3D(
-          geometry.sourcePositions[source.id]!,
-          geometry.listenerPosition,
-          geometry.bvh,
-        ),
-      ]),
-    ),
-  };
+  const snapshot = createHybridDirectPoseSnapshot(geometry);
+  const results = computeHybridDirectSources(
+    snapshot,
+    geometry.bvh,
+    snapshot.sources.map(({ id }) => id),
+  );
+  return assembleHybridDirectFrame(snapshot, results, computedAtMs);
 }

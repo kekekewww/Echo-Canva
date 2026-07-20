@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { computeAcousticFrame } from "@/acoustics/compute-frame";
+import {
+  assembleAcousticFrame,
+  computeAcousticFrame,
+  computeClassicSourceResults,
+  createClassicPoseSnapshot,
+  createClassicStaticContext,
+} from "@/acoustics/compute-frame";
+import { estimateRoomAcoustics } from "@/acoustics/room-acoustics";
 import { CONCRETE_PARTITION_PRESET } from "@/domain/presets/concrete-partition";
 import type { SceneSpec } from "@/domain/scene/types";
 
@@ -38,6 +45,91 @@ const visibleScene: SceneSpec = {
 };
 
 describe("computeAcousticFrame", () => {
+  it.each([
+    ["direct", visibleScene],
+    ["portal", {
+      ...CONCRETE_PARTITION_PRESET,
+      sources: [{ ...CONCRETE_PARTITION_PRESET.sources[0]!, position: { x: 9, y: 1.5 } }],
+      listener: { ...CONCRETE_PARTITION_PRESET.listener, position: { x: 3, y: 1.5 } },
+    }],
+    ["blocked", {
+      ...CONCRETE_PARTITION_PRESET,
+      portals: CONCRETE_PARTITION_PRESET.portals.map((portal) => ({ ...portal, open: false })),
+      sources: [{ ...CONCRETE_PARTITION_PRESET.sources[0]!, position: { x: 9, y: 1.5 } }],
+      listener: { ...CONCRETE_PARTITION_PRESET.listener, position: { x: 3, y: 1.5 } },
+    }],
+    ["reflection", {
+      ...visibleScene,
+      walls: [{
+        id: "top",
+        a: { x: 8, y: 6 },
+        b: { x: 0, y: 6 },
+        thicknessM: 0.2,
+        materialId: "concrete_hard",
+        kind: "boundary" as const,
+      }],
+    }],
+  ])("deep-equals independently computed and assembled %s source results", (_, scene) => {
+    const context = createClassicStaticContext(scene);
+    const snapshot = createClassicPoseSnapshot(scene);
+    const results = computeClassicSourceResults(
+      context,
+      snapshot,
+      snapshot.sources.map(({ id }) => id),
+    );
+
+    expect(assembleAcousticFrame(snapshot, estimateRoomAcoustics(scene), results, 2468)).toEqual(
+      computeAcousticFrame(scene, 2468),
+    );
+  });
+
+  it("assembles independently computed results in authored source order", () => {
+    const reordered: SceneSpec = {
+      ...visibleScene,
+      sources: [
+        { ...visibleScene.sources[0]!, id: "second", position: { x: 4, y: 1 } },
+        { ...visibleScene.sources[0]!, id: "first", position: { x: 7, y: 2 } },
+      ],
+    };
+    const context = createClassicStaticContext(reordered);
+    const snapshot = createClassicPoseSnapshot(reordered);
+    const results = computeClassicSourceResults(context, snapshot, ["first", "second"]);
+
+    const frame = assembleAcousticFrame(snapshot, estimateRoomAcoustics(reordered), results, 0);
+
+    expect(frame.sources.map(({ sourceId }) => sourceId)).toEqual(["second", "first"]);
+    expect(frame).toEqual(computeAcousticFrame(reordered));
+  });
+
+  it("rejects incomplete, duplicate, unknown, stale, and cross-static source results", () => {
+    const scene: SceneSpec = {
+      ...visibleScene,
+      sources: [
+        visibleScene.sources[0]!,
+        { ...visibleScene.sources[0]!, id: "rain", position: { x: 7, y: 2 } },
+      ],
+    };
+    const context = createClassicStaticContext(scene);
+    const snapshot = createClassicPoseSnapshot(scene);
+    const room = estimateRoomAcoustics(scene);
+    const results = computeClassicSourceResults(context, snapshot, ["radio", "rain"]);
+
+    expect(() => assembleAcousticFrame(snapshot, room, results.slice(0, 1), 0)).toThrow(/missing/i);
+    expect(() => assembleAcousticFrame(snapshot, room, [results[0]!, results[0]!], 0)).toThrow(/duplicate/i);
+    expect(() => assembleAcousticFrame(snapshot, room, [
+      results[0]!,
+      { ...results[1]!, sourceId: "unknown" },
+    ], 0)).toThrow(/unknown/i);
+    expect(() => assembleAcousticFrame(snapshot, room, [
+      results[0]!,
+      { ...results[1]!, revision: snapshot.revision - 1 },
+    ], 0)).toThrow(/revision/i);
+    expect(() => assembleAcousticFrame(snapshot, room, [
+      results[0]!,
+      { ...results[1]!, staticFingerprint: "wrong" },
+    ], 0)).toThrow(/fingerprint/i);
+  });
+
   it("maps an unobstructed source to a direct frame", () => {
     const frame = computeAcousticFrame(visibleScene, 1234);
 

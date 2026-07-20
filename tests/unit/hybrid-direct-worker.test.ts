@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { compileHybridStaticGeometry } from "@/acoustics/hybrid3d/compile";
+import {
+  bindHybridPoses,
+  compileHybridStaticGeometry,
+} from "@/acoustics/hybrid3d/compile";
+import {
+  computeHybridDirectSources,
+  createHybridDirectPoseSnapshot,
+} from "@/acoustics/hybrid3d/direct";
+import type { PatchBvh } from "@/acoustics/hybrid3d/bvh";
 import { CONCRETE_PARTITION_PRESET } from "@/domain/presets/concrete-partition";
 import { createSceneDocumentV2 } from "@/domain/scene-document/serialize";
 import type { SceneSpec } from "@/domain/scene/types";
@@ -21,65 +29,104 @@ function documentWithHeights(listenerHeightM: number, radioHeightM: number) {
   });
 }
 
-describe("Hybrid direct Worker controller", () => {
-  it("reuses static BVH geometry for pose-only updates and discards work after disposal", () => {
+describe("Hybrid direct source shard Worker controller", () => {
+  it("installs static geometry, computes requested IDs, and measures after calculation", () => {
     const responses: HybridDirectWorkerResponse[] = [];
-    let compileCount = 0;
+    const document = documentWithHeights(1.5, 1.3);
+    const structure = compileHybridStaticGeometry(document);
+    const snapshot = createHybridDirectPoseSnapshot(bindHybridPoses(structure, document));
+    const times = [20, 29];
     const controller = createHybridDirectWorkerController(
       { postMessage: (response) => responses.push(response) },
-      {
-        compileStatic: (document) => {
-          compileCount += 1;
-          return compileHybridStaticGeometry(document);
-        },
-        now: () => 100,
-      },
+      { now: () => times.shift() ?? 29 },
     );
-    const initial = documentWithHeights(1.5, 1.3);
-    const moved = documentWithHeights(2.1, 2.4);
 
-    controller.handle({ type: "COMPUTE", requestId: 1, document: initial });
-    controller.handle({ type: "COMPUTE", requestId: 2, document: moved });
+    controller.handle({ type: "INSTALL_STATIC", requestId: 1, structure });
+    controller.handle({
+      type: "COMPUTE_SHARD",
+      requestId: 2,
+      staticFingerprint: structure.staticGeometryHash,
+      snapshot,
+      sourceIds: ["radio"],
+    });
 
-    expect(compileCount).toBe(1);
-    expect(responses).toHaveLength(2);
-    expect(responses[1]).toMatchObject({ type: "FRAME", requestId: 2 });
-    const second = responses[1];
-    if (second?.type !== "FRAME") throw new Error("Expected a Hybrid direct frame.");
-    expect(second.frame.paths.find(({ sourceId }) => sourceId === "radio")?.elevationDeg).toBeGreaterThan(0);
-
-    controller.handle({ type: "DISPOSE" });
-    controller.handle({ type: "COMPUTE", requestId: 3, document: moved });
-    expect(responses).toHaveLength(2);
+    expect(responses[0]).toEqual({
+      type: "STATIC_INSTALLED",
+      requestId: 1,
+      staticFingerprint: structure.staticGeometryHash,
+    });
+    expect(responses[1]).toMatchObject({
+      type: "SHARD_RESULT",
+      requestId: 2,
+      staticFingerprint: structure.staticGeometryHash,
+      revision: snapshot.revision,
+      sourceIds: ["radio"],
+      computeMs: 9,
+      completedAtMs: 29,
+      results: [{ sourceId: "radio" }],
+    });
   });
 
-  it("reuses static BVH geometry when only planar listener and source poses change", () => {
+  it("rejects missing and mismatched static geometry with typed errors", () => {
     const responses: HybridDirectWorkerResponse[] = [];
-    let compileCount = 0;
+    const document = documentWithHeights(1.5, 1.3);
+    const structure = compileHybridStaticGeometry(document);
+    const snapshot = createHybridDirectPoseSnapshot(bindHybridPoses(structure, document));
+    const controller = createHybridDirectWorkerController({
+      postMessage: (response) => responses.push(response),
+    });
+
+    controller.handle({
+      type: "COMPUTE_SHARD",
+      requestId: 1,
+      staticFingerprint: structure.staticGeometryHash,
+      snapshot,
+      sourceIds: ["radio"],
+    });
+    controller.handle({ type: "INSTALL_STATIC", requestId: 2, structure });
+    controller.handle({
+      type: "COMPUTE_SHARD",
+      requestId: 3,
+      staticFingerprint: "stale",
+      snapshot,
+      sourceIds: ["radio"],
+    });
+
+    expect(responses[0]).toMatchObject({ type: "ERROR", code: "HYBRID_STATIC_NOT_INSTALLED" });
+    expect(responses[2]).toMatchObject({ type: "ERROR", code: "HYBRID_STATIC_FINGERPRINT_MISMATCH" });
+  });
+
+  it("reuses the installed BVH for pose-only shards and ignores work after disposal", () => {
+    const responses: HybridDirectWorkerResponse[] = [];
+    const initial = documentWithHeights(1.5, 1.3);
+    const moved = documentWithHeights(2.1, 2.4);
+    const structure = compileHybridStaticGeometry(initial);
+    const seenBvhs: PatchBvh[] = [];
     const controller = createHybridDirectWorkerController(
       { postMessage: (response) => responses.push(response) },
       {
-        compileStatic: (document) => {
-          compileCount += 1;
-          return compileHybridStaticGeometry(document);
+        computeSources: (snapshot, bvh, sourceIds) => {
+          seenBvhs.push(bvh);
+          return computeHybridDirectSources(snapshot, bvh, sourceIds);
         },
-        now: () => 100,
       },
     );
-    const initial = documentWithHeights(1.5, 1.3);
-    const movedScene: SceneSpec = structuredClone(initial.baseScene);
-    movedScene.revision += 1;
-    movedScene.listener.position = { x: 7, y: 5 };
-    movedScene.sources[0]!.position = { x: 3, y: 6 };
-    const moved = createSceneDocumentV2(movedScene, initial.extensions);
 
-    expect(moved.compatibility.classicProjectionHash).not.toBe(
-      initial.compatibility.classicProjectionHash,
-    );
-    controller.handle({ type: "COMPUTE", requestId: 1, document: initial });
-    controller.handle({ type: "COMPUTE", requestId: 2, document: moved });
+    controller.handle({ type: "INSTALL_STATIC", requestId: 1, structure });
+    for (const [requestId, document] of [[2, initial], [3, moved]] as const) {
+      controller.handle({
+        type: "COMPUTE_SHARD",
+        requestId,
+        staticFingerprint: structure.staticGeometryHash,
+        snapshot: createHybridDirectPoseSnapshot(bindHybridPoses(structure, document)),
+        sourceIds: ["radio"],
+      });
+    }
 
-    expect(compileCount).toBe(1);
-    expect(responses).toHaveLength(2);
+    expect(seenBvhs).toEqual([structure.bvh, structure.bvh]);
+    expect(responses).toHaveLength(3);
+    controller.handle({ type: "DISPOSE", requestId: 4 });
+    controller.handle({ type: "INSTALL_STATIC", requestId: 5, structure });
+    expect(responses).toHaveLength(3);
   });
 });

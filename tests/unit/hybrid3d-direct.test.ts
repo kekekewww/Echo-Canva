@@ -6,7 +6,14 @@ import {
   compileHybridGeometry,
   compileHybridStaticGeometry,
 } from "@/acoustics/hybrid3d/compile";
-import { computeHybridDirectPaths, solveDirectPath3D } from "@/acoustics/hybrid3d/direct";
+import {
+  assembleHybridDirectFrame,
+  computeHybridDirectFrame,
+  computeHybridDirectPaths,
+  computeHybridDirectSources,
+  createHybridDirectPoseSnapshot,
+  solveDirectPath3D,
+} from "@/acoustics/hybrid3d/direct";
 import { makePatch3, type Vec3 } from "@/acoustics/hybrid3d/geometry";
 import { createSceneDocumentV2 } from "@/domain/scene-document/serialize";
 import { CONCRETE_PARTITION_PRESET } from "@/domain/presets/concrete-partition";
@@ -32,6 +39,64 @@ function hybridDocument(portalOpen = true) {
 }
 
 describe("Hybrid 3D direct propagation", () => {
+  it("deep-equals ordered assembly when independently computed results arrive reversed", () => {
+    const geometry = compileHybridGeometry(hybridDocument(false));
+    const snapshot = createHybridDirectPoseSnapshot(geometry);
+    const results = computeHybridDirectSources(
+      snapshot,
+      geometry.bvh,
+      snapshot.sources.map(({ id }) => id).reverse(),
+    );
+
+    expect(assembleHybridDirectFrame(snapshot, results, 2468)).toEqual(
+      computeHybridDirectFrame(geometry, 2468),
+    );
+  });
+
+  it("retains authored source declaration order during assembly", () => {
+    const document = hybridDocument(false);
+    const reordered = createSceneDocumentV2({
+      ...structuredClone(document.baseScene),
+      sources: [...document.baseScene.sources].reverse(),
+    }, document.extensions);
+    const geometry = compileHybridGeometry(reordered);
+    const snapshot = createHybridDirectPoseSnapshot(geometry);
+    const results = computeHybridDirectSources(
+      snapshot,
+      geometry.bvh,
+      [...snapshot.sources].reverse().map(({ id }) => id),
+    );
+
+    expect(assembleHybridDirectFrame(snapshot, results, 0).paths.map(({ sourceId }) => sourceId)).toEqual(
+      reordered.baseScene.sources.map(({ id }) => id),
+    );
+  });
+
+  it("rejects missing, duplicate, unknown, stale, and cross-static source results", () => {
+    const geometry = compileHybridGeometry(hybridDocument(false));
+    const snapshot = createHybridDirectPoseSnapshot(geometry);
+    const results = computeHybridDirectSources(
+      snapshot,
+      geometry.bvh,
+      snapshot.sources.map(({ id }) => id),
+    );
+
+    expect(() => assembleHybridDirectFrame(snapshot, results.slice(0, 1), 0)).toThrow(/missing/i);
+    expect(() => assembleHybridDirectFrame(snapshot, [results[0]!, results[0]!], 0)).toThrow(/duplicate/i);
+    expect(() => assembleHybridDirectFrame(snapshot, [
+      results[0]!,
+      { ...results[1]!, sourceId: "unknown" },
+    ], 0)).toThrow(/unknown/i);
+    expect(() => assembleHybridDirectFrame(snapshot, [
+      results[0]!,
+      { ...results[1]!, revision: snapshot.revision - 1 },
+    ], 0)).toThrow(/revision/i);
+    expect(() => assembleHybridDirectFrame(snapshot, [
+      results[0]!,
+      { ...results[1]!, staticFingerprint: "wrong" },
+    ], 0)).toThrow(/fingerprint/i);
+  });
+
   it("solves the G001 free-field 3-4-5 distance, delay, and elevation", () => {
     const result = solveDirectPath3D(
       { x: 0, y: 1.5, z: 0 },
