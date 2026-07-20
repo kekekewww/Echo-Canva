@@ -99,3 +99,43 @@ No tests were skipped, commented out, or inferred manually.
 ## Concerns
 
 None. No formulas, public `AcousticFrame` fields, reflection limits, Web Audio behavior, or Hybrid acoustic calculations changed.
+
+## Review hardening follow-up
+
+Implementation commit: `517f8fd6bec9846931bc632dfbcc9a20c232f8be` — `fix(acoustics): harden classic pool fallback`
+
+### Fixes
+
+- Reverted all Task 2 runtime edits in `HybridViewportAdapter`; pool metrics are optional Classic-only status fields.
+- Treats shard Worker messages as untrusted values. Arrays, result records, nested frame fields, vectors, reflection taps, string collections, and numeric values are validated before aggregation.
+- Wraps the complete message validation path in `try/catch`; malformed values terminate all Workers and emit exactly one backward-compatible pool `ERROR`.
+- Classic accepts and applies a complete deterministic serial-fallback frame, reports `Fallback`, and retains the fallback notice in the viewport UI.
+
+### Follow-up RED evidence
+
+- `sourceIds: null` and `results: null` threw `TypeError` through the Worker event callback.
+- Null result and null nested frame values threw while reading `sourceId`.
+- A nested `physicalDistanceM: NaN` was published in a completed `FRAME`.
+- The Classic fallback presentation mapping did not exist.
+- A Hybrid-style `WorkspaceAcousticStatus` without pool metrics failed typecheck.
+
+### Follow-up GREEN verification
+
+```text
+$ vitest run tests/unit/classic-source-pool.test.ts tests/unit/use-acoustic-frame.test.ts tests/unit/classic-viewport-adapter.test.ts tests/unit/workspace-status-bar.test.ts tests/unit/transport.test.ts
+Test Files  5 passed (5)
+Tests  43 passed (43)
+
+$ eslint . --max-warnings=0
+exit 0
+
+$ tsc --noEmit
+exit 0
+
+$ vitest run
+Test Files  67 passed (67)
+Tests  426 passed (426)
+exit 0
+```
+
+Follow-up concerns: none.
