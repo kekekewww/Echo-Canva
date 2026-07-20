@@ -55,7 +55,7 @@ function reflectAcrossWallLine(point: Vec2, wall: SceneSpec["walls"][number]): V
   };
 }
 
-function isVisibleLeg(
+export function reflectionLegIsVisible2D(
   start: Vec2,
   end: Vec2,
   reflectionPoint: Vec2,
@@ -74,6 +74,16 @@ function isVisibleLeg(
   }
 
   return traceDirectPath(start, end, scene).visible;
+}
+
+export function firstOrderReflectionPoint2D(
+  source: Vec2,
+  listener: Vec2,
+  wall: SceneSpec["walls"][number],
+): Vec2 | null {
+  const imageSource = reflectAcrossWallLine(source, wall);
+  if (imageSource === null) return null;
+  return segmentIntersection(imageSource, listener, wall.a, wall.b)?.point ?? null;
 }
 
 function lowpassForReflection(material: AcousticMaterial): number {
@@ -102,20 +112,13 @@ export function findFirstOrderReflections(
 
   return scene.walls
     .flatMap((wall): ReflectionTap[] => {
-      const imageSource = reflectAcrossWallLine(source, wall);
-      if (imageSource === null) {
+      const reflectionPoint = firstOrderReflectionPoint2D(source, listener, wall);
+      if (reflectionPoint === null) {
         return [];
       }
-
-      const hit = segmentIntersection(imageSource, listener, wall.a, wall.b);
-      if (hit === null) {
-        return [];
-      }
-
-      const reflectionPoint = hit.point;
       if (
-        !isVisibleLeg(source, reflectionPoint, reflectionPoint, wall.id, scene) ||
-        !isVisibleLeg(reflectionPoint, listener, reflectionPoint, wall.id, scene)
+        !reflectionLegIsVisible2D(source, reflectionPoint, reflectionPoint, wall.id, scene) ||
+        !reflectionLegIsVisible2D(reflectionPoint, listener, reflectionPoint, wall.id, scene)
       ) {
         return [];
       }

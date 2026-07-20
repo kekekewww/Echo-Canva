@@ -7,6 +7,13 @@ import {
   type ClassicStaticContext,
   type AcousticFrame,
 } from "@/acoustics/compute-frame";
+import { traceDirectPath } from "@/acoustics/geometry";
+import {
+  firstOrderReflectionPoint2D,
+  reflectionLegIsVisible2D,
+} from "@/acoustics/image-source";
+import { estimateDirectOcclusion } from "@/acoustics/occlusion";
+import { findBestPortalRoute } from "@/acoustics/portal";
 import { estimateRoomAcoustics } from "@/acoustics/room-acoustics";
 import type { RoomAcousticFrame } from "@/acoustics/types";
 import { acousticUpdateIntervalMs } from "@/acoustics/update-rate";
@@ -72,7 +79,7 @@ const MAX_ID_LENGTH = 64;
 const MAX_COORDINATE_M = 100;
 const MAX_PHYSICAL_DISTANCE_M = 150;
 const MAX_EFFECTIVE_DISTANCE_M = 1_600;
-const MAX_CLASSIC_ROUTE_POINTS = 10;
+const MAX_CLASSIC_ROUTE_POINTS = 102;
 const MAX_CLASSIC_REFLECTIONS = 6;
 const MAX_EARLY_DELAY_MS = 80;
 const MAX_TIMING_MS = 60_000;
@@ -128,49 +135,14 @@ function samePoint2(left: Vec2, right: Vec2): boolean {
   return nearlyEqual(left.x, right.x) && nearlyEqual(left.y, right.y);
 }
 
-function pointOnWallSegment(point: Vec2, wall: SceneSpec["walls"][number]): boolean {
-  const delta = { x: wall.b.x - wall.a.x, y: wall.b.y - wall.a.y };
-  const lengthSquared = delta.x * delta.x + delta.y * delta.y;
-  if (lengthSquared <= ABSOLUTE_TOLERANCE * ABSOLUTE_TOLERANCE) return false;
-  const offset = { x: point.x - wall.a.x, y: point.y - wall.a.y };
-  const perpendicularDistance = Math.abs(offset.x * delta.y - offset.y * delta.x)
-    / Math.sqrt(lengthSquared);
-  const projection = (offset.x * delta.x + offset.y * delta.y) / lengthSquared;
-  return perpendicularDistance <= ABSOLUTE_TOLERANCE
-    && projection >= -ABSOLUTE_TOLERANCE
-    && projection <= 1 + ABSOLUTE_TOLERANCE;
+function samePoints2(left: readonly Vec2[], right: readonly Vec2[]): boolean {
+  return left.length === right.length
+    && left.every((point, index) => samePoint2(point, right[index]!));
 }
 
-function expectedReflectionPoint2(
-  source: Vec2,
-  listener: Vec2,
-  wall: SceneSpec["walls"][number],
-): Vec2 | null {
-  const wallDirection = { x: wall.b.x - wall.a.x, y: wall.b.y - wall.a.y };
-  const wallLengthSquared = wallDirection.x ** 2 + wallDirection.y ** 2;
-  if (wallLengthSquared <= ABSOLUTE_TOLERANCE * ABSOLUTE_TOLERANCE) return null;
-  const sourceOffset = { x: source.x - wall.a.x, y: source.y - wall.a.y };
-  const projection = (sourceOffset.x * wallDirection.x + sourceOffset.y * wallDirection.y)
-    / wallLengthSquared;
-  const projectedSource = {
-    x: wall.a.x + wallDirection.x * projection,
-    y: wall.a.y + wallDirection.y * projection,
-  };
-  const imageSource = {
-    x: 2 * projectedSource.x - source.x,
-    y: 2 * projectedSource.y - source.y,
-  };
-  const imageRay = { x: listener.x - imageSource.x, y: listener.y - imageSource.y };
-  const denominator = imageRay.x * wallDirection.y - imageRay.y * wallDirection.x;
-  if (Math.abs(denominator) <= ABSOLUTE_TOLERANCE) return null;
-  const wallOffset = { x: wall.a.x - imageSource.x, y: wall.a.y - imageSource.y };
-  const time = (wallOffset.x * wallDirection.y - wallOffset.y * wallDirection.x) / denominator;
-  if (time < -ABSOLUTE_TOLERANCE || time > 1 + ABSOLUTE_TOLERANCE) return null;
-  const point = {
-    x: imageSource.x + imageRay.x * time,
-    y: imageSource.y + imageRay.y * time,
-  };
-  return pointOnWallSegment(point, wall) ? point : null;
+function sameStrings(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length
+    && left.every((entry, index) => entry === right[index]);
 }
 
 function isEarlyReflection(
@@ -178,6 +150,7 @@ function isEarlyReflection(
   sourcePosition: Vec2,
   listenerPosition: Vec2,
   effectiveDistanceM: number,
+  scene: SceneSpec,
   wallsById: ReadonlyMap<string, SceneSpec["walls"][number]>,
 ): boolean {
   if (
@@ -190,9 +163,22 @@ function isEarlyReflection(
     || !isVec2(value.reflectionPoint)
   ) return false;
   const wall = wallsById.get(value.wallId);
-  if (!wall || !pointOnWallSegment(value.reflectionPoint, wall)) return false;
-  const expectedReflectionPoint = expectedReflectionPoint2(sourcePosition, listenerPosition, wall);
+  if (!wall) return false;
+  const expectedReflectionPoint = firstOrderReflectionPoint2D(sourcePosition, listenerPosition, wall);
   if (!expectedReflectionPoint || !samePoint2(value.reflectionPoint, expectedReflectionPoint)) return false;
+  if (!reflectionLegIsVisible2D(
+    sourcePosition,
+    value.reflectionPoint,
+    value.reflectionPoint,
+    wall.id,
+    scene,
+  ) || !reflectionLegIsVisible2D(
+    value.reflectionPoint,
+    listenerPosition,
+    value.reflectionPoint,
+    wall.id,
+    scene,
+  )) return false;
   const expectedPathLengthM = distance2(sourcePosition, value.reflectionPoint)
     + distance2(value.reflectionPoint, listenerPosition);
   const expectedDelayMs = Math.max(
@@ -212,6 +198,12 @@ function isAcousticFrameSource(
   if (!isRecord(value)) return false;
   const source = snapshot.sources.find(({ id }) => id === sourceId);
   if (!source) return false;
+  const scene: SceneSpec = {
+    ...context.scene,
+    revision: snapshot.revision,
+    listener: snapshot.listener,
+    sources: [...snapshot.sources],
+  };
   const wallsById = new Map(context.scene.walls.map((wall) => [wall.id, wall]));
   const wallIds = new Set(wallsById.keys());
   const portalIds = new Set(context.scene.portals.map(({ id }) => id));
@@ -219,14 +211,6 @@ function isAcousticFrameSource(
   const directVisible = value.directVisible;
   if (!isBoundedKnownStringArray(value.occluderWallIds, 100, wallIds)) return false;
   if (!isBoundedKnownStringArray(value.portalIds, 8, portalIds)) return false;
-  const matchedPortalIds = value.portalIds;
-  const routeConsistent = routeType === "direct"
-    ? directVisible === true && value.occluderWallIds.length === 0 && value.portalIds.length === 0
-    : routeType === "portal"
-      ? directVisible === false && value.portalIds.length > 0
-      : routeType === "blocked"
-        ? directVisible === false && value.portalIds.length === 0
-        : false;
   if (!isBoundedNumber(value.physicalDistanceM, 0, MAX_PHYSICAL_DISTANCE_M)) return false;
   const physicalDistanceM = value.physicalDistanceM;
   const expectedPhysicalDistanceM = distance2(source.position, snapshot.listener.position);
@@ -238,38 +222,45 @@ function isAcousticFrameSource(
     || value.routePolyline.length > MAX_CLASSIC_ROUTE_POINTS
     || !value.routePolyline.every(isVec2)) return false;
   const routePolyline = value.routePolyline;
-  const routeLengthM = routePolyline.slice(1).reduce(
-    (total, point, index) => total + distance2(routePolyline[index]!, point),
-    0,
-  );
-  if (!samePoint2(routePolyline[0]!, source.position)
-    || !samePoint2(routePolyline.at(-1)!, snapshot.listener.position)
-    || !nearlyEqual(routeLengthM, effectiveDistanceM)) return false;
-  if (routeType === "portal") {
-    if (routePolyline.length !== matchedPortalIds.length + 2) return false;
-    for (let index = 0; index < matchedPortalIds.length; index += 1) {
-      const portal = context.scene.portals.find(({ id }) => id === matchedPortalIds[index]);
-      if (!portal || !samePoint2(routePolyline[index + 1]!, portal.center)) return false;
-    }
-  } else if (routePolyline.length !== 2) {
-    return false;
-  }
-  return routeConsistent
-    && value.sourceId === sourceId
-    && (routeType === "portal" || nearlyEqual(effectiveDistanceM, physicalDistanceM))
-    && isBoundedNumber(value.dryGainDb, -192, 0)
-    && isBoundedNumber(value.lowpassHz, 20, 20_000)
-    && isBoundedNumber(value.reverbSendDb, -120, 12)
-    && isVec2(value.virtualPosition)
-    && Array.isArray(value.earlyReflections)
-    && value.earlyReflections.length <= MAX_CLASSIC_REFLECTIONS
-    && value.earlyReflections.every((reflection) => isEarlyReflection(
+  if (!isBoundedNumber(value.dryGainDb, -192, 0)
+    || !isBoundedNumber(value.lowpassHz, 20, 20_000)
+    || !isBoundedNumber(value.reverbSendDb, -120, 12)
+    || !isVec2(value.virtualPosition)
+    || !Array.isArray(value.earlyReflections)
+    || value.earlyReflections.length > MAX_CLASSIC_REFLECTIONS
+    || !value.earlyReflections.every((reflection) => isEarlyReflection(
       reflection,
       source.position,
       snapshot.listener.position,
       effectiveDistanceM,
+      scene,
       wallsById,
-    ));
+    ))) return false;
+  const reflectionWallIds = value.earlyReflections.map((reflection) =>
+    (reflection as { wallId: string }).wallId);
+  if (new Set(reflectionWallIds).size !== reflectionWallIds.length) return false;
+
+  const trace = traceDirectPath(source.position, snapshot.listener.position, scene);
+  const occlusion = estimateDirectOcclusion(trace);
+  const portalRoute = trace.visible
+    ? null
+    : findBestPortalRoute(source.position, snapshot.listener.position, scene);
+  const expectedRouteType = trace.visible ? "direct" : portalRoute ? "portal" : "blocked";
+  const expectedEffectiveDistanceM = portalRoute?.effectiveDistanceM ?? expectedPhysicalDistanceM;
+  const expectedPortalIds = portalRoute?.portalIds ?? [];
+  const expectedPolyline = portalRoute?.polyline ?? trace.polyline;
+  const expectedVirtualPosition = portalRoute?.virtualPosition ?? source.position;
+  return value.sourceId === sourceId
+    && routeType === expectedRouteType
+    && directVisible === trace.visible
+    && nearlyEqual(effectiveDistanceM, expectedEffectiveDistanceM)
+    && sameStrings(value.occluderWallIds, occlusion.occluderWallIds)
+    && sameStrings(value.portalIds, expectedPortalIds)
+    && samePoints2(routePolyline, expectedPolyline)
+    && samePoint2(value.virtualPosition, expectedVirtualPosition)
+    && nearlyEqual(value.dryGainDb, portalRoute?.dryGainDb ?? occlusion.dryGainDb)
+    && nearlyEqual(value.lowpassHz, portalRoute?.lowpassHz ?? occlusion.lowpassHz)
+    && nearlyEqual(value.reverbSendDb, 0);
 }
 
 function isClassicSourceResult(

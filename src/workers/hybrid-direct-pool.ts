@@ -20,6 +20,7 @@ import {
 } from "@/acoustics/hybrid3d/geometry";
 import {
   imageRayIntersection,
+  reflectionLegIsVisible,
   reflectedPoint,
   type FirstOrderReflection3D,
 } from "@/acoustics/hybrid3d/reflections";
@@ -259,9 +260,9 @@ function isReflection(
 ): value is FirstOrderReflection3D {
   if (!isRecord(value) || !isBoundedString(value.patchId)) return false;
   const patch = geometry.patches.find(({ id }) => id === value.patchId);
-  const expectedSurfaceId = patch?.wallId ?? patch?.id;
-  if (!(patch !== undefined
-    && isBoundedString(value.id)
+  if (!patch) return false;
+  const expectedSurfaceId = patch.wallId ?? patch.id;
+  if (!(isBoundedString(value.id)
     && value.id === `first:${expectedSurfaceId}`
     && value.surfaceId === expectedSurfaceId
     && value.materialId === patch.materialId
@@ -277,6 +278,17 @@ function isReflection(
     patch,
   );
   if (!expectedReflectionPoint || !sameVector3(value.reflectionPoint, expectedReflectionPoint)) return false;
+  if (!reflectionLegIsVisible(
+    sourcePosition,
+    value.reflectionPoint,
+    geometry.bvh,
+    [expectedSurfaceId],
+  ) || !reflectionLegIsVisible(
+    value.reflectionPoint,
+    listenerPosition,
+    geometry.bvh,
+    [expectedSurfaceId],
+  )) return false;
   const expectedPathLengthM = length3(subtract3(sourcePosition, value.reflectionPoint))
     + length3(subtract3(value.reflectionPoint, listenerPosition));
   const arrival = subtract3(value.reflectionPoint, listenerPosition);
@@ -305,8 +317,7 @@ function isSourceResult(
   const source = snapshot.sources.find(({ id }) => id === sourceId);
   if (!source || !isRecord(value) || !isDirectPath(value.path, sourceId, snapshot, geometry)) return false;
   const directDistanceM = value.path.distanceM;
-  return isRecord(value)
-    && value.sourceId === sourceId
+  if (!(value.sourceId === sourceId
     && value.revision === snapshot.revision
     && value.staticFingerprint === snapshot.staticFingerprint
     && value.classicProjectionHash === snapshot.classicProjectionHash
@@ -318,7 +329,10 @@ function isSourceResult(
       snapshot.listenerPosition,
       directDistanceM,
       geometry,
-    ));
+    )))) return false;
+  const surfaceIds = value.firstOrderReflections.map((reflection) =>
+    (reflection as FirstOrderReflection3D).surfaceId);
+  return new Set(surfaceIds).size === surfaceIds.length;
 }
 
 function sameSourceIds(left: readonly string[], right: readonly string[]): boolean {

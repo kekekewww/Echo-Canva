@@ -659,6 +659,176 @@ describe("Classic source Worker pool", () => {
     expect(workers[0]!.terminateCalls).toBe(1);
   });
 
+  it("accepts a legitimate blocked trace with ordered wall crossings", () => {
+    const timers = new FakeTimers();
+    const workers: FakeShardWorker[] = [];
+    const responses: AcousticWorkerResponse[] = [];
+    const pool = createClassicSourcePool({
+      cancel: (timer) => timers.cancel(timer as number),
+      createWorker: () => {
+        const worker = new FakeShardWorker();
+        workers.push(worker);
+        return worker;
+      },
+      hardwareConcurrency: 1,
+      schedule: timers.schedule,
+    });
+    pool.onmessage = (event) => responses.push(event.data);
+    const scene = sceneWithSources(1, 58);
+    scene.portals[0]!.open = false;
+    pool.postMessage({ type: "UPDATE_SCENE", scene });
+    timers.flush();
+
+    workers[0]!.resolve(1);
+
+    expect(responses).toEqual([expect.objectContaining({
+      type: "FRAME",
+      revision: 58,
+      frame: expect.objectContaining({
+        sources: [expect.objectContaining({
+          routeType: "blocked",
+          directVisible: false,
+          occluderWallIds: ["partition_center"],
+          routePolyline: [
+            scene.sources[0]!.position,
+            expect.objectContaining({ x: 6 }),
+            scene.listener.position,
+          ],
+        })],
+      }),
+    })]);
+    expect(workers[0]!.terminateCalls).toBe(0);
+  });
+
+  it.each([
+    ["a closed Portal route", (response: Extract<ClassicSourceWorkerResponse, { type: "SHARD_RESULT" }>) => {
+      const source = { x: 8, y: 1 };
+      const portal = { x: 6, y: 4 };
+      const listener = { x: 3, y: 4 };
+      const effectiveDistanceM = Math.hypot(source.x - portal.x, source.y - portal.y)
+        + Math.hypot(portal.x - listener.x, portal.y - listener.y);
+      return {
+        ...response,
+        results: [{
+          ...response.results[0],
+          frame: {
+            ...response.results[0]!.frame,
+            routeType: "portal",
+            portalIds: ["partition_door"],
+            routePolyline: [source, portal, listener],
+            effectiveDistanceM,
+            virtualPosition: portal,
+            dryGainDb: -3,
+            lowpassHz: 18_500,
+          },
+        }],
+      };
+    }],
+    ["an arbitrary bounded virtual position", (response: Extract<ClassicSourceWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{
+        ...response.results[0],
+        frame: { ...response.results[0]!.frame, virtualPosition: { x: 1, y: 1 } },
+      }],
+    })],
+  ] as const)("fails closed on forged %s", (scenario, alter) => {
+    const timers = new FakeTimers();
+    const workers: FakeShardWorker[] = [];
+    const responses: AcousticWorkerResponse[] = [];
+    const pool = createClassicSourcePool({
+      cancel: (timer) => timers.cancel(timer as number),
+      createWorker: () => {
+        const worker = new FakeShardWorker();
+        workers.push(worker);
+        return worker;
+      },
+      hardwareConcurrency: 1,
+      schedule: timers.schedule,
+    });
+    pool.onmessage = (event) => responses.push(event.data);
+    const scene = scenario === "a closed Portal route"
+      ? sceneWithSources(1, 59)
+      : structuredClone(HARD_ROOM_PRESET);
+    scene.revision = 59;
+    if (scene.portals[0]) scene.portals[0].open = false;
+    pool.postMessage({ type: "UPDATE_SCENE", scene });
+    timers.flush();
+    workers[0]!.ackInstall();
+
+    workers[0]!.emit(alter(workers[0]!.shardResponse(1)) as unknown);
+
+    expect(responses).toEqual([expect.objectContaining({
+      type: "ERROR",
+      revision: 59,
+      code: "CLASSIC_POOL_FAILED",
+    })]);
+    expect(workers[0]!.terminateCalls).toBe(1);
+  });
+
+  it.each(["blocked reflection leg", "duplicate wall tap"] as const)(
+    "fails closed on a %s",
+    (scenario) => {
+      const timers = new FakeTimers();
+      const workers: FakeShardWorker[] = [];
+      const responses: AcousticWorkerResponse[] = [];
+      const pool = createClassicSourcePool({
+        cancel: (timer) => timers.cancel(timer as number),
+        createWorker: () => {
+          const worker = new FakeShardWorker();
+          workers.push(worker);
+          return worker;
+        },
+        hardwareConcurrency: 1,
+        schedule: timers.schedule,
+      });
+      pool.onmessage = (event) => responses.push(event.data);
+      const scene: SceneSpec = structuredClone(HARD_ROOM_PRESET);
+      scene.revision = 60;
+      if (scenario === "blocked reflection leg") {
+        scene.walls.push({
+          id: "reflection_blocker",
+          a: { x: 6, y: 0.2 },
+          b: { x: 6, y: 2 },
+          thicknessM: 0.2,
+          materialId: "concrete_hard",
+          kind: "partition",
+        });
+      }
+      pool.postMessage({ type: "UPDATE_SCENE", scene });
+      timers.flush();
+      workers[0]!.ackInstall();
+      const response = workers[0]!.shardResponse(1);
+      const first = response.results[0]!.frame.earlyReflections[0]!;
+      const forgedTap = scenario === "duplicate wall tap"
+        ? first
+        : computeAcousticFrame(structuredClone(HARD_ROOM_PRESET)).sources[0]!.earlyReflections
+            .find(({ wallId }) => wallId === "hard_north")!;
+      expect(forgedTap).toBeDefined();
+      if (scenario === "blocked reflection leg") {
+        expect(response.results[0]!.frame.earlyReflections.map(({ wallId }) => wallId))
+          .not.toContain("hard_north");
+      }
+
+      workers[0]!.emit({
+        ...response,
+        results: [{
+          ...response.results[0],
+          frame: {
+            ...response.results[0]!.frame,
+            earlyReflections: [...response.results[0]!.frame.earlyReflections, forgedTap],
+          },
+        }],
+      });
+
+      expect(responses).toEqual([expect.objectContaining({
+        type: "ERROR",
+        revision: 60,
+        code: "CLASSIC_POOL_FAILED",
+      })]);
+      expect(workers[0]!.terminateCalls).toBe(1);
+    },
+  );
+
   it("fails closed on an unexpected or duplicate static acknowledgement", () => {
     for (const mode of ["unexpected", "duplicate"] as const) {
       const timers = new FakeTimers();

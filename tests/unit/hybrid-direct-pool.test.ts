@@ -176,6 +176,29 @@ function reflectionPair(revision = 1): readonly [SceneDocumentV2, HybridGeometry
   return [document, compileHybridGeometry(document)];
 }
 
+function reflectionPairWithBlockedFloorLeg(revision = 1): readonly [SceneDocumentV2, HybridGeometry] {
+  const scene = structuredClone(HARD_ROOM_PRESET);
+  scene.revision = revision;
+  const document = createSceneDocumentV2(scene, {
+    spatial3d: {
+      coordinateSystem: "x-right-y-up-z-forward",
+      floorElevationM: 0,
+      listenerHeightM: 1.5,
+      sourceHeightsM: { hard_radio: 1.2 },
+      primitives: [{
+        id: "low_blocker",
+        name: "Low Blocker",
+        kind: "box",
+        position: { x: 6, y: 0.4, z: 4 },
+        dimensions: { x: 0.3, y: 0.8, z: 1 },
+        rotationYDeg: 0,
+        materialId: "concrete_hard",
+      }],
+    },
+  });
+  return [document, compileHybridGeometry(document)];
+}
+
 function createHarness(hardwareConcurrency = 8) {
   const timers = new FakeTimers();
   const workers: FakeShardWorker[] = [];
@@ -613,6 +636,42 @@ describe("Hybrid direct Worker pool", () => {
     expect(results[0]).toMatchObject({ source: "fallback", frame: { revision: 54 } });
     expect(workers[0]!.terminateCalls).toBe(1);
   });
+
+  it.each(["blocked reflection leg", "duplicate physical surface"] as const)(
+    "falls back on a forged %s",
+    (scenario) => {
+      const { pool, results, timers, workers } = createHarness(1);
+      const current = scenario === "blocked reflection leg"
+        ? reflectionPairWithBlockedFloorLeg(56)
+        : reflectionPair(56);
+      pool.update(...current);
+      timers.flush();
+      workers[0]!.ackInstall();
+      const response = workers[0]!.shardResponse();
+      const reference = computeHybridDirectFrame(reflectionPair(56)[1])
+        .firstOrderReflectionsBySource.hard_radio!;
+      const forgedTap = scenario === "duplicate physical surface"
+        ? response.results[0]!.firstOrderReflections[0]!
+        : reference.find(({ surfaceId }) => surfaceId === "floor")!;
+      expect(forgedTap).toBeDefined();
+      if (scenario === "blocked reflection leg") {
+        expect(response.results[0]!.firstOrderReflections.map(({ surfaceId }) => surfaceId))
+          .not.toContain("floor");
+      }
+
+      workers[0]!.emit({
+        ...response,
+        results: [{
+          ...response.results[0],
+          firstOrderReflections: [...response.results[0]!.firstOrderReflections, forgedTap],
+        }],
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0]).toMatchObject({ source: "fallback", frame: { revision: 56 } });
+      expect(workers[0]!.terminateCalls).toBe(1);
+    },
+  );
 
   it("fails closed on an unexpected or duplicate static acknowledgement", () => {
     for (const mode of ["unexpected", "duplicate"] as const) {

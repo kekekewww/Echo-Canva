@@ -2,6 +2,11 @@
 
 ## Multicore source-sharded Worker pools — 2026-07-21
 
+- third independent-review repair accepts legitimate Classic blocked traces with ordered wall crossings while reconstructing the exact serial direct/Portal route, open-Portal eligibility, listener-facing virtual position, occluders, gain, and filter mapping
+- Classic and Hybrid reflection validation now reuses the serial solver's specular-point / two-leg visibility semantics and rejects duplicate wall or physical-surface taps; the 2D mirror degeneracy threshold remains the oracle's `1e-8`
+- RED/GREEN focused verification — PASS, 109 tests across Classic/Hybrid pools and their shared first-order reflection solvers
+- final `pnpm lint`, `pnpm typecheck`, and `pnpm test` — PASS, 69 unit files / 494 tests
+- final `pnpm e2e` — PASS: fresh production build plus 44/44 Chromium tests; maximum-entity multicore proof passed in 5.2 s
 - second independent-review hardening now reconstructs Classic and Hybrid source/listener distance, route endpoints, 343 m/s delay, direction/angle, finite-patch hit, and reflection-path relationships before accepting a Worker shard
 - new plausible-but-inconsistent regressions cover forged yet finite distance, route endpoint, direct/reflection delay, direction, azimuth, reflection point/path length, and arrival direction payloads
 - every one of the 24 maximum-entity stress samples must now report `Worker` and the exact expected active Worker count; a serial fallback can no longer satisfy the multicore performance proof
@@ -34,7 +39,7 @@
 - `git diff --check` — PASS
 - environment warning: Playwright's Node processes reported that `NO_COLOR` was ignored because `FORCE_COLOR` was set; it did not affect build or browser results
 
-Current action: submit the completed independent-review repairs and range diff-check for final re-review. Public deployment and clean-profile/headphone Gate E remain external owner actions.
+Current action: submit the completed third-review repairs and range diff-check for final re-review. Public deployment and clean-profile/headphone Gate E remain external owner actions.
 
 ## Hybrid wall / basic-shape depth-order repair — 2026-07-21
 
