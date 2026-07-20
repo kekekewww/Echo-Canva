@@ -41,7 +41,8 @@ export type HybridDirectWorkerResponse =
     code:
       | "HYBRID_STATIC_NOT_INSTALLED"
       | "HYBRID_STATIC_FINGERPRINT_MISMATCH"
-      | "HYBRID_SHARD_COMPUTE_FAILED";
+      | "HYBRID_SHARD_COMPUTE_FAILED"
+      | "HYBRID_UNSUPPORTED_REQUEST";
     message: string;
   }>;
 
@@ -61,7 +62,7 @@ type HybridDirectWorkerControllerOptions = Readonly<{
 export function createHybridDirectWorkerController(
   sink: WorkerSink,
   options: HybridDirectWorkerControllerOptions = {},
-): Readonly<{ handle: (request: HybridDirectWorkerRequest) => void }> {
+): Readonly<{ handle: (request: unknown) => void }> {
   const now = options.now ?? Date.now;
   const computeSources = options.computeSources ?? computeHybridDirectSources;
   let disposed = false;
@@ -70,52 +71,78 @@ export function createHybridDirectWorkerController(
   return {
     handle(request): void {
       if (disposed) return;
-      if (request.type === "DISPOSE") {
+      if (typeof request !== "object" || request === null || !("type" in request)) {
+        sink.postMessage({
+          type: "ERROR",
+          requestId: -1,
+          code: "HYBRID_UNSUPPORTED_REQUEST",
+          message: "Unsupported Hybrid source Worker request: unknown.",
+        });
+        return;
+      }
+      const runtimeRequest = request as Readonly<{ type: unknown; requestId?: unknown }>;
+      if (
+        runtimeRequest.type !== "DISPOSE"
+        && runtimeRequest.type !== "INSTALL_STATIC"
+        && runtimeRequest.type !== "COMPUTE_SHARD"
+      ) {
+        sink.postMessage({
+          type: "ERROR",
+          requestId: typeof runtimeRequest.requestId === "number" && Number.isFinite(runtimeRequest.requestId)
+            ? runtimeRequest.requestId
+            : -1,
+          code: "HYBRID_UNSUPPORTED_REQUEST",
+          message: `Unsupported Hybrid source Worker request: ${String(runtimeRequest.type)}.`,
+        });
+        return;
+      }
+      const typedRequest = request as HybridDirectWorkerRequest;
+      if (typedRequest.type === "DISPOSE") {
         disposed = true;
         installed = null;
         return;
       }
-      if (request.type === "INSTALL_STATIC") {
-        installed = request.structure;
+      if (typedRequest.type === "INSTALL_STATIC") {
+        installed = typedRequest.structure;
         sink.postMessage({
           type: "STATIC_INSTALLED",
-          requestId: request.requestId,
-          staticFingerprint: request.structure.staticGeometryHash,
+          requestId: typedRequest.requestId,
+          staticFingerprint: typedRequest.structure.staticGeometryHash,
         });
         return;
       }
-      if (request.type !== "COMPUTE_SHARD") return;
+      if (typedRequest.type !== "COMPUTE_SHARD") return;
       if (!installed) {
         sink.postMessage({
           type: "ERROR",
-          requestId: request.requestId,
+          requestId: typedRequest.requestId,
           code: "HYBRID_STATIC_NOT_INSTALLED",
           message: "Install Hybrid static geometry before computing a source shard.",
         });
         return;
       }
       if (
-        request.staticFingerprint !== installed.staticGeometryHash
-        || request.snapshot.staticFingerprint !== installed.staticGeometryHash
+        typedRequest.staticFingerprint !== installed.staticGeometryHash
+        || typedRequest.snapshot.staticFingerprint !== installed.staticGeometryHash
       ) {
         sink.postMessage({
           type: "ERROR",
-          requestId: request.requestId,
+          requestId: typedRequest.requestId,
           code: "HYBRID_STATIC_FINGERPRINT_MISMATCH",
-          message: `Hybrid source shard requested ${request.staticFingerprint}, but ${installed.staticGeometryHash} is installed.`,
+          message: `Hybrid source shard requested ${typedRequest.staticFingerprint}, but ${installed.staticGeometryHash} is installed.`,
         });
         return;
       }
       const startedAtMs = now();
       try {
-        const results = computeSources(request.snapshot, installed.bvh, request.sourceIds);
+        const results = computeSources(typedRequest.snapshot, installed.bvh, typedRequest.sourceIds);
         const completedAtMs = now();
         sink.postMessage({
           type: "SHARD_RESULT",
-          requestId: request.requestId,
+          requestId: typedRequest.requestId,
           staticFingerprint: installed.staticGeometryHash,
-          revision: request.snapshot.revision,
-          sourceIds: request.sourceIds,
+          revision: typedRequest.snapshot.revision,
+          sourceIds: typedRequest.sourceIds,
           results,
           computeMs: completedAtMs - startedAtMs,
           completedAtMs,
@@ -123,7 +150,7 @@ export function createHybridDirectWorkerController(
       } catch (error) {
         sink.postMessage({
           type: "ERROR",
-          requestId: request.requestId,
+          requestId: typedRequest.requestId,
           code: "HYBRID_SHARD_COMPUTE_FAILED",
           message: error instanceof Error ? error.message : "Hybrid source shard computation failed.",
         });

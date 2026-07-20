@@ -344,8 +344,10 @@ test("survives the full entity-limit project within Worker and interaction budge
   await page.getByRole("button", { name: "Play", exact: true }).click();
   await expect(page.getByTestId("unified-workspace")).toHaveAttribute("data-audio-contexts", "1");
   await expect(page.getByTestId("unified-workspace")).toHaveAttribute("data-audio-graphs", "4");
-  await expect.poll(async () => page.locator(".workspace-statusbar").getAttribute("data-worker-compute-ms"))
-    .not.toBe("");
+  await expect.poll(async () => {
+    const raw = await page.locator(".workspace-statusbar").getAttribute("data-worker-compute-ms");
+    return raw !== null && raw !== "" && Number.isFinite(Number(raw));
+  }).toBe(true);
   const expectedWorkerCount = await page.evaluate(() => {
     const sourceCount = 4;
     const hardwareConcurrency = navigator.hardwareConcurrency;
@@ -378,11 +380,45 @@ test("survives the full entity-limit project within Worker and interaction budge
     state.__echoLongTaskObserver.observe({ type: "longtask", buffered: false });
   });
   const timings: number[] = [];
+  const completedSequences = new Set<number>();
+  let previousSequence = Number(await statusbar.getAttribute("data-acoustic-sequence"));
+  let previousRevision = Number(await statusbar.getAttribute("data-acoustic-revision"));
+  expect(Number.isFinite(previousSequence)).toBe(true);
+  expect(Number.isFinite(previousRevision)).toBe(true);
   for (let index = 0; index < 24; index += 1) {
     await outliner.locator(".kind-listener").nth(index % 8).click();
-    await page.waitForTimeout(120);
-    const value = Number(await page.locator(".workspace-statusbar").getAttribute("data-worker-compute-ms"));
-    if (Number.isFinite(value)) timings.push(value);
+    await expect.poll(async () => statusbar.evaluate((element, previous) => {
+      const timing = element.getAttribute("data-worker-compute-ms");
+      const revision = element.getAttribute("data-acoustic-revision");
+      const sequence = element.getAttribute("data-acoustic-sequence");
+      return timing !== null && timing !== "" && Number.isFinite(Number(timing))
+        && revision !== null && revision !== "" && Number.isFinite(Number(revision))
+        && Number(revision) > previous.revision
+        && sequence !== null && sequence !== "" && Number.isFinite(Number(sequence))
+        && Number(sequence) > previous.sequence;
+    }, { revision: previousRevision, sequence: previousSequence })).toBe(true);
+    const sample = await statusbar.evaluate((element) => ({
+      timing: element.getAttribute("data-worker-compute-ms"),
+      revision: element.getAttribute("data-acoustic-revision"),
+      sequence: element.getAttribute("data-acoustic-sequence"),
+    }));
+    expect(sample.timing).not.toBeNull();
+    expect(sample.timing).not.toBe("");
+    expect(sample.revision).not.toBeNull();
+    expect(sample.revision).not.toBe("");
+    expect(sample.sequence).not.toBeNull();
+    expect(sample.sequence).not.toBe("");
+    const timing = Number(sample.timing);
+    const revision = Number(sample.revision);
+    const sequence = Number(sample.sequence);
+    expect(Number.isFinite(timing)).toBe(true);
+    expect(Number.isFinite(revision)).toBe(true);
+    expect(Number.isFinite(sequence)).toBe(true);
+    expect(completedSequences.has(sequence)).toBe(false);
+    completedSequences.add(sequence);
+    timings.push(timing);
+    previousRevision = revision;
+    previousSequence = sequence;
   }
   expect(await page.evaluate(() => (
     window as Window & { __echoLongTaskObserverActive?: boolean }
@@ -399,7 +435,8 @@ test("survives the full entity-limit project within Worker and interaction budge
     return state.__echoLongTasks ?? [];
   });
   const sorted = timings.toSorted((a, b) => a - b);
-  expect(sorted.length).toBeGreaterThan(0);
+  expect(sorted).toHaveLength(24);
+  expect(completedSequences.size).toBe(24);
   expect(sorted[Math.ceil(sorted.length * 0.95) - 1]).toBeLessThan(12);
   expect(longTasks.every((duration) => duration <= 50)).toBe(true);
 

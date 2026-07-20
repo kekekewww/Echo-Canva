@@ -56,6 +56,7 @@ describe("workspace authoring projects", () => {
     });
 
     expect(selected.activeListenerId).toBe(added.listeners[0]!.id);
+    expect(selected.revision).toBe(added.revision + 1);
   });
 
   it("cannot delete or disable the final listener or the floor", () => {

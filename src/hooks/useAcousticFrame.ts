@@ -23,6 +23,7 @@ type FrameState = Readonly<{
 export type AcousticFrameMetrics = Readonly<{
   source: "worker" | "fallback";
   computeMs: number;
+  requestSequence?: number;
   workerCount?: number;
   sourceComputeMsMax?: number;
   sourceComputeMsTotal?: number;
@@ -72,6 +73,7 @@ export class AcousticFrameClient {
   private latestScene: SceneSpec | null = null;
   private usingFallback = false;
   private disposed = false;
+  private fallbackSequence = 0;
 
   constructor(private readonly options: AcousticFrameClientOptions) {}
 
@@ -85,6 +87,7 @@ export class AcousticFrameClient {
           this.options.onFrame(event.data.frame, {
             source: "worker",
             computeMs: event.data.metrics.computeMs,
+            requestSequence: event.data.metrics.requestSequence,
             workerCount: event.data.metrics.workerCount,
             sourceComputeMsMax: event.data.metrics.sourceComputeMsMax,
             sourceComputeMsTotal: event.data.metrics.sourceComputeMsTotal,
@@ -168,6 +171,10 @@ export class AcousticFrameClient {
     this.options.onFallback(frame, {
       source: "fallback",
       computeMs: completedAtMs - startedAtMs,
+      requestSequence: ++this.fallbackSequence,
+      workerCount: 0,
+      sourceComputeMsMax: 0,
+      sourceComputeMsTotal: 0,
     });
   }
 

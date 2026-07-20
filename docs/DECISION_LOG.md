@@ -1,5 +1,11 @@
 # Decision Log
 
+## D-051 — Treat Worker responses as bounded untrusted protocol data
+
+Decision (2026-07-21): Require one expected static-install acknowledgement from each assigned Worker, reject unexpected or duplicate acknowledgements, and guard each Classic/Hybrid job with a configurable watchdog whose browser default is 2,000 ms. Validate finite Worker payloads against route semantics, installed IDs/materials, entity-derived array limits, conservative coordinate/distance/delay/filter/gain envelopes, and normalized Hybrid direction vectors before atomic merge. Expose the accepted acoustic revision/request sequence so browser evidence can associate every timing sample with a distinct complete frame. Active-Listener changes now increment the acoustic revision. Classic relative reflection delay is clamped to zero when a Portal-aware direct route is longer than the reflected arrival.
+
+Reason: A Worker can remain silent without triggering `error`, and structured-clone payloads can be finite yet semantically hostile. Either case previously allowed an in-flight job to stall forever or malformed values to reach audio/overlays. Request-sequence evidence also prevents a stale status-bar timing from being sampled repeatedly as if it were 24 completed interactions. Conservative transport envelopes are intentionally wider than the authored 50 m room limits; they are protocol safety bounds, not new physical-accuracy claims.
+
 ## D-050 — Shard bounded source work across persistent Worker pools
 
 Decision (2026-07-21): Replace the single-Worker execution model in both Classic and Hybrid modes with a main-thread coordinator and one to four persistent source Workers. Capacity is capped at four and reserves two logical cores when possible; active count is also capped by source count, so a one-source scene intentionally uses one Worker. Shards merge atomically only after revision, fingerprint, compatibility, assignment, and response validation. Any pool failure discards partial work and activates complete deterministic serial fallback, reported visibly as `Fallback`. This decision supersedes D-046's stopped-simulation policy.

@@ -154,8 +154,22 @@ describe("AcousticFrameClient", () => {
     timeline.advance(1);
     expect(fallbackRevisions).toEqual([60, 62]);
     expect(fallbackMetrics).toEqual([
-      { source: "fallback", computeMs: 0 },
-      { source: "fallback", computeMs: 0 },
+      {
+        source: "fallback",
+        computeMs: 0,
+        requestSequence: 1,
+        workerCount: 0,
+        sourceComputeMsMax: 0,
+        sourceComputeMsTotal: 0,
+      },
+      {
+        source: "fallback",
+        computeMs: 0,
+        requestSequence: 2,
+        workerCount: 0,
+        sourceComputeMsMax: 0,
+        sourceComputeMsTotal: 0,
+      },
     ]);
   });
 

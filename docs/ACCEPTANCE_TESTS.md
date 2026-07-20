@@ -12,7 +12,7 @@
 8. Undo/Redo scene changes. Reset 3D, Undo it, and verify 2.5D is unchanged.
 9. Export/import a complete authoring project. Confirm missing local audio retains its filename/Source position and reports `Relink required`; relink it without changing the Source transform. Reject malformed/wrong-mode JSON atomically.
 10. Corrupt a cache, deny local storage/IndexedDB, deny Worker creation, and deny AudioContext startup. Confirm recovery download, memory-only warning, complete deterministic `Fallback`, and Retry respectively while authoring remains available. With Worker creation denied, confirm the matching acoustic preview continues without a partial pool frame.
-11. Load the maximum 100 Wall / 8 Portal / 4 Source / 8 Listener project, switch modes, refresh twice, and confirm no data or duplicate audio graphs. Open status-bar **Debug** and confirm the visible Worker count equals `min(4 sources, min(4, max(1, floor(navigator.hardwareConcurrency) - 2)))`; a browser exposing at least four logical cores must visibly use at least two Workers. Automated Chromium must measure Worker p95 below 12 ms and no >50 ms long task across all 24 measured listener switches.
+11. Load the maximum 100 Wall / 8 Portal / 4 Source / 8 Listener project, switch modes, refresh twice, and confirm no data or duplicate audio graphs. Open status-bar **Debug** and confirm the visible Worker count equals `min(4 sources, min(4, max(1, floor(navigator.hardwareConcurrency) - 2)))`; a browser exposing at least four logical cores must visibly use at least two Workers. Automated Chromium must collect exactly 24 distinct completed request sequences with non-empty finite timings and matching accepted revisions, measure Worker p95 below 12 ms, and observe no >50 ms long task across all 24 listener switches.
 12. Run the complete static/browser verification, then perform the headphone-only localization/occlusion/Portal/reverb comparison before deployment.
 
 ### Viewport navigation acceptance
@@ -153,7 +153,7 @@ Integration/e2e:
 - API success/failure/fallback;
 - exact active Worker count for the bounded four-source fixture, derived from browser hardware concurrency;
 - complete deterministic `Fallback` with authoring preserved when Worker creation is denied;
-- all 24 measured stress-fixture interactions observed for long tasks, with none exceeding 50 ms;
+- all 24 measured stress-fixture interactions produce distinct completed acoustic request sequences with non-empty finite timings and are observed for long tasks, with none exceeding 50 ms;
 - production smoke test.
 
 Audio-oriented automated checks:

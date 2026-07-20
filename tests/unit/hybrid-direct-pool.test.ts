@@ -81,6 +81,7 @@ class FakeShardWorker implements HybridDirectPoolWorkerLike {
   onmessage: ((event: MessageEvent<HybridDirectWorkerResponse>) => unknown) | null = null;
   onmessageerror: ((event: MessageEvent<unknown>) => unknown) | null = null;
   terminateCalls = 0;
+  private readonly acknowledgedInstalls = new Set<number>();
 
   postMessage(request: HybridDirectWorkerRequest): void {
     this.posted.push(request);
@@ -117,7 +118,22 @@ class FakeShardWorker implements HybridDirectPoolWorkerLike {
   }
 
   resolve(computeMs = 1): void {
+    this.ackInstall();
     this.emit(this.shardResponse(computeMs));
+  }
+
+  ackInstall(): void {
+    const install = this.posted.findLast(
+      (request): request is Extract<HybridDirectWorkerRequest, { type: "INSTALL_STATIC" }> =>
+        request.type === "INSTALL_STATIC",
+    );
+    if (!install || this.acknowledgedInstalls.has(install.requestId)) return;
+    this.acknowledgedInstalls.add(install.requestId);
+    this.emit({
+      type: "STATIC_INSTALLED",
+      requestId: install.requestId,
+      staticFingerprint: install.structure.staticGeometryHash,
+    });
   }
 }
 
@@ -203,6 +219,7 @@ describe("Hybrid direct Worker pool", () => {
       metrics: {
         computeMs: 20,
         completedAtMs: 20,
+        requestSequence: 1,
         workerCount: 2,
         sourceComputeMsMax: 7,
         sourceComputeMsTotal: 10,
@@ -396,6 +413,186 @@ describe("Hybrid direct Worker pool", () => {
     expect(workers.map(({ terminateCalls }) => terminateCalls)).toEqual([1, 1]);
   });
 
+  it.each([
+    ["negative distance", (response: Extract<HybridDirectWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{ ...response.results[0], path: { ...response.results[0]!.path, distanceM: -1 } }],
+    })],
+    ["non-unit direction", (response: Extract<HybridDirectWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{ ...response.results[0], path: { ...response.results[0]!.path, directionToSource: { x: 2, y: 0, z: 0 } } }],
+    })],
+    ["inconsistent direct route", (response: Extract<HybridDirectWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{ ...response.results[0], path: { ...response.results[0]!.path, routeType: "direct", directVisible: false } }],
+    })],
+    ["unknown hit patch", (response: Extract<HybridDirectWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{
+        ...response.results[0],
+        path: {
+          ...response.results[0]!.path,
+          routeType: "blocked",
+          directVisible: false,
+          occluderWallIds: ["unknown"],
+          hits: [{
+            patchId: "unknown",
+            surfaceId: "unknown",
+            materialId: "concrete_hard",
+            thicknessM: 0.1,
+            distanceM: 1,
+            point: { x: 1, y: 1, z: 1 },
+          }],
+        },
+      }],
+    })],
+    ["negative reflection delay", (response: Extract<HybridDirectWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{
+        ...response.results[0],
+        firstOrderReflections: [{
+          ...(response.results[0]!.firstOrderReflections[0] ?? {
+            id: "first:floor",
+            surfaceId: "floor",
+            patchId: "floor",
+            materialId: "concrete_hard",
+            reflectionPoint: { x: 1, y: 0, z: 1 },
+            pathLengthM: 2,
+            excessDelayMs: 1,
+            arrivalDirection: { x: 1, y: 0, z: 0 },
+          }),
+          delayMs: -0.1,
+        }],
+      }],
+    })],
+  ] as const)("fails closed on finite but invalid %s", (_, alter) => {
+    const { pool, results, timers, workers } = createHarness(1);
+    const current = pair(1, 52);
+    pool.update(...current);
+    timers.flush();
+    workers[0]!.ackInstall();
+
+    workers[0]!.emit(alter(workers[0]!.shardResponse()) as unknown);
+
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ source: "fallback", frame: { revision: 52 } });
+    expect(workers[0]!.terminateCalls).toBe(1);
+  });
+
+  it("fails closed on an unexpected or duplicate static acknowledgement", () => {
+    for (const mode of ["unexpected", "duplicate"] as const) {
+      const { pool, results, timers, workers } = createHarness(1);
+      const initial = pair(1, 53);
+      pool.update(...initial);
+      timers.flush();
+      workers[0]!.ackInstall();
+      if (mode === "unexpected") {
+        workers[0]!.resolve();
+        const movedDocument = structuredClone(initial[0]);
+        movedDocument.baseScene.revision = 54;
+        movedDocument.baseScene.listener.position.x += 0.1;
+        const movedGeometry = compileHybridGeometry(movedDocument);
+        pool.update(movedDocument, movedGeometry);
+        timers.flush();
+        const compute = workers[0]!.posted.at(-1)! as Extract<HybridDirectWorkerRequest, { type: "COMPUTE_SHARD" }>;
+        workers[0]!.emit({
+          type: "STATIC_INSTALLED",
+          requestId: compute.requestId,
+          staticFingerprint: compute.staticFingerprint,
+        });
+      } else {
+        const install = workers[0]!.posted[0]! as Extract<HybridDirectWorkerRequest, { type: "INSTALL_STATIC" }>;
+        workers[0]!.emit({
+          type: "STATIC_INSTALLED",
+          requestId: install.requestId,
+          staticFingerprint: install.structure.staticGeometryHash,
+        });
+      }
+      expect(results.at(-1)).toMatchObject({ source: "fallback" });
+      expect(workers[0]!.terminateCalls).toBe(1);
+    }
+  });
+
+  it("times out a non-responsive job and cancels the watchdog on completion", () => {
+    const cadence = new FakeTimers();
+    const watchdog = new FakeTimeline();
+    const workers: FakeShardWorker[] = [];
+    const results: HybridDirectPoolResult[] = [];
+    const pool = createHybridDirectPool({
+      cancel: (timer) => cadence.cancel(timer as number),
+      cancelWatchdog: (timer) => watchdog.cancel(timer as number),
+      createWorker: () => {
+        const worker = new FakeShardWorker();
+        workers.push(worker);
+        return worker;
+      },
+      hardwareConcurrency: 1,
+      jobTimeoutMs: 25,
+      schedule: cadence.schedule,
+      scheduleWatchdog: watchdog.schedule,
+    });
+    pool.onresult = (result) => results.push(result);
+    const current = pair(1, 55);
+    pool.update(...current);
+    cadence.flush();
+    watchdog.advance(24);
+    expect(results).toEqual([]);
+    watchdog.advance(1);
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ source: "fallback", frame: { revision: 55 } });
+    expect(workers[0]!.terminateCalls).toBe(1);
+
+    const completedCadence = new FakeTimers();
+    const completedWatchdog = new FakeTimeline();
+    const completedWorkers: FakeShardWorker[] = [];
+    const completedResults: HybridDirectPoolResult[] = [];
+    const completedPool = createHybridDirectPool({
+      cancel: (timer) => completedCadence.cancel(timer as number),
+      cancelWatchdog: (timer) => completedWatchdog.cancel(timer as number),
+      createWorker: () => {
+        const worker = new FakeShardWorker();
+        completedWorkers.push(worker);
+        return worker;
+      },
+      hardwareConcurrency: 1,
+      jobTimeoutMs: 25,
+      schedule: completedCadence.schedule,
+      scheduleWatchdog: completedWatchdog.schedule,
+    });
+    completedPool.onresult = (result) => completedResults.push(result);
+    completedPool.update(...pair(1, 56));
+    completedCadence.flush();
+    completedWorkers[0]!.resolve();
+    completedWatchdog.advance(25);
+    expect(completedResults).toHaveLength(1);
+    expect(completedResults[0]).toMatchObject({ source: "worker", frame: { revision: 56 } });
+
+    const disposedCadence = new FakeTimers();
+    const disposedWatchdog = new FakeTimeline();
+    const disposedWorkers: FakeShardWorker[] = [];
+    const disposedResults: HybridDirectPoolResult[] = [];
+    const disposedPool = createHybridDirectPool({
+      cancel: (timer) => disposedCadence.cancel(timer as number),
+      cancelWatchdog: (timer) => disposedWatchdog.cancel(timer as number),
+      createWorker: () => {
+        const worker = new FakeShardWorker();
+        disposedWorkers.push(worker);
+        return worker;
+      },
+      hardwareConcurrency: 1,
+      jobTimeoutMs: 25,
+      schedule: disposedCadence.schedule,
+      scheduleWatchdog: disposedWatchdog.schedule,
+    });
+    disposedPool.onresult = (result) => disposedResults.push(result);
+    disposedPool.update(...pair(1, 57));
+    disposedCadence.flush();
+    disposedPool.dispose();
+    disposedWatchdog.advance(25);
+    expect(disposedResults).toEqual([]);
+    expect(disposedWorkers[0]!.terminateCalls).toBe(1);
+  });
+
   it.each(["typed", "onerror", "onmessageerror"] as const)("fails once and activates complete fallback on %s", (mode) => {
     const { pool, results, timers, workers } = createHarness();
     const current = pair(2, 60);
@@ -459,6 +656,7 @@ describe("Hybrid direct Worker pool", () => {
       metrics: {
         computeMs: 25,
         completedAtMs: 125,
+        requestSequence: 2,
         workerCount: 0,
         sourceComputeMsMax: 0,
         sourceComputeMsTotal: 0,

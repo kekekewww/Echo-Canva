@@ -102,6 +102,7 @@ export function projectReducer(
         if (listener?.enabled) {
           return {
             ...project,
+            revision: listener.id === project.activeListenerId ? project.revision : nextRevision(project),
             activeListenerId: listener.id,
             selection: action.selection,
             notice: null,
@@ -118,6 +119,7 @@ export function projectReducer(
       }
       return {
         ...project,
+        revision: listener.id === project.activeListenerId ? project.revision : nextRevision(project),
         activeListenerId: listener.id,
         selection: { type: "listener", id: listener.id },
         notice: null,

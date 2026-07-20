@@ -156,11 +156,13 @@ export function HybridViewportAdapter({ project, dispatch, audioEngine, wallPlac
       rt60MidS: accepted ? room.rt60S.mid : null,
       worker: accepted ? presentation.worker : "Stopped",
       computeMs: accepted ? direct.computeMs : null,
+      acceptedRevision: accepted ? direct.frame.revision : null,
+      requestSequence: accepted ? direct.requestSequence : null,
       workerCount: accepted ? direct.workerCount : null,
       sourceComputeMsMax: accepted ? direct.sourceComputeMsMax : null,
       sourceComputeMsTotal: accepted ? direct.sourceComputeMsTotal : null,
     });
-  }, [accepted, audible.paths, direct.computeMs, direct.sourceComputeMsMax, direct.sourceComputeMsTotal, direct.workerCount, disabled, onAcousticStatus, presentation.worker, project.activeListenerId, project.listeners, scene, selectedSourceId]);
+  }, [accepted, audible.paths, direct.computeMs, direct.frame.revision, direct.requestSequence, direct.sourceComputeMsMax, direct.sourceComputeMsTotal, direct.workerCount, disabled, onAcousticStatus, presentation.worker, project.activeListenerId, project.listeners, scene, selectedSourceId]);
 
   function moveObject(id: string, position: Vec3): void {
     const listener = project.listeners.find((candidate) => candidate.id === id);

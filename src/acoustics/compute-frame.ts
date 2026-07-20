@@ -109,7 +109,7 @@ export function computeClassicSourceFrame(
     scene.settings.maxEarlyReflections,
   ).map((tap) => ({
     ...tap,
-    delayMs: ((tap.pathLengthM - effectiveDistanceM) / 343) * 1000,
+    delayMs: Math.max(0, ((tap.pathLengthM - effectiveDistanceM) / 343) * 1000),
   }));
 
   return {

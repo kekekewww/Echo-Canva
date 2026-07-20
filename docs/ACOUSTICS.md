@@ -154,7 +154,7 @@ For an early reflection relative to the direct path:
 \Delta t_k = \frac{L_k-L_{direct}}{c}
 \]
 
-When the direct path is blocked, use the selected effective route length as the reference for user-facing delay, but retain absolute path delays internally.
+When the direct path is blocked, use the selected effective route length as the reference for user-facing delay, but retain absolute path delays internally. Because a valid first-order reflected path can arrive before a longer Portal-aware direct route, the relative early-tap delay sent to Web Audio is clamped to `max(0, Δt)`; a negative transport value is rejected.
 
 ## 6. Distance attenuation
 

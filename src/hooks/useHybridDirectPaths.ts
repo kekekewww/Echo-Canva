@@ -15,6 +15,7 @@ export type HybridDirectPathsState = Readonly<{
   source: "worker" | "fallback";
   computeMs: number;
   completedAtMs: number;
+  requestSequence: number;
   workerCount: number;
   sourceComputeMsMax: number;
   sourceComputeMsTotal: number;
@@ -31,6 +32,7 @@ export function useHybridDirectPaths(
     source: "fallback",
     computeMs: 0,
     completedAtMs: 0,
+    requestSequence: 0,
     workerCount: 0,
     sourceComputeMsMax: 0,
     sourceComputeMsTotal: 0,
@@ -46,6 +48,7 @@ export function useHybridDirectPaths(
       source,
       computeMs: metrics.computeMs,
       completedAtMs: metrics.completedAtMs,
+      requestSequence: metrics.requestSequence,
       workerCount: metrics.workerCount,
       sourceComputeMsMax: metrics.sourceComputeMsMax,
       sourceComputeMsTotal: metrics.sourceComputeMsTotal,

@@ -2,6 +2,16 @@
 
 ## Multicore source-sharded Worker pools — 2026-07-21
 
+- final-review hardening now adds per-job watchdogs, exact per-Worker static-install acknowledgement state, typed Hybrid unsupported-request errors, and semantic/bounds validation for every Classic/Hybrid shard before merge
+- silent, malformed, unexpected-ack, duplicate-ack, constructor, protocol, compute, and disposal paths all terminate the complete pool; Classic delegates to its latest-scene serial client fallback and Hybrid computes the latest complete geometry fallback
+- Classic fallback metrics now truthfully report zero Workers and zero shard time; accepted acoustic revision/request sequence are exposed for browser evidence
+- active Listener changes now increment acoustic revision, closing a Classic stale-frame identity gap; Portal-relative early reflection delay is clamped to zero before Web Audio transport
+- strengthened stress proof collects 24/24 distinct completed request sequences with non-empty finite timings, while retaining exact Worker count, p95 `<12 ms`, and long-task `<=50 ms` requirements
+- focused typecheck/unit verification — PASS, 97 tests across the five changed protocol/client/reducer suites
+- focused production Chromium maximum-entity verification — PASS after a fresh production build, 1/1 test in 4.8 s
+- final `pnpm verify` — PASS: lint, typecheck, 69 unit files / 474 tests, production build, and 44/44 production Chromium tests
+- final `git diff --check` — PASS (Windows line-ending notices only)
+
 - implemented and reviewed across `bdb56bc`, `3f9d26d`, `079d09f`, `517f8fd`, `1010db3`, and `d3f0724`: deterministic source-shard extraction, Classic and Hybrid persistent pools, compatibility validation, complete serial fallback, and completed-frame timestamp hardening
 - each active mode now coordinates one to four persistent source Workers, capped at four while reserving two logical cores when possible; active completed-frame count is bounded by source count, so a one-source scene intentionally uses one Worker
 - the coordinator validates request/revision/fingerprint/compatibility/source assignment, merges every source shard atomically in stable order, publishes pool wall and shard metrics, and discards partial work if any pool member fails
@@ -17,7 +27,7 @@
 - `git diff --check` — PASS
 - environment warning: Playwright's Node processes reported that `NO_COLOR` was ignored because `FORCE_COLOR` was set; it did not affect build or browser results
 
-Current action: complete the isolated documentation commit. Public deployment and clean-profile/headphone Gate E remain external owner actions.
+Current action: submit the final-review hardening commit for independent re-review. Public deployment and clean-profile/headphone Gate E remain external owner actions.
 
 ## Hybrid wall / basic-shape depth-order repair — 2026-07-21
 

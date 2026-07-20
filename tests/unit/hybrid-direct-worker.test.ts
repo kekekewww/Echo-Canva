@@ -30,7 +30,7 @@ function documentWithHeights(listenerHeightM: number, radioHeightM: number) {
 }
 
 describe("Hybrid direct source shard Worker controller", () => {
-  it("does not retain the temporary legacy COMPUTE/FRAME runtime protocol", () => {
+  it("returns a typed protocol error for an unsupported runtime request", () => {
     const responses: HybridDirectWorkerResponse[] = [];
     const document = documentWithHeights(1.5, 1.3);
     const controller = createHybridDirectWorkerController({
@@ -39,7 +39,12 @@ describe("Hybrid direct source shard Worker controller", () => {
 
     controller.handle({ type: "COMPUTE", requestId: 1, document } as never);
 
-    expect(responses).toEqual([]);
+    expect(responses).toEqual([{
+      type: "ERROR",
+      requestId: 1,
+      code: "HYBRID_UNSUPPORTED_REQUEST",
+      message: "Unsupported Hybrid source Worker request: COMPUTE.",
+    }]);
   });
 
   it("installs static geometry, computes requested IDs, and measures after calculation", () => {

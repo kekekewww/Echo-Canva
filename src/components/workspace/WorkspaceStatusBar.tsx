@@ -7,6 +7,8 @@ export type WorkspaceAcousticStatus = Readonly<{
   rt60MidS: number | null;
   worker: "Worker" | "Fallback" | "Stopped";
   computeMs: number | null;
+  acceptedRevision?: number | null;
+  requestSequence?: number | null;
   workerCount?: number | null;
   sourceComputeMsMax?: number | null;
   sourceComputeMsTotal?: number | null;
@@ -32,14 +34,21 @@ export function WorkspaceStatusBar({ mode, revision, persistence, acoustic }: Re
   acoustic: WorkspaceAcousticStatus | null;
 }>) {
   return (
-    <footer aria-live="polite" className="workspace-statusbar" data-worker-compute-ms={acoustic?.computeMs ?? ""} data-worker-count={acoustic?.workerCount ?? ""}>
+    <footer
+      aria-live="polite"
+      className="workspace-statusbar"
+      data-acoustic-revision={acoustic?.acceptedRevision ?? ""}
+      data-acoustic-sequence={acoustic?.requestSequence ?? ""}
+      data-worker-compute-ms={acoustic?.computeMs ?? ""}
+      data-worker-count={acoustic?.workerCount ?? ""}
+    >
       <span><i /> {acoustic?.worker === "Stopped" ? "Stopped" : "Ready"}</span>
       <span>Listener {acoustic?.listenerName ?? "—"}</span>
       <span>Route {acoustic?.route ?? "none"}</span>
       <span>Gain {acoustic?.gainDb === null || acoustic?.gainDb === undefined ? "—" : `${acoustic.gainDb.toFixed(1)} dB`}</span>
       <span>RT60 {acoustic?.rt60MidS === null || acoustic?.rt60MidS === undefined ? "—" : `${acoustic.rt60MidS.toFixed(2)} s`}</span>
       <span>{acoustic?.worker ?? "Stopped"}</span>
-      <details><summary>Debug</summary><span>{mode === "hybrid-3d" ? "Hybrid 3D" : "Classic 2.5D"} · Rev {revision} · Local {persistence} · {acoustic?.computeMs === null || acoustic?.computeMs === undefined ? "No timing" : `${acoustic.computeMs.toFixed(2)} ms`} · {formatAcousticPoolMetrics(acoustic ?? {})} · Interactive acoustic approximation</span></details>
+      <details><summary>Debug</summary><span>{mode === "hybrid-3d" ? "Hybrid 3D" : "Classic 2.5D"} · Rev {revision} · Accepted {acoustic?.acceptedRevision ?? "—"}/{acoustic?.requestSequence ?? "—"} · Local {persistence} · {acoustic?.computeMs === null || acoustic?.computeMs === undefined ? "No timing" : `${acoustic.computeMs.toFixed(2)} ms`} · {formatAcousticPoolMetrics(acoustic ?? {})} · Interactive acoustic approximation</span></details>
     </footer>
   );
 }

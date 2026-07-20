@@ -54,6 +54,8 @@ export function ClassicViewportAdapter({ project, dispatch, audioEngine, wallPla
       rt60MidS: acceptedFrame?.room.rt60S.mid ?? null,
       worker: acceptedFrame ? presentation.worker : "Stopped",
       computeMs: acceptedFrame ? acoustic.metrics?.computeMs ?? null : null,
+      acceptedRevision: acceptedFrame?.revision ?? null,
+      requestSequence: acceptedFrame ? acoustic.metrics?.requestSequence ?? null : null,
       workerCount: acceptedFrame ? acoustic.metrics?.workerCount ?? null : null,
       sourceComputeMsMax: acceptedFrame ? acoustic.metrics?.sourceComputeMsMax ?? null : null,
       sourceComputeMsTotal: acceptedFrame ? acoustic.metrics?.sourceComputeMsTotal ?? null : null,

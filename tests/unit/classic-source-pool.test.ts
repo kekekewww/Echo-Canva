@@ -76,6 +76,7 @@ class FakeShardWorker {
   onmessage: ((event: MessageEvent<ClassicSourceWorkerResponse>) => unknown) | null = null;
   onmessageerror: ((event: MessageEvent<unknown>) => unknown) | null = null;
   terminateCalls = 0;
+  private readonly acknowledgedInstalls = new Set<number>();
 
   postMessage(request: ClassicSourceWorkerRequest): void {
     this.posted.push(request);
@@ -90,7 +91,22 @@ class FakeShardWorker {
   }
 
   resolve(computeMs: number): void {
+    this.ackInstall();
     this.emit(this.shardResponse(computeMs));
+  }
+
+  ackInstall(): void {
+    const install = this.posted.findLast(
+      (request): request is Extract<ClassicSourceWorkerRequest, { type: "INSTALL_STATIC" }> =>
+        request.type === "INSTALL_STATIC",
+    );
+    if (!install || this.acknowledgedInstalls.has(install.requestId)) return;
+    this.acknowledgedInstalls.add(install.requestId);
+    this.emit({
+      type: "STATIC_INSTALLED",
+      requestId: install.requestId,
+      staticFingerprint: install.context.fingerprint,
+    });
   }
 
   shardResponse(computeMs: number): Extract<ClassicSourceWorkerResponse, { type: "SHARD_RESULT" }> {
@@ -210,6 +226,7 @@ describe("Classic source Worker pool", () => {
       metrics: {
         computeMs: 20,
         completedAtMs: 120,
+        requestSequence: 1,
         workerCount: 4,
         sourceComputeMsMax: 7,
         sourceComputeMsTotal: 17,
@@ -456,6 +473,212 @@ describe("Classic source Worker pool", () => {
       code: "CLASSIC_POOL_FAILED",
     })]);
     expect(workers.map(({ terminateCalls }) => terminateCalls)).toEqual([1, 1]);
+  });
+
+  it.each([
+    ["negative distance", (response: Extract<ClassicSourceWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{ ...response.results[0], frame: { ...response.results[0]!.frame, physicalDistanceM: -1 } }],
+    })],
+    ["out-of-range cutoff", (response: Extract<ClassicSourceWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{ ...response.results[0], frame: { ...response.results[0]!.frame, lowpassHz: 20_001 } }],
+    })],
+    ["inconsistent direct route", (response: Extract<ClassicSourceWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{ ...response.results[0], frame: { ...response.results[0]!.frame, routeType: "direct", directVisible: false } }],
+    })],
+    ["unknown occluder", (response: Extract<ClassicSourceWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{ ...response.results[0], frame: { ...response.results[0]!.frame, occluderWallIds: ["unknown-wall"] } }],
+    })],
+    ["too many reflections", (response: Extract<ClassicSourceWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{
+        ...response.results[0],
+        frame: {
+          ...response.results[0]!.frame,
+          earlyReflections: Array.from({ length: 7 }, () => response.results[0]!.frame.earlyReflections[0] ?? {
+            wallId: "partition_center",
+            reflectionPoint: { x: 1, y: 1 },
+            pathLengthM: 1,
+            delayMs: 1,
+            gainDb: -1,
+            lowpassHz: 1_000,
+          }),
+        },
+      }],
+    })],
+    ["negative reflection delay", (response: Extract<ClassicSourceWorkerResponse, { type: "SHARD_RESULT" }>) => ({
+      ...response,
+      results: [{
+        ...response.results[0],
+        frame: {
+          ...response.results[0]!.frame,
+          earlyReflections: [{
+            ...(response.results[0]!.frame.earlyReflections[0] ?? {
+              wallId: "partition_center",
+              reflectionPoint: { x: 1, y: 1 },
+              pathLengthM: 1,
+              gainDb: -1,
+              lowpassHz: 1_000,
+            }),
+            delayMs: -0.1,
+          }],
+        },
+      }],
+    })],
+  ] as const)("fails closed on finite but invalid %s", (_, alter) => {
+    const timers = new FakeTimers();
+    const workers: FakeShardWorker[] = [];
+    const responses: AcousticWorkerResponse[] = [];
+    const pool = createClassicSourcePool({
+      cancel: (timer) => timers.cancel(timer as number),
+      createWorker: () => {
+        const worker = new FakeShardWorker();
+        workers.push(worker);
+        return worker;
+      },
+      hardwareConcurrency: 1,
+      schedule: timers.schedule,
+    });
+    pool.onmessage = (event) => responses.push(event.data);
+    pool.postMessage({ type: "UPDATE_SCENE", scene: sceneWithSources(1, 56) });
+    timers.flush();
+    workers[0]!.ackInstall();
+
+    workers[0]!.emit(alter(workers[0]!.shardResponse(1)) as unknown);
+
+    expect(responses).toEqual([expect.objectContaining({
+      type: "ERROR",
+      revision: 56,
+      code: "CLASSIC_POOL_FAILED",
+    })]);
+    expect(workers[0]!.terminateCalls).toBe(1);
+  });
+
+  it("fails closed on an unexpected or duplicate static acknowledgement", () => {
+    for (const mode of ["unexpected", "duplicate"] as const) {
+      const timers = new FakeTimers();
+      const workers: FakeShardWorker[] = [];
+      const responses: AcousticWorkerResponse[] = [];
+      const pool = createClassicSourcePool({
+        cancel: (timer) => timers.cancel(timer as number),
+        createWorker: () => {
+          const worker = new FakeShardWorker();
+          workers.push(worker);
+          return worker;
+        },
+        hardwareConcurrency: 1,
+        schedule: timers.schedule,
+      });
+      pool.onmessage = (event) => responses.push(event.data);
+      const initial = sceneWithSources(1, 57);
+      pool.postMessage({ type: "UPDATE_SCENE", scene: initial });
+      timers.flush();
+      workers[0]!.ackInstall();
+      if (mode === "unexpected") {
+        workers[0]!.resolve(1);
+        const moved = structuredClone(initial);
+        moved.revision = 58;
+        moved.listener.position.x += 0.1;
+        pool.postMessage({ type: "UPDATE_SCENE", scene: moved });
+        timers.flush();
+        const compute = workers[0]!.posted.at(-1)! as Extract<ClassicSourceWorkerRequest, { type: "COMPUTE_SHARD" }>;
+        workers[0]!.emit({
+          type: "STATIC_INSTALLED",
+          requestId: compute.requestId,
+          staticFingerprint: compute.staticFingerprint,
+        });
+      } else {
+        const install = workers[0]!.posted[0]! as Extract<ClassicSourceWorkerRequest, { type: "INSTALL_STATIC" }>;
+        workers[0]!.emit({
+          type: "STATIC_INSTALLED",
+          requestId: install.requestId,
+          staticFingerprint: install.context.fingerprint,
+        });
+      }
+      expect(responses.at(-1)).toMatchObject({ type: "ERROR", code: "CLASSIC_POOL_FAILED" });
+      expect(workers[0]!.terminateCalls).toBe(1);
+    }
+  });
+
+  it("times out a non-responsive job and cancels the watchdog on completion", () => {
+    const cadence = new FakeTimers();
+    const watchdog = new FakeTimeline();
+    const workers: FakeShardWorker[] = [];
+    const responses: AcousticWorkerResponse[] = [];
+    const pool = createClassicSourcePool({
+      cancel: (timer) => cadence.cancel(timer as number),
+      cancelWatchdog: (timer) => watchdog.cancel(timer as number),
+      createWorker: () => {
+        const worker = new FakeShardWorker();
+        workers.push(worker);
+        return worker;
+      },
+      hardwareConcurrency: 1,
+      jobTimeoutMs: 25,
+      schedule: cadence.schedule,
+      scheduleWatchdog: watchdog.schedule,
+    });
+    pool.onmessage = (event) => responses.push(event.data);
+    pool.postMessage({ type: "UPDATE_SCENE", scene: sceneWithSources(1, 59) });
+    cadence.flush();
+    watchdog.advance(24);
+    expect(responses).toEqual([]);
+    watchdog.advance(1);
+    expect(responses).toEqual([expect.objectContaining({ type: "ERROR", revision: 59 })]);
+    expect(workers[0]!.terminateCalls).toBe(1);
+
+    const completedWatchdog = new FakeTimeline();
+    const completedCadence = new FakeTimers();
+    const completedWorkers: FakeShardWorker[] = [];
+    const completedResponses: AcousticWorkerResponse[] = [];
+    const completedPool = createClassicSourcePool({
+      cancel: (timer) => completedCadence.cancel(timer as number),
+      cancelWatchdog: (timer) => completedWatchdog.cancel(timer as number),
+      createWorker: () => {
+        const worker = new FakeShardWorker();
+        completedWorkers.push(worker);
+        return worker;
+      },
+      hardwareConcurrency: 1,
+      jobTimeoutMs: 25,
+      schedule: completedCadence.schedule,
+      scheduleWatchdog: completedWatchdog.schedule,
+    });
+    completedPool.onmessage = (event) => completedResponses.push(event.data);
+    completedPool.postMessage({ type: "UPDATE_SCENE", scene: sceneWithSources(1, 60) });
+    completedCadence.flush();
+    completedWorkers[0]!.resolve(1);
+    completedWatchdog.advance(25);
+    expect(completedResponses).toHaveLength(1);
+    expect(completedResponses[0]).toMatchObject({ type: "FRAME", revision: 60 });
+
+    const disposedCadence = new FakeTimers();
+    const disposedWatchdog = new FakeTimeline();
+    const disposedWorkers: FakeShardWorker[] = [];
+    const disposedResponses: AcousticWorkerResponse[] = [];
+    const disposedPool = createClassicSourcePool({
+      cancel: (timer) => disposedCadence.cancel(timer as number),
+      cancelWatchdog: (timer) => disposedWatchdog.cancel(timer as number),
+      createWorker: () => {
+        const worker = new FakeShardWorker();
+        disposedWorkers.push(worker);
+        return worker;
+      },
+      hardwareConcurrency: 1,
+      jobTimeoutMs: 25,
+      schedule: disposedCadence.schedule,
+      scheduleWatchdog: disposedWatchdog.schedule,
+    });
+    disposedPool.onmessage = (event) => disposedResponses.push(event.data);
+    disposedPool.postMessage({ type: "UPDATE_SCENE", scene: sceneWithSources(1, 61) });
+    disposedCadence.flush();
+    disposedPool.terminate();
+    disposedWatchdog.advance(25);
+    expect(disposedResponses).toEqual([]);
+    expect(disposedWorkers[0]!.terminateCalls).toBe(1);
   });
 
   it.each(["typed", "onerror", "onmessageerror"] as const)("fails once and terminates all workers on %s failure", (failureMode) => {
