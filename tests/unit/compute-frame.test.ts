@@ -206,6 +206,39 @@ describe("computeAcousticFrame", () => {
     });
   });
 
+  it("emits a bounded two-point second-order path for a blocked Classic source", () => {
+    const secondOrderScene: SceneSpec = {
+      ...visibleScene,
+      room: {
+        ...visibleScene.room,
+        outerPolygon: [
+          { x: 0, y: 0 },
+          { x: 10, y: 0 },
+          { x: 10, y: 10 },
+          { x: 0, y: 10 },
+        ],
+      },
+      walls: [
+        { id: "bottom", a: { x: 0, y: 0 }, b: { x: 10, y: 0 }, thicknessM: 0.2, materialId: "concrete_hard", kind: "boundary" },
+        { id: "right", a: { x: 10, y: 0 }, b: { x: 10, y: 10 }, thicknessM: 0.2, materialId: "concrete_hard", kind: "boundary" },
+        { id: "top", a: { x: 10, y: 10 }, b: { x: 0, y: 10 }, thicknessM: 0.2, materialId: "concrete_hard", kind: "boundary" },
+        { id: "left", a: { x: 0, y: 10 }, b: { x: 0, y: 0 }, thicknessM: 0.2, materialId: "concrete_hard", kind: "boundary" },
+        { id: "direct_blocker", a: { x: 5, y: 4.5 }, b: { x: 5, y: 5.5 }, thicknessM: 0.2, materialId: "concrete_hard", kind: "partition" },
+      ],
+      sources: [{ ...visibleScene.sources[0]!, position: { x: 2, y: 5 } }],
+      listener: { position: { x: 8, y: 5 }, headingDeg: 0 },
+    };
+
+    const reflection = computeAcousticFrame(secondOrderScene).sources[0]!.earlyReflections
+      .find((candidate) => candidate.wallIds?.join(">") === "bottom>right");
+
+    expect(reflection).toMatchObject({
+      order: 2,
+      wallIds: ["bottom", "right"],
+    });
+    expect(reflection?.reflectionPoints).toHaveLength(2);
+  });
+
   it("references portal-frame reflection delays to the selected effective route", () => {
     const portalReflectionScene: SceneSpec = {
       ...visibleScene,

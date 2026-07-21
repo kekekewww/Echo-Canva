@@ -11,6 +11,7 @@ import { traceDirectPath } from "@/acoustics/geometry";
 import {
   firstOrderReflectionPoint2D,
   reflectionLegIsVisible2D,
+  solveSecondOrderReflectionPair2D,
 } from "@/acoustics/image-source";
 import { estimateDirectOcclusion } from "@/acoustics/occlusion";
 import { findBestPortalRoute } from "@/acoustics/portal";
@@ -162,6 +163,49 @@ function isEarlyReflection(
     || !isBoundedNumber(value.lowpassHz, 20, 20_000)
     || !isVec2(value.reflectionPoint)
   ) return false;
+  if (value.order === 2) {
+    if (
+      !Array.isArray(value.wallIds) || value.wallIds.length !== 2 ||
+      !value.wallIds.every((id) => isBoundedString(id) && wallsById.has(id)) ||
+      value.wallIds[0] === value.wallIds[1] ||
+      !Array.isArray(value.reflectionPoints) || value.reflectionPoints.length !== 2 ||
+      !value.reflectionPoints.every(isVec2) ||
+      value.wallId !== value.wallIds[1] ||
+      !samePoint2(value.reflectionPoint, value.reflectionPoints[1])
+    ) return false;
+    const first = wallsById.get(value.wallIds[0]);
+    const second = wallsById.get(value.wallIds[1]);
+    if (!first || !second) return false;
+    const expected = solveSecondOrderReflectionPair2D(
+      sourcePosition,
+      listenerPosition,
+      first,
+      second,
+      scene,
+    );
+    if (!expected || !expected.reflectionPoints || expected.reflectionPoints.length !== 2) return false;
+    const expectedDelayMs = Math.max(
+      0,
+      ((expected.pathLengthM - effectiveDistanceM) / SOUND_SPEED_MPS) * 1_000,
+    );
+    return samePoints2(value.reflectionPoints, expected.reflectionPoints)
+      && nearlyEqual(value.pathLengthM, expected.pathLengthM)
+      && nearlyEqual(value.delayMs, expectedDelayMs)
+      && nearlyEqual(value.gainDb, expected.gainDb)
+      && nearlyEqual(value.lowpassHz, expected.lowpassHz);
+  }
+  if (value.order !== undefined && value.order !== 1) return false;
+  if (
+    value.wallIds !== undefined && (
+      !Array.isArray(value.wallIds) || value.wallIds.length !== 1 || value.wallIds[0] !== value.wallId
+    )
+  ) return false;
+  if (
+    value.reflectionPoints !== undefined && (
+      !Array.isArray(value.reflectionPoints) || value.reflectionPoints.length !== 1 ||
+      !isVec2(value.reflectionPoints[0]) || !samePoint2(value.reflectionPoint, value.reflectionPoints[0])
+    )
+  ) return false;
   const wall = wallsById.get(value.wallId);
   if (!wall) return false;
   const expectedReflectionPoint = firstOrderReflectionPoint2D(sourcePosition, listenerPosition, wall);
@@ -236,9 +280,11 @@ function isAcousticFrameSource(
       scene,
       wallsById,
     ))) return false;
-  const reflectionWallIds = value.earlyReflections.map((reflection) =>
-    (reflection as { wallId: string }).wallId);
-  if (new Set(reflectionWallIds).size !== reflectionWallIds.length) return false;
+  const reflectionPathIds = value.earlyReflections.map((reflection) => {
+    const candidate = reflection as { wallId: string; wallIds?: readonly string[] };
+    return candidate.wallIds?.join(">") ?? candidate.wallId;
+  });
+  if (new Set(reflectionPathIds).size !== reflectionPathIds.length) return false;
 
   const trace = traceDirectPath(source.position, snapshot.listener.position, scene);
   const occlusion = estimateDirectOcclusion(trace);

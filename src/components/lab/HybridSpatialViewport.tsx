@@ -3,7 +3,7 @@
 import { HybridPathOverlay, type HybridDisplayPath } from "@/components/workspace/HybridPathOverlay";
 import { clientPointToSvg, type Rect } from "@/domain/editor/coordinates";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { primitivePatches } from "@/acoustics/hybrid3d/primitives";
 import type { AcousticPrimitive } from "@/domain/workspace/types";
 
@@ -125,6 +125,33 @@ function clamp(value: number, minimum: number, maximum: number): number {
 function points(value: readonly ScreenPoint[]): string {
   return value.map((point) => `${point.x},${point.y}`).join(" ");
 }
+
+const GeometrySurfaceLayer = memo(function GeometrySurfaceLayer({
+  surfaces,
+  onSelectTarget,
+}: Readonly<{
+  surfaces: readonly GeometrySurface[];
+  onSelectTarget: Props["onSelectTarget"];
+}>) {
+  return (
+    <g data-testid="hybrid-geometry-surface-layer">
+      {surfaces.map((surface) => <polygon
+        aria-hidden="true"
+        className={surface.kind === "wall"
+          ? `hybrid-viewport-wall-panel${surface.closed ? " is-closed" : ""}${surface.selected ? " is-selected" : ""}`
+          : `hybrid-viewport-primitive-panel${surface.selected ? " is-selected" : ""}`}
+        data-surface-depth={surface.depth}
+        data-surface-kind={surface.kind}
+        key={surface.key}
+        onClick={surface.kind === "wall" ? (event) => {
+          event.stopPropagation();
+          onSelectTarget({ type: "wall", id: surface.ownerId });
+        } : undefined}
+        points={points(surface.points)}
+      />)}
+    </g>
+  );
+});
 
 function projectSurfacePanel(vertices: readonly ViewportVec3[], camera: ViewportCamera): ProjectedSurfacePanel {
   return {
@@ -274,6 +301,8 @@ export function HybridSpatialViewport({
       panels: primitivePatches(primitive).map((patch) => projectSurfacePanel(patch.vertices, camera)),
     })),
   }), [camera, primitives, room, walls]);
+  const selectedWallId = selectedTarget?.type === "wall" ? selectedTarget.id : null;
+  const selectedPrimitiveId = selectedTarget?.type === "primitive" ? selectedTarget.id : null;
   const geometrySurfaces = useMemo<readonly GeometrySurface[]>(() => [
     ...projected.walls.flatMap(({ wall, panels }) => panels.map((panel, index) => ({
       key: `${wall.id}-panel-${index}`,
@@ -282,7 +311,7 @@ export function HybridSpatialViewport({
       points: panel.points,
       depth: panel.depth,
       closed: !wall.portals.some(({ open }) => open),
-      selected: selectedTarget?.type === "wall" && selectedTarget.id === wall.id,
+      selected: selectedWallId === wall.id,
     }))),
     ...projected.primitives.flatMap(({ primitive, panels }) => panels.map((panel, index) => ({
       key: `${primitive.id}-panel-${index}`,
@@ -290,11 +319,11 @@ export function HybridSpatialViewport({
       ownerId: primitive.id,
       points: panel.points,
       depth: panel.depth,
-      selected: selectedTarget?.type === "primitive" && selectedTarget.id === primitive.id,
+      selected: selectedPrimitiveId === primitive.id,
     }))),
   ].sort((left, right) => left.depth - right.depth || (
     left.kind === right.kind ? left.key.localeCompare(right.key) : left.kind === "wall" ? -1 : 1
-  )), [projected.primitives, projected.walls, selectedTarget]);
+  )), [projected.primitives, projected.walls, selectedPrimitiveId, selectedWallId]);
   const axis = useMemo(() => {
     const origin = projectViewportPoint({ x: room.widthM / 2, y: 0, z: room.depthM / 2 }, camera);
     return {
@@ -478,22 +507,7 @@ export function HybridSpatialViewport({
         {projected.floor.map((point, index) => <line className="hybrid-viewport-room-edge" key={`edge-${index}`} x1={point.x} x2={projected.ceiling[index]!.x} y1={point.y} y2={projected.ceiling[index]!.y} />)}
         <polyline className="hybrid-viewport-room-edge" fill="none" points={points([...projected.floor, projected.floor[0]!])} />
         {ceilingVisible ? <polyline className="hybrid-viewport-ceiling-edge" fill="none" points={points([...projected.ceiling, projected.ceiling[0]!])} /> : null}
-        <g data-testid="hybrid-geometry-surface-layer">
-          {geometrySurfaces.map((surface) => <polygon
-            aria-hidden="true"
-            className={surface.kind === "wall"
-              ? `hybrid-viewport-wall-panel${surface.closed ? " is-closed" : ""}${surface.selected ? " is-selected" : ""}`
-              : `hybrid-viewport-primitive-panel${surface.selected ? " is-selected" : ""}`}
-            data-surface-depth={surface.depth}
-            data-surface-kind={surface.kind}
-            key={surface.key}
-            onClick={surface.kind === "wall" ? (event) => {
-              event.stopPropagation();
-              onSelectTarget({ type: "wall", id: surface.ownerId });
-            } : undefined}
-            points={points(surface.points)}
-          />)}
-        </g>
+        <GeometrySurfaceLayer onSelectTarget={onSelectTarget} surfaces={geometrySurfaces} />
         {projected.primitives.map(({ primitive, panels }) => {
           const selected = selectedTarget?.type === "primitive" && selectedTarget.id === primitive.id;
           return <g

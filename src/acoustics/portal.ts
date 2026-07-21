@@ -1,6 +1,7 @@
 import {
   ACOUSTIC_EPSILON,
   cross,
+  collinearInteriorOverlap,
   distance,
   dot,
   segmentIntersection,
@@ -226,6 +227,7 @@ function isWaivedPortalEndpoint(
 
 function isPortalEdgeVisible(from: GraphNode, to: GraphNode, scene: SceneSpec): boolean {
   for (const wall of scene.walls) {
+    if (collinearInteriorOverlap(from.position, to.position, wall.a, wall.b)) return false;
     const hit = segmentIntersection(from.position, to.position, wall.a, wall.b);
 
     if (hit !== null) {

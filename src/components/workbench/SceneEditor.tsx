@@ -492,15 +492,19 @@ export function SceneEditor({ scene, selection, acousticFrame, camera = FALLBACK
 
         {activeSource && activeSourceFrame?.earlyReflections.map((reflection) => {
           const sourcePoint = project(activeSource.position);
-          const reflectionPoint = project(reflection.reflectionPoint);
+          const reflectionPoints = (reflection.reflectionPoints ?? [reflection.reflectionPoint])
+            .map(project);
           const listenerPoint = project(scene.listener.position);
           return (
             <polyline
-              key={`${reflection.wallId}-${reflection.reflectionPoint.x}-${reflection.reflectionPoint.y}`}
+              key={`${reflection.wallIds?.join(">") ?? reflection.wallId}-${reflection.reflectionPoint.x}-${reflection.reflectionPoint.y}`}
               data-testid="early-reflection-path"
+              data-reflection-order={reflection.order ?? 1}
               data-wall-id={reflection.wallId}
-              points={`${sourcePoint.x},${sourcePoint.y} ${reflectionPoint.x},${reflectionPoint.y} ${listenerPoint.x},${listenerPoint.y}`}
-              className="early-reflection-path"
+              points={[sourcePoint, ...reflectionPoints, listenerPoint]
+                .map(({ x, y }) => `${x},${y}`)
+                .join(" ")}
+              className={`early-reflection-path order-${reflection.order ?? 1}`}
               aria-hidden="true"
             />
           );

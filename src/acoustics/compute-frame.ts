@@ -1,5 +1,5 @@
 import { distance, traceDirectPath } from "@/acoustics/geometry";
-import { findFirstOrderReflections } from "@/acoustics/image-source";
+import { findFirstOrderReflections, findSecondOrderReflections } from "@/acoustics/image-source";
 import { estimateDirectOcclusion } from "@/acoustics/occlusion";
 import { findBestPortalRoute } from "@/acoustics/portal";
 import { estimateRoomAcoustics } from "@/acoustics/room-acoustics";
@@ -95,6 +95,10 @@ export function computeClassicSourceFrame(
     listener,
     sources: [source],
   };
+  const earlyReflectionLimit = Math.min(
+    6,
+    Math.max(0, Math.floor(scene.settings.maxEarlyReflections)),
+  );
   const trace = traceDirectPath(source.position, listener.position, scene);
   const occlusion = estimateDirectOcclusion(trace);
   const portalRoute = trace.visible
@@ -102,12 +106,29 @@ export function computeClassicSourceFrame(
     : findBestPortalRoute(source.position, listener.position, scene);
   const physicalDistanceM = distance(source.position, listener.position);
   const effectiveDistanceM = portalRoute?.effectiveDistanceM ?? physicalDistanceM;
-  const earlyReflections = findFirstOrderReflections(
+  const firstOrderReflections = findFirstOrderReflections(
     source.position,
     listener.position,
     scene,
-    scene.settings.maxEarlyReflections,
-  ).map((tap) => ({
+    earlyReflectionLimit,
+  );
+  const secondOrderReflections = trace.visible
+    ? []
+    : findSecondOrderReflections(
+        source.position,
+        listener.position,
+        scene,
+        earlyReflectionLimit,
+      );
+  const earlyReflections = [...firstOrderReflections, ...secondOrderReflections]
+    .sort((left, right) =>
+      right.gainDb - left.gainDb ||
+      (left.wallIds?.join(">") ?? left.wallId).localeCompare(
+        right.wallIds?.join(">") ?? right.wallId,
+      )
+    )
+    .slice(0, earlyReflectionLimit)
+    .map((tap) => ({
     ...tap,
     delayMs: Math.max(0, ((tap.pathLengthM - effectiveDistanceM) / 343) * 1000),
   }));

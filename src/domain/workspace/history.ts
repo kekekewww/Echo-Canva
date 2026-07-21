@@ -39,7 +39,10 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 function sameValue(left: unknown, right: unknown): boolean {
-  return Object.is(left, right) || JSON.stringify(left) === JSON.stringify(right);
+  // Structural equality here serialized the complete 100-wall project at every
+  // history recursion boundary. Reference-equal branches can be skipped safely;
+  // distinct containers are traversed below and still produce the same leaf ops.
+  return Object.is(left, right);
 }
 
 function clone<T>(value: T): T {

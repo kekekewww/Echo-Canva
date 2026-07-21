@@ -1,5 +1,33 @@
 # Status
 
+## Classic 2.5D collision and bounded second-order repair — 2026-07-21
+
+- reproduced a finite collinear Wall/shape-footprint segment being missed by the ordinary
+  segment-intersection helper; direct, Portal, and reflection visibility now reject any interior
+  collinear overlap as well as ordinary crossings
+- extended blocked Classic source shards with the same bounded ordered-pair Image Source policy as
+  Hybrid: at most 24 representative walls / 552 ordered pairs, 50 m and -36 dB pruning, and no more
+  than six ranked first/second-order taps per source
+- Classic second-order results contain two ordered reflection points, use the Listener-facing point
+  for the existing panner, render as a four-vertex SVG path, and allocate no additional AudioNodes
+- Classic Worker validation independently reconstructs the ordered wall pair, both specular points,
+  all three visible legs, length, route-relative delay, gain, and low-pass before atomic pool merge
+- focused deterministic verification — PASS, 90 tests across the Classic oracle, geometry, Portal,
+  image-source, Classic frame, and Classic source-pool suites; TypeScript strict check — PASS
+- repaired the maximum-entity interaction regression exposed during final verification: history
+  comparison now traverses only changed-reference branches, the 3D static SVG surface layer is
+  memoized across Listener switches, cached Hybrid geometry avoids a duplicate static hash, and
+  synchronous localStorage writes wait for a 2 s idle debounce while mode/pagehide still flush
+  immediately
+- the 100-wall / 8-Portal / 4-source / 8-Listener production stress case passed three consecutive
+  Chromium runs with the unchanged Worker p95 `<12 ms` and main-thread long-task `<=50 ms` gates
+- final `pnpm lint`, `pnpm typecheck`, and `pnpm test` — PASS, 69 unit files / 508 tests
+- final production build — PASS; full Chromium acceptance — PASS, 45/45 tests
+- final `git diff --check` — PASS (Windows line-ending notices only)
+
+Current action: restart the verified production candidate for human 2.5D Portal and two-bounce
+acceptance.
+
 ## Bounded Hybrid second-order / Portal / Inspector repair — 2026-07-21
 
 - reproduced the Portal-through-obstacle defect and now accept a projected Portal route only

@@ -321,12 +321,12 @@ Rank candidates by estimated energy and keep at most six taps per source. Reject
 
 The reflection panner direction should point from listener to reflection point \(q\).
 
-### 9.0.1 Bounded Hybrid second-order reflections
+### 9.0.1 Bounded second-order reflections
 
-When a Hybrid source has no visible direct path, evaluate ordered pairs of distinct representative
-physical surfaces. Mirror the source across the first surface and then the second surface, solve the
-listener-facing second reflection point followed by the first point, and accept the path only when
-all three legs are visible in the installed BVH:
+When a source has no visible direct path, evaluate ordered pairs of distinct representative walls
+in Classic or physical surfaces in Hybrid. Mirror the source across the first surface and then the
+second surface, solve the listener-facing second reflection point followed by the first point, and
+accept the path only when all three legs are visible in the mode's deterministic geometry:
 
 \[
 s \rightarrow q_1 \rightarrow q_2 \rightarrow l
@@ -338,13 +338,14 @@ prunes pairs whose image path exceeds 50 m or whose estimated mid-band specular 
 for the same persistent six-tap audio bank, so this feature allocates no additional AudioNodes.
 The second reflection point \(q_2\) controls the listener-facing panner direction. Third- and
 higher-order search is excluded because its pair expansion and visibility work would compromise
-interactive editing without establishing wave-acoustic accuracy.
+interactive editing without establishing wave-acoustic accuracy. Classic checks finite wall
+segments, including collinear interior overlap; Hybrid checks the installed 3D BVH.
 
 ## 9.1 Bounded basic-shape obstacles
 
 Authoring supports at most eight Box, Cylinder, or Sphere obstacles. In Classic 2.5D, every
 enabled shape becomes a full-height closed footprint made from four or twelve synthetic wall
-segments. Direct occlusion, portal visibility, and first-order footprint reflections therefore
+segments. Direct occlusion, portal visibility, and first/second-order footprint reflections therefore
 reuse the deterministic planar engine.
 
 Hybrid uses finite surface patches in the existing BVH: six for a Box, fourteen for a twelve-side

@@ -4,7 +4,7 @@ import { CLASSIC_BASELINE_SCENARIO_COUNT, captureClassicBaseline } from "@/bench
 import baselineArtifact from "../../benchmarks/results/mvp-baseline.json";
 
 describe("Classic 2.5D baseline capture", () => {
-  it("matches the immutable ten-scenario Classic regression oracle", () => {
+  it("matches the approved ten-scenario Classic regression oracle", () => {
     const capture = captureClassicBaseline();
 
     expect(capture).toHaveLength(CLASSIC_BASELINE_SCENARIO_COUNT);

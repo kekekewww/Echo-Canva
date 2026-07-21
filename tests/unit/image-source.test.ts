@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { findFirstOrderReflections } from "@/acoustics/image-source";
+import {
+  findFirstOrderReflections,
+  solveSecondOrderReflectionPair2D,
+} from "@/acoustics/image-source";
 import { MATERIALS } from "@/domain/materials/registry";
 import type { SceneSpec } from "@/domain/scene/types";
 
@@ -92,6 +95,20 @@ describe("findFirstOrderReflections", () => {
     expect(reflections.map((reflection) => reflection.wallId)).not.toContain("bottom");
   });
 
+  it("rejects a reflection leg that overlaps a collinear obstacle", () => {
+    const reflections = findFirstOrderReflections(
+      { x: 2, y: 2 },
+      { x: 8, y: 2 },
+      reflectionScene([
+        ...RECTANGLE_WALLS,
+        { id: "collinear-blocker", a: { x: 3, y: 4 / 3 }, b: { x: 4, y: 2 / 3 }, thicknessM: 0.2, materialId: "concrete_hard", kind: "partition" },
+      ]),
+      6,
+    );
+
+    expect(reflections.map((reflection) => reflection.wallId)).not.toContain("bottom");
+  });
+
   it("rejects a shared wall endpoint at the reflection point", () => {
     const reflections = findFirstOrderReflections(
       { x: 2, y: 2 },
@@ -167,5 +184,27 @@ describe("findFirstOrderReflections", () => {
     }
     expect(findFirstOrderReflections({ x: -1, y: 0 }, { x: 1, y: 0 }, reflectionScene(walls), 99))
       .toEqual(reflections);
+  });
+});
+
+describe("solveSecondOrderReflectionPair2D", () => {
+  it("rejects an ordered pair when an intervening obstacle crosses the middle leg", () => {
+    const blocker = {
+      id: "middle_leg_blocker",
+      a: { x: 8.5, y: 1.2 },
+      b: { x: 8.5, y: 1.8 },
+      thicknessM: 0.2,
+      materialId: "concrete_hard",
+      kind: "partition" as const,
+    };
+    const scene = reflectionScene([...RECTANGLE_WALLS, blocker]);
+
+    expect(solveSecondOrderReflectionPair2D(
+      { x: 2, y: 5 },
+      { x: 8, y: 5 },
+      RECTANGLE_WALLS[0]!,
+      RECTANGLE_WALLS[1]!,
+      scene,
+    )).toBeNull();
   });
 });

@@ -206,15 +206,12 @@ export function compileHybridStaticGeometry(document: SceneDocumentV2): HybridSt
   };
 }
 
-export function bindHybridPoses(
+function bindHybridPosesFromValidatedStructure(
   structure: HybridStaticGeometry,
   document: SceneDocumentV2,
 ): HybridGeometry {
   const spatial = requireSpatialDocument(document);
   const scene = document.baseScene;
-  if (structure.staticGeometryHash !== hybridStaticGeometryHash(document)) {
-    throw new Error("Hybrid 3D static geometry cannot be reused after a geometry change.");
-  }
   const sourcePositions = Object.fromEntries(
     scene.sources.map((source) => [
       source.id,
@@ -231,6 +228,16 @@ export function bindHybridPoses(
   };
 }
 
+export function bindHybridPoses(
+  structure: HybridStaticGeometry,
+  document: SceneDocumentV2,
+): HybridGeometry {
+  if (structure.staticGeometryHash !== hybridStaticGeometryHash(document)) {
+    throw new Error("Hybrid 3D static geometry cannot be reused after a geometry change.");
+  }
+  return bindHybridPosesFromValidatedStructure(structure, document);
+}
+
 export function compileHybridGeometry(document: SceneDocumentV2): HybridGeometry {
   return bindHybridPoses(compileHybridStaticGeometry(document), document);
 }
@@ -243,7 +250,7 @@ export function createHybridGeometryCompiler(
     compile(document): HybridGeometry {
       const hash = hybridStaticGeometryHash(document);
       if (!cached || cached.staticGeometryHash !== hash) cached = compileStatic(document);
-      return bindHybridPoses(cached, document);
+      return bindHybridPosesFromValidatedStructure(cached, document);
     },
   };
 }

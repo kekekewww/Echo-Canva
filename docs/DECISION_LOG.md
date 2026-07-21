@@ -1,5 +1,27 @@
 # Decision Log
 
+## D-052 — Add bounded second-order reflection to blocked Classic routes
+
+Decision (2026-07-21): Run deterministic ordered-pair image-source search in Classic 2.5D only
+when its direct path is blocked. Use at most 24 representative finite walls, 552 ordered distinct
+pairs, a 50 m path cap, a -36 dB mid-band specular threshold, and the existing six-tap mixed
+first/second-order bank. Reject every direct, Portal, and reflection leg that has an ordinary wall
+crossing or an interior collinear overlap. The Classic Worker must reconstruct two-bounce results
+before merge; the second/Listener-facing point controls panning and the overlay shows both points.
+
+Reason: The owner reproduced a 2.5D Portal/reflection path crossing an obstacle and confirmed that
+Classic remained first-order only. Collinear finite segments were the missed collision case, while
+the absent two-bounce data contract prevented source-to-floor-to-wall-to-Listener paths. Reusing
+the fixed bank and only searching blocked routes adds the requested path class without adding audio
+nodes or unbounded per-frame work. Third and higher order remain excluded because their branching
+cost would worsen the already-observed interactive latency without establishing wave accuracy.
+
+Implementation safety: Preserve the existing interaction budgets by memoizing the static 3D SVG
+surface layer across Listener-only changes, traversing reference-equal history branches without
+whole-project JSON comparison, avoiding a duplicate Hybrid static-geometry hash after cache
+validation, and debouncing synchronous localStorage persistence until 2 s of idle time. Mode
+changes and `pagehide` continue to flush immediately, so this does not weaken exit persistence.
+
 ## D-051 — Treat Worker responses as bounded untrusted protocol data
 
 Decision (2026-07-21): Require one expected static-install acknowledgement from each assigned Worker, reject unexpected or duplicate acknowledgements, and guard each Classic/Hybrid job with a configurable watchdog whose browser default is 2,000 ms. Validate finite Worker payloads against route semantics, installed IDs/materials, entity-derived array limits, conservative coordinate/distance/delay/filter/gain envelopes, and normalized Hybrid direction vectors before atomic merge. Cross-field checks independently reconstruct Classic direct/blocked crossings and the lowest-cost route through open Portals, including the listener-facing virtual position. Reflection validation reuses the serial solver's specular-point and two-leg visibility helpers and rejects duplicate physical surfaces; Hybrid performs the equivalent finite-patch/BVH checks. Individually plausible numbers are rejected when they do not describe the same accepted snapshot and 343 m/s path. Expose the accepted acoustic revision/request sequence, Worker source, and exact active Worker count so browser evidence can associate every timing sample with a distinct complete Worker frame. Active-Listener changes now increment the acoustic revision. Classic relative reflection delay is clamped to zero when a Portal-aware direct route is longer than the reflected arrival.

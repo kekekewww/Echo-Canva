@@ -20,6 +20,17 @@ test("preserves the Classic audio, portal and reverb behaviours behind the works
   await expect.poll(async () => Number((await rt60Status.textContent())?.match(/RT60\s+([\d.]+)/)?.[1])).toBeLessThan(hardRt60);
 
   await page.getByLabel("Scene preset").selectOption("concrete-partition");
+  await page.getByRole("complementary", { name: "Scene Outliner" })
+    .locator(".kind-source")
+    .filter({ hasText: "Rain" })
+    .click();
+  const secondOrderPath = page.locator(
+    '[data-testid="early-reflection-path"][data-reflection-order="2"]',
+  ).first();
+  await expect(secondOrderPath).toBeVisible();
+  await expect.poll(async () =>
+    (await secondOrderPath.getAttribute("points"))?.trim().split(/\s+/).length,
+  ).toBe(4);
   await page.getByRole("complementary", { name: "Scene Outliner" }).locator(".kind-listener").first().click();
   const listenerZ = page.getByRole("textbox", { name: "Z position" });
   await listenerZ.fill("2");

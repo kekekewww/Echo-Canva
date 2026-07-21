@@ -67,6 +67,40 @@ export function segmentIntersection(a: Vec2, b: Vec2, c: Vec2, d: Vec2): Segment
   };
 }
 
+export function collinearInteriorOverlap(
+  a: Vec2,
+  b: Vec2,
+  c: Vec2,
+  d: Vec2,
+): SegmentHit | null {
+  const route = subtract(b, a);
+  const routeLengthSquared = dot(route, route);
+  if (routeLengthSquared <= ACOUSTIC_EPSILON) return null;
+  const start = subtract(c, a);
+  const end = subtract(d, a);
+  const routeLength = Math.sqrt(routeLengthSquared);
+  if (
+    Math.abs(cross(route, start)) > ACOUSTIC_EPSILON * routeLength ||
+    Math.abs(cross(route, end)) > ACOUSTIC_EPSILON * routeLength
+  ) return null;
+  const startT = dot(start, route) / routeLengthSquared;
+  const endT = dot(end, route) / routeLengthSquared;
+  const overlapStart = Math.max(ACOUSTIC_EPSILON, Math.min(startT, endT));
+  const overlapEnd = Math.min(1 - ACOUSTIC_EPSILON, Math.max(startT, endT));
+  if (overlapEnd - overlapStart <= ACOUSTIC_EPSILON) return null;
+  const t = (overlapStart + overlapEnd) / 2;
+  const wall = subtract(d, c);
+  const wallLengthSquared = dot(wall, wall);
+  const point = { x: a.x + route.x * t, y: a.y + route.y * t };
+  return {
+    point,
+    t,
+    u: wallLengthSquared <= ACOUSTIC_EPSILON
+      ? 0
+      : clampUnit(dot(subtract(point, c), wall) / wallLengthSquared),
+  };
+}
+
 function isInteriorTraceHit(hit: SegmentHit): boolean {
   // A source/listener can sit exactly on its supporting room boundary. Those
   // endpoint contacts are finite geometry hits, but not intervening occluders.
@@ -80,7 +114,8 @@ export function intersectSegmentWithWalls(
 ): readonly WallCrossing[] {
   return walls
     .flatMap((wall) => {
-      const hit = segmentIntersection(source, listener, wall.a, wall.b);
+      const hit = segmentIntersection(source, listener, wall.a, wall.b)
+        ?? collinearInteriorOverlap(source, listener, wall.a, wall.b);
 
       if (hit === null || !isInteriorTraceHit(hit)) {
         return [];

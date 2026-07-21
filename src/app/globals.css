@@ -890,6 +890,7 @@ select {
   stroke-linecap: round;
   stroke-width: 2;
 }
+.early-reflection-path.order-2 { stroke: #aa8ae8; stroke-dasharray: 4 6; stroke-width: 2.5; }
 
 @keyframes wavefront {
   from { opacity: 0.44; transform: scale(0.72); }

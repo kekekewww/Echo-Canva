@@ -135,6 +135,40 @@ describe("portal routing", () => {
     expect(findBestPortalRoute(source, { x: 0, y: 4 }, listenerOnBoundaryScene)).toBeNull();
   });
 
+  it("rejects a Portal leg that overlaps a collinear obstacle segment", () => {
+    const sceneWithCollinearObstacle = {
+      ...openPortalScene,
+      walls: [
+        ...openPortalScene.walls,
+        {
+          ...openPortalScene.walls[4]!,
+          id: "collinear_obstacle",
+          a: { x: 7, y: 19 / 6 },
+          b: { x: 8, y: 7 / 3 },
+        },
+      ],
+    };
+
+    expect(findBestPortalRoute(source, listener, sceneWithCollinearObstacle)).toBeNull();
+  });
+
+  it("rejects a Portal leg that crosses a closed basic-shape footprint edge", () => {
+    const sceneWithFootprintEdge = {
+      ...openPortalScene,
+      walls: [
+        ...openPortalScene.walls,
+        {
+          ...openPortalScene.walls[4]!,
+          id: "primitive:box:edge:0",
+          a: { x: 4.5, y: 2.5 },
+          b: { x: 4.5, y: 3 },
+        },
+      ],
+    };
+
+    expect(findBestPortalRoute(source, listener, sceneWithFootprintEdge)).toBeNull();
+  });
+
   it("uses the listener-facing final portal rather than the Euclidean-nearest portal", () => {
     const listenerFacingRouteScene = {
       ...serialPortalScene,

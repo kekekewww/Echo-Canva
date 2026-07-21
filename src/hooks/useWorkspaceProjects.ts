@@ -23,6 +23,8 @@ import {
 import { projectReducer } from "@/domain/workspace/project-reducer";
 import type { ProjectAction, WorkspaceMode } from "@/domain/workspace/types";
 
+const PERSISTENCE_DEBOUNCE_MS = 2_000;
+
 const initialHistories = (): WorkspaceHistories => ({
   classic: createHistory(createDefaultClassicProject()),
   hybrid: createHistory(createDefaultHybridProject()),
@@ -88,7 +90,9 @@ export function useWorkspaceProjects(initialMode?: WorkspaceMode) {
   }, [keyFor]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => flushMode(activeMode), 150);
+    // Keep synchronous localStorage serialization out of rapid listener/drag
+    // interaction bursts; pagehide and mode changes still flush immediately.
+    const timer = window.setTimeout(() => flushMode(activeMode), PERSISTENCE_DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
   }, [activeMode, flushMode, histories]);
 

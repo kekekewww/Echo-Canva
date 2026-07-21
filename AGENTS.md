@@ -15,7 +15,7 @@ Implement:
 3. Three-band acoustic materials.
 4. Exact direct-path visibility and wall occlusion.
 5. Explicit open-portal routing approximation.
-6. First-order image-source early reflections in both modes, plus bounded second-order reflections in Hybrid 3D when the direct path is blocked.
+6. First-order image-source early reflections in both modes, plus bounded second-order reflections in either mode when the direct path is blocked.
 7. Three-band Eyring RT60 estimation.
 8. Browser HRTF rendering through Web Audio `PannerNode`.
 9. Stable late reverberation using a Schroeder network; FDN is optional only after all MVP acceptance tests pass.

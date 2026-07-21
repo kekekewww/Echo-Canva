@@ -105,6 +105,21 @@ describe("direct-path geometry", () => {
     ]);
   });
 
+  it("treats a finite collinear interior wall overlap as a direct-path crossing", () => {
+    const wall = {
+      ...CONCRETE_PARTITION_PRESET.walls[4]!,
+      id: "collinear_interior",
+      a: { x: 3, y: 0 },
+      b: { x: 7, y: 0 },
+    };
+
+    expect(intersectSegmentWithWalls(
+      { x: 0, y: 0 },
+      { x: 10, y: 0 },
+      [wall],
+    )).toMatchObject([{ wallId: "collinear_interior", t: 0.5 }]);
+  });
+
   it("returns a finite hit for endpoint contact and none for parallel, collinear, or zero-length segments", () => {
     expect(
       segmentIntersection(

@@ -39,8 +39,11 @@ export type PortalRoute = Readonly<{
 }>;
 
 export type ReflectionTap = Readonly<{
+  order?: 1 | 2;
   wallId: string;
+  wallIds?: readonly string[];
   reflectionPoint: Vec2;
+  reflectionPoints?: readonly Vec2[];
   pathLengthM: number;
   delayMs: number;
   gainDb: number;

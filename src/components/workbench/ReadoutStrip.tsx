@@ -106,7 +106,7 @@ export function ReadoutStrip({
               <h3>Estimated Eyring RT60</h3>
             </div>
             <p className="reflection-count">
-              <strong>{sourceFrame.earlyReflections.length}</strong> first-order taps
+              <strong>{sourceFrame.earlyReflections.length}</strong> ranked early taps
             </p>
           </div>
           <dl className="room-metrics">

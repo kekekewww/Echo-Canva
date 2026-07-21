@@ -92,9 +92,9 @@ Each item is complete only when its Acceptance and Verify sections pass.
   Spec ref: `ACOUSTICS.md > 9, 11`
   What to build: source reflection across arbitrary wall line, candidate validation, visibility checks, ranking, six-tap fixed pool, reflected panning, debug reflection paths.
 
-- [x] **7b. Extend Hybrid blocked routes with bounded second-order reflections**
+- [x] **7b. Extend blocked routes in both modes with bounded second-order reflections**
 
-  What to build: 24-surface deterministic budget, ordered-pair image-source solver, three-leg BVH validation, specular-energy/path pruning, shared six-tap ranking, Worker payload reconstruction, and two-vertex 3D overlays. Portal routes must also validate every lifted 3D segment against the BVH.
+  What to build: 24-surface deterministic budget, ordered-pair image-source solver, three-leg finite-segment/BVH validation, specular-energy/path pruning, shared six-tap ranking, Worker payload reconstruction, and two-vertex overlays. Portal routes must reject intervening 2.5D wall/shape footprints and every lifted 3D segment hit.
   Acceptance: Canonical rectangular fixture yields expected reflection points/path lengths; moving a wall updates taps smoothly; disabled taps are silent without node destruction.
   Verify:
   ```bash

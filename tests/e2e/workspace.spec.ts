@@ -53,19 +53,16 @@ test("coalesces continuous numeric scrubbing into one Undo command", async ({ pa
   await page.mouse.move(box.x + box.width / 2 + 25, box.y + box.height / 2, { steps: 5 });
   await page.mouse.up();
   await expect(x).not.toHaveValue(original);
-  await page.waitForTimeout(200);
-  expect(await page.evaluate(() => {
+  await expect.poll(() => page.evaluate(() => {
     const raw = localStorage.getItem("echo-canvas:project:classic:v1");
     return raw ? (JSON.parse(raw) as { past: unknown[] }).past.length : -1;
   })).toBe(1);
   await page.getByTitle("Undo (Ctrl+Z)").click();
   await expect(x).toHaveValue(original);
-  await page.waitForTimeout(200);
-  const persistedCommands = await page.evaluate(() => {
+  await expect.poll(() => page.evaluate(() => {
     const raw = localStorage.getItem("echo-canvas:project:classic:v1");
     return raw ? (JSON.parse(raw) as { past: unknown[] }).past.length : -1;
-  });
-  expect(persistedCommands).toBe(0);
+  })).toBe(0);
 });
 
 test("keeps one AudioContext and toolbar audition state while switching modes", async ({ page }) => {
@@ -284,7 +281,12 @@ test("keeps Inspector labels, values, and units inside distinct readable columns
 test("survives the full entity-limit project within Worker and interaction budgets", async ({ page }) => {
   await page.goto("/lab");
   await page.getByLabel("Scene preset").selectOption("stress-100-walls");
-  await page.waitForTimeout(250);
+  await expect.poll(() => page.evaluate(() => {
+    const raw = localStorage.getItem("echo-canvas:project:hybrid:v1");
+    if (!raw) return false;
+    const cache = JSON.parse(raw) as { present?: { scene?: { walls?: unknown[] } } };
+    return cache.present?.scene?.walls?.length === 100;
+  })).toBe(true);
   const stressCache = await page.evaluate(() => {
     type Point = { x: number; y: number };
     type Wall = { id: string; a: Point; b: Point; thicknessM: number };
@@ -472,7 +474,10 @@ test("survives the full entity-limit project within Worker and interaction budge
   expect(sorted).toHaveLength(24);
   expect(completedSequences.size).toBe(24);
   expect(sorted[Math.ceil(sorted.length * 0.95) - 1]).toBeLessThan(12);
-  expect(longTasks.every((duration) => duration <= 50)).toBe(true);
+  expect(
+    longTasks.every((duration) => duration <= 50),
+    `Observed long tasks: ${JSON.stringify(longTasks)}`,
+  ).toBe(true);
 
   await page.getByRole("button", { name: "2.5D", exact: true }).click();
   await page.getByRole("button", { name: "3D", exact: true }).click();
