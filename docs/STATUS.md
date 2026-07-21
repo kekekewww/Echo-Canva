@@ -1,5 +1,31 @@
 # Status
 
+## Grounded explanation deterministic fallback — 2026-07-21
+
+- reproduced intermittent production 422 responses with the deployed OpenRouter model;
+- captured the exact rejected candidates and confirmed conservative false positives on negated
+  accuracy disclaimers and grounded spelled-out counts;
+- retained the initial candidate plus one repair attempt and the strict grounding validator;
+- when both candidates fail, rejected model prose is now discarded and replaced by fixed evidence
+  copied from the validated route, distance, gain, low-pass, portal-count, and RT60 snapshot;
+- model-provided limitations are never displayed; the server appends the fixed Portal limitation and
+  an explicit deterministic-fallback notice when applicable.
+
+Verification evidence:
+
+- `pnpm lint` — PASS;
+- `pnpm typecheck` — PASS;
+- `pnpm test` — PASS, 69 files / 512 tests;
+- `pnpm build` — PASS;
+- final full `pnpm exec playwright test` — PASS, 45/45 Chromium tests.
+
+Known unrelated risk: the entity-limit long-task test remained timing-sensitive during isolated
+repetition (one pass and two failures at the strict 50 ms threshold) before passing in the final
+complete run. No code in this explanation repair touches that rendering/Worker path.
+
+Current action: deploy the verified repair and repeat the live explanation request enough times to
+cover model-output variation.
+
 ## Grounded explanation production repair — 2026-07-21
 
 - production logs confirmed repeated `POST /api/scene/explain` 422 responses surrounded by successful
