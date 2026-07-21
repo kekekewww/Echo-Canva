@@ -150,4 +150,58 @@ describe("explainAcoustics", () => {
 
     expect(result).toMatchObject({ ok: true });
   });
+
+  it("does not treat digits embedded in an acoustic term as a new measurement", async () => {
+    const result = await explainAcoustics(validRequest, {
+      generateExplanation: async () => ({
+        ...groundedExplanation,
+        factors: [{ label: "RT60", evidence: "The room decay uses the projected values." }],
+      }),
+    });
+
+    expect(result).toMatchObject({ ok: true });
+  });
+
+  it("allows a neutral acoustic noun without treating it as a listening claim", async () => {
+    const result = await explainAcoustics(validRequest, {
+      generateExplanation: async () => ({
+        ...groundedExplanation,
+        factors: [{ label: "Route", evidence: "The sound follows the portal route." }],
+      }),
+    });
+
+    expect(result).toMatchObject({ ok: true });
+  });
+
+  it("uses one grounded repair attempt after a model explanation fails validation", async () => {
+    const generateExplanation = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ...groundedExplanation,
+        factors: [{ label: "Direct loss", evidence: "The direct loss is -22 dB." }],
+      })
+      .mockResolvedValueOnce(groundedExplanation);
+
+    const result = await explainAcoustics(validRequest, { generateExplanation });
+
+    expect(result).toMatchObject({ ok: true });
+    expect(generateExplanation).toHaveBeenCalledTimes(2);
+    expect(generateExplanation).toHaveBeenNthCalledWith(
+      2,
+      expect.any(Object),
+      expect.arrayContaining([expect.stringContaining("failed grounding validation")]),
+    );
+  });
+
+  it("stops after one repair when both model explanations fail validation", async () => {
+    const generateExplanation = vi.fn().mockResolvedValue({
+      ...groundedExplanation,
+      factors: [{ label: "Direct loss", evidence: "The direct loss is -22 dB." }],
+    });
+
+    const result = await explainAcoustics(validRequest, { generateExplanation });
+
+    expect(result).toMatchObject({ ok: false, error: { code: "EXPLANATION_VALIDATION_FAILED" } });
+    expect(generateExplanation).toHaveBeenCalledTimes(2);
+  });
 });

@@ -1,5 +1,21 @@
 # Status
 
+## Grounded explanation production repair — 2026-07-21
+
+- production logs confirmed repeated `POST /api/scene/explain` 422 responses surrounded by successful
+  requests on the same READY deployment; the reported message came from post-model grounding validation
+- reproduced two deterministic false-negative cases: `RT60` exposed a trailing partial numeric token,
+  and a neutral use of `sound` was treated as a prohibited listening/accuracy claim
+- added exactly one server-authored developer-message repair after a schema/content/grounding failure;
+  the second result must pass the same validator and there is no third attempt
+- RED verification — PASS: three initial regressions and the neutral-word regression failed for the
+  expected missing behavior / false-positive reasons
+- focused GREEN verification — PASS: 33 tests across the explainer and route, plus lint and strict typecheck
+- complete `pnpm verify` — PASS: lint, strict typecheck, 69 unit files / 512 tests,
+  production build, and 45/45 Chromium acceptance tests
+
+Current action: publish the bounded repair, deploy it to production, and repeat the live GPT-5.6 explanation smoke test.
+
 ## Devpost CLI submission preparation — 2026-07-21
 
 - added the judge-testable production URL to the README and Devpost submission package

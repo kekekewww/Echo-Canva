@@ -56,14 +56,20 @@ function hasRefusal(response: { output: Array<{ type: string }> }): boolean {
 function createOpenAIAdapter(config: AiProviderConfig): ExplainDependencies["generateExplanation"] {
   const client = new OpenAI({ apiKey: config.apiKey, baseURL: config.baseURL, timeout: requestTimeoutMs() });
 
-  return async (schemaPrompt: ExplainSchemaPrompt): Promise<unknown> => {
+  return async (schemaPrompt: ExplainSchemaPrompt, repairErrors?: readonly string[]): Promise<unknown> => {
     const response = await client.responses.create({
       model: config.explainerModel,
       reasoning: { effort: "low" },
       tools: [],
       input: [
         { role: "developer", content: schemaPrompt.instructions },
-        { role: "user", content: JSON.stringify(schemaPrompt.request) },
+        ...(repairErrors?.length
+          ? [{ role: "developer" as const, content: repairErrors.join("\n") }]
+          : []),
+        {
+          role: "user",
+          content: JSON.stringify(schemaPrompt.request),
+        },
       ],
       text: {
         format: {
