@@ -12,9 +12,10 @@ import type { ProjectAction, WorkspaceProject } from "@/domain/workspace/types";
 import type { LocalAudioMetadata } from "@/domain/workspace/transfer";
 import { parseWorkspaceProject, serializeWorkspaceProject } from "@/domain/workspace/transfer";
 
-export function WorkspaceProjectTools({ project, dispatch, localAssets = [] }: Readonly<{
+export function WorkspaceProjectTools({ project, dispatch, apiKey, localAssets = [] }: Readonly<{
   project: WorkspaceProject;
   dispatch: (action: ProjectAction) => void;
+  apiKey: string;
   localAssets?: readonly LocalAudioMetadata[];
 }>) {
   const [prompt, setPrompt] = useState("");
@@ -54,7 +55,7 @@ export function WorkspaceProjectTools({ project, dispatch, localAssets = [] }: R
   async function generate(): Promise<void> {
     setStatus("Generating…");
     const baseScene = project.mode === "hybrid-3d" ? projectHybridDocument(project) : scene;
-    const result = await requestSceneCompilation(prompt, baseScene, project.mode);
+    const result = await requestSceneCompilation(prompt, baseScene, project.mode, fetch, apiKey);
     if (!result.ok) {
       setStatus(result.error.message);
       return;
@@ -82,7 +83,7 @@ export function WorkspaceProjectTools({ project, dispatch, localAssets = [] }: R
         portalCount: sourceFrame.portalIds.length,
         rt60S: frame.room.rt60S,
       },
-    });
+    }, fetch, apiKey);
     if (!result.ok) {
       setStatus(result.error.message);
       return;

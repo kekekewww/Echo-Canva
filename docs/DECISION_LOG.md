@@ -1,5 +1,22 @@
 # Decision Log
 
+## D-055 — Use tab-scoped visitor OpenRouter credentials instead of an owner key
+
+Decision (2026-07-21): Optional GPT scene compilation and acoustic explanation use the visitor's
+own OpenRouter key and the fixed `openai/gpt-5.6-luna` model. The browser retains the key only in
+the current tab's `sessionStorage` and sends it in `x-echo-openrouter-key` over HTTPS to same-origin
+API routes. Each route validates the header, creates a request-scoped provider client, marks its
+response `Cache-Control: private, no-store`, and does not fall back to any deployment credential.
+The application must not log, return, persist, export, cache in project state, or otherwise retain
+the key. Closing the tab or choosing **Forget key** removes it.
+
+Reason: A public demo backed by the owner's shared key exposes the owner to unbounded third-party
+cost and abuse. Tab-scoped BYOK lets any visitor exercise the optional GPT control plane while the
+manual editor and deterministic acoustic engine remain available without credentials. This is an
+explicit exception to the original server-only credential rule. The visitor is told that the key
+crosses the same-origin server transiently and that any browser-held secret shares the page's XSS
+risk, so a limited OpenRouter key with a spending cap is recommended.
+
 ## D-054 — Fall back to deterministic evidence after two rejected explanation candidates
 
 Decision: Continue to validate the initial GPT explanation and exactly one repair candidate against

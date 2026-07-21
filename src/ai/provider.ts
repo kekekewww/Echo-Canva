@@ -1,13 +1,8 @@
-import {
-  ACOUSTIC_EXPLAINER_MODEL,
-  OPENROUTER_LUNA_MODEL,
-  SCENE_COMPILER_MODEL,
-  type AiModel,
-} from "@/ai/contracts";
+import { OPENROUTER_LUNA_MODEL, type AiModel } from "@/ai/contracts";
 
 export const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 
-export type AiProvider = "openai" | "openrouter";
+export type AiProvider = "openrouter";
 
 export type AiProviderConfig = Readonly<{
   provider: AiProvider;
@@ -17,39 +12,22 @@ export type AiProviderConfig = Readonly<{
   explainerModel: AiModel;
 }>;
 
-/**
- * Resolves server-only model credentials. An absent or invalid selection leaves
- * the application in its existing preset/manual fallback mode.
- */
-export function getAiProviderConfig(
-  environment: Readonly<Record<string, string | undefined>> = process.env,
-): AiProviderConfig | null {
-  const provider = environment.AI_PROVIDER?.trim().toLowerCase();
+export function normalizeUserOpenRouterKey(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const apiKey = value.trim();
+  return /^[A-Za-z0-9._-]{20,512}$/.test(apiKey) ? apiKey : null;
+}
 
-  if (provider === "openrouter") {
-    const apiKey = environment.OPENROUTER_API_KEY?.trim();
-    return apiKey
-      ? {
-          provider: "openrouter",
-          apiKey,
-          baseURL: OPENROUTER_BASE_URL,
-          compilerModel: OPENROUTER_LUNA_MODEL,
-          explainerModel: OPENROUTER_LUNA_MODEL,
-        }
-      : null;
-  }
-
-  if (provider === undefined || provider === "" || provider === "openai") {
-    const apiKey = environment.OPENAI_API_KEY?.trim();
-    return apiKey
-      ? {
-          provider: "openai",
-          apiKey,
-          compilerModel: SCENE_COMPILER_MODEL,
-          explainerModel: ACOUSTIC_EXPLAINER_MODEL,
-        }
-      : null;
-  }
-
-  return null;
+/** Builds a request-scoped provider config from the current user's key only. */
+export function getAiProviderConfig(userApiKey: unknown): AiProviderConfig | null {
+  const apiKey = normalizeUserOpenRouterKey(userApiKey);
+  return apiKey
+    ? {
+        provider: "openrouter",
+        apiKey,
+        baseURL: OPENROUTER_BASE_URL,
+        compilerModel: OPENROUTER_LUNA_MODEL,
+        explainerModel: OPENROUTER_LUNA_MODEL,
+      }
+    : null;
 }

@@ -81,7 +81,7 @@ Lock concrete package versions in `pnpm-lock.yaml` during bootstrap. Do not upgr
 - The audio graph must be created once and updated by parameter automation; do not create and destroy nodes every acoustic frame.
 - Run acoustic calculations in a Worker at 10–15 Hz. Render the UI independently at normal display rate.
 - Smooth gain, filter, send, and panner changes over approximately 60–100 ms.
-- All API keys remain server-side.
+- Never embed or configure a shared provider credential in the deployment. A visitor-supplied OpenRouter key may be held in that tab's `sessionStorage` and sent only over HTTPS to a request-scoped same-origin server proxy; never persist, log, return, export, or place it in project state.
 - Provide a preset-only fallback when the OpenAI API is unavailable.
 
 ## Limits

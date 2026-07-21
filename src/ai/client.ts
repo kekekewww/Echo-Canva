@@ -1,5 +1,6 @@
 import {
   COMPILE_SCENE_FAILURE_CODES,
+  USER_OPENROUTER_KEY_HEADER,
   isAiModel,
   type AcousticExplanation,
   type AcousticExplanationFailureCode,
@@ -160,6 +161,7 @@ export async function requestSceneCompilation(
   baseScene: unknown,
   targetModeOrFetcher: SceneCompileMode | Fetcher = "classic-2d5d",
   fetcherArgument: Fetcher = fetch,
+  userApiKey?: string,
 ): Promise<CompileSceneResponse> {
   const targetMode = typeof targetModeOrFetcher === "function" ? "classic-2d5d" : targetModeOrFetcher;
   const fetcher = typeof targetModeOrFetcher === "function" ? targetModeOrFetcher : fetcherArgument;
@@ -167,7 +169,10 @@ export async function requestSceneCompilation(
   try {
     response = await fetcher("/api/scene/compile", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        ...(userApiKey ? { [USER_OPENROUTER_KEY_HEADER]: userApiKey } : {}),
+      },
       body: JSON.stringify({ prompt, baseScene, targetMode }),
     });
   } catch {
@@ -186,12 +191,16 @@ export async function requestSceneCompilation(
 export async function requestAcousticExplanation(
   request: ExplainAcousticsRequest,
   fetcher: Fetcher = fetch,
+  userApiKey?: string,
 ): Promise<AcousticExplanationResponse> {
   let response: Response;
   try {
     response = await fetcher("/api/scene/explain", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        ...(userApiKey ? { [USER_OPENROUTER_KEY_HEADER]: userApiKey } : {}),
+      },
       body: JSON.stringify(request),
     });
   } catch {

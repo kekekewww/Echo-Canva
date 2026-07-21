@@ -4,6 +4,7 @@ import OpenAI from "openai";
 
 import {
   SCENE_COMPILER_MODEL,
+  USER_OPENROUTER_KEY_HEADER,
   sceneSpecJsonSchema,
   type CompileSceneFailureCode,
   type CompileDependencies,
@@ -23,6 +24,7 @@ export const runtime = "nodejs";
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 10;
 const DEFAULT_TIMEOUT_MS = 30_000;
+const PRIVATE_RESPONSE_HEADERS = { "Cache-Control": "private, no-store" } as const;
 
 class ModelRefusalError extends Error {
   constructor() {
@@ -44,7 +46,7 @@ function jsonFailure(
 ): Response {
   return Response.json(
     { ok: false, error: { code, message }, fallbackSceneId: DEFAULT_PRESET_ID },
-    { status },
+    { status, headers: PRIVATE_RESPONSE_HEADERS },
   );
 }
 
@@ -113,8 +115,10 @@ function derivedClientKey(request: Request): string {
   return createHash("sha256").update(`${forwardedFor}\n${userAgent}`).digest("hex");
 }
 
-function createDefaultDependencies(): CompileRouteDependencies {
-  const config = getAiProviderConfig();
+const defaultLimiter = createSlidingWindowLimiter(RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS);
+
+function createDefaultDependencies(request: Request): CompileRouteDependencies {
+  const config = getAiProviderConfig(request.headers.get(USER_OPENROUTER_KEY_HEADER));
   return {
     available: Boolean(config),
     model: config?.compilerModel ?? SCENE_COMPILER_MODEL,
@@ -123,12 +127,10 @@ function createDefaultDependencies(): CompileRouteDependencies {
       : async () => {
           throw new Error("OpenAI is unavailable.");
         },
-    limiter: createSlidingWindowLimiter(RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS),
+    limiter: defaultLimiter,
     clientKey: derivedClientKey,
   };
 }
-
-const defaultDependencies = createDefaultDependencies();
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -159,8 +161,9 @@ function isModelRefusal(error: unknown): boolean {
 
 export async function handleCompileRequest(
   request: Request,
-  dependencies: CompileRouteDependencies = defaultDependencies,
+  dependencies?: CompileRouteDependencies,
 ): Promise<Response> {
+  const activeDependencies = dependencies ?? createDefaultDependencies(request);
   if (request.method !== "POST") {
     return jsonFailure("INVALID_REQUEST", "Only POST is supported.", 405);
   }
@@ -187,7 +190,7 @@ export async function handleCompileRequest(
     return jsonFailure("INVALID_BASE_SCENE", "Base scene must be valid for the selected workspace mode.", 400);
   }
 
-  const rateLimit = dependencies.limiter.check(dependencies.clientKey(request), Date.now());
+  const rateLimit = activeDependencies.limiter.check(activeDependencies.clientKey(request), Date.now());
   if (!rateLimit.allowed) {
     return Response.json(
       {
@@ -196,18 +199,24 @@ export async function handleCompileRequest(
         fallbackSceneId: DEFAULT_PRESET_ID,
         retryAfterMs: rateLimit.retryAfterMs,
       },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(rateLimit.retryAfterMs / 1_000)) } },
+      {
+        status: 429,
+        headers: {
+          ...PRIVATE_RESPONSE_HEADERS,
+          "Retry-After": String(Math.ceil(rateLimit.retryAfterMs / 1_000)),
+        },
+      },
     );
   }
 
-  if (!dependencies.available) {
-    return jsonFailure("AI_UNAVAILABLE", "AI scene generation is unavailable. Load a preset instead.", 503);
+  if (!activeDependencies.available) {
+    return jsonFailure("AI_UNAVAILABLE", "Add your OpenRouter API key in Settings to generate a scene.", 503);
   }
 
   try {
-    const result = await compileScene({ prompt: body.prompt, baseScene, targetMode }, dependencies);
+    const result = await compileScene({ prompt: body.prompt, baseScene, targetMode }, activeDependencies);
     const status = result.ok ? 200 : result.error.code === "PROMPT_TOO_LONG" ? 400 : 422;
-    return Response.json(result, { status });
+    return Response.json(result, { status, headers: PRIVATE_RESPONSE_HEADERS });
   } catch (error) {
     if (isTimeout(error)) {
       return jsonFailure("AI_TIMEOUT", "The scene generator timed out. Try again.", 504);

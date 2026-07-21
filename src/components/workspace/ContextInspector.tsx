@@ -11,9 +11,10 @@ import { constrainPortal3D, constrainWall3D, resizeRoomAndClamp } from "@/domain
 import type { LocalAudioMetadata } from "@/domain/workspace/transfer";
 import { AUDIO_ASSETS } from "@/domain/audio-assets/registry";
 
-export function ContextInspector({ project, dispatch, localAssets = [], onRelinkAudio, onRemoveLocalAudio, mobileOpen = false }: Readonly<{
+export function ContextInspector({ project, dispatch, apiKey, localAssets = [], onRelinkAudio, onRemoveLocalAudio, mobileOpen = false }: Readonly<{
   project: WorkspaceProject;
   dispatch: (action: ProjectAction) => void;
+  apiKey: string;
   localAssets?: readonly LocalAudioMetadata[];
   onRelinkAudio?: (clipId: string, file: File) => Promise<string>;
   onRemoveLocalAudio?: (clipId: string) => Promise<void>;
@@ -71,7 +72,7 @@ export function ContextInspector({ project, dispatch, localAssets = [], onRelink
   return (
     <aside aria-label="Inspector" aria-modal={mobileOpen || undefined} className={`workspace-inspector${mobileOpen ? " is-mobile-open" : ""}`} role={mobileOpen ? "dialog" : undefined}>
       <header><span>Inspector</span><small>{selection ? selection.type : "No selection"}</small></header>
-      <WorkspaceProjectTools dispatch={dispatch} localAssets={localAssets} project={project} />
+      <WorkspaceProjectTools apiKey={apiKey} dispatch={dispatch} localAssets={localAssets} project={project} />
       {position ? (
         <section className="inspector-section">
           <h3>Transform</h3>

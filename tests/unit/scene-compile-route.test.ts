@@ -12,6 +12,31 @@ const unavailableDependencies = {
 };
 
 describe("POST /api/scene/compile", () => {
+  it("requires a user key even when deployment credentials exist", async () => {
+    const previousProvider = process.env.AI_PROVIDER;
+    const previousKey = process.env.OPENROUTER_API_KEY;
+    process.env.AI_PROVIDER = "openrouter";
+    process.env.OPENROUTER_API_KEY = "sk-or-v1-owner-key-1234567890";
+    try {
+      const response = await handleCompileRequest(new Request("http://test/api/scene/compile", {
+        method: "POST",
+        body: JSON.stringify({ prompt: "room" }),
+      }));
+
+      expect(response.status).toBe(503);
+      expect(response.headers.get("cache-control")).toContain("no-store");
+      await expect(response.json()).resolves.toMatchObject({
+        ok: false,
+        error: { message: "Add your OpenRouter API key in Settings to generate a scene." },
+      });
+    } finally {
+      if (previousProvider === undefined) delete process.env.AI_PROVIDER;
+      else process.env.AI_PROVIDER = previousProvider;
+      if (previousKey === undefined) delete process.env.OPENROUTER_API_KEY;
+      else process.env.OPENROUTER_API_KEY = previousKey;
+    }
+  });
+
   it("returns an unavailable fallback without OPENAI_API_KEY", async () => {
     const response = await handleCompileRequest(
       new Request("http://test/api/scene/compile", {

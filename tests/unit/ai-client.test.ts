@@ -1,9 +1,69 @@
 import { describe, expect, it } from "vitest";
 
-import { requestSceneCompilation } from "@/ai/client";
+import { requestAcousticExplanation, requestSceneCompilation } from "@/ai/client";
 import { CONCRETE_PARTITION_PRESET } from "@/domain/presets/concrete-partition";
 
 describe("requestSceneCompilation", () => {
+  it("sends a user OpenRouter key only in the private request header", async () => {
+    const apiKey = "sk-or-v1-user-key-1234567890";
+    let requestHeader: string | null = null;
+    let requestBody = "";
+    const fetcher = async (_input: RequestInfo | URL, init?: RequestInit) => {
+      requestHeader = new Headers(init?.headers).get("x-echo-openrouter-key");
+      requestBody = String(init?.body ?? "");
+      return new Response(JSON.stringify({
+        ok: true,
+        scene: CONCRETE_PARTITION_PRESET,
+        model: "openai/gpt-5.6-luna",
+        repairAttempted: false,
+        warnings: [],
+      }));
+    };
+
+    await requestSceneCompilation(
+      "A room",
+      CONCRETE_PARTITION_PRESET,
+      "classic-2d5d",
+      fetcher,
+      apiKey,
+    );
+
+    expect(requestHeader).toBe(apiKey);
+    expect(requestBody).not.toContain(apiKey);
+  });
+
+  it("uses the same private key header for acoustic explanations", async () => {
+    const apiKey = "sk-or-v1-user-key-1234567890";
+    let requestHeader: string | null = null;
+    const fetcher = async (_input: RequestInfo | URL, init?: RequestInit) => {
+      requestHeader = new Headers(init?.headers).get("x-echo-openrouter-key");
+      return new Response(JSON.stringify({
+        ok: true,
+        model: "openai/gpt-5.6-luna",
+        explanation: {
+          summary: "A deterministic explanation.",
+          factors: [{ label: "Route", evidence: "blocked" }],
+          limitations: ["Portal routing is a geometric perceptual approximation."],
+        },
+      }));
+    };
+
+    await requestAcousticExplanation({
+      sceneName: "Room",
+      sourceName: "Radio",
+      snapshot: {
+        routeType: "blocked",
+        effectiveDistanceM: 6,
+        dryGainDb: -18,
+        lowpassHz: 1200,
+        portalCount: 0,
+        rt60S: { low: 1.8, mid: 1.3, high: 0.7 },
+      },
+    }, fetcher, apiKey);
+
+    expect(requestHeader).toBe(apiKey);
+  });
+
   it("requests and preserves a mode-aware Hybrid 3D candidate", async () => {
     const scene = structuredClone(CONCRETE_PARTITION_PRESET);
     scene.room.outerPolygon = [{ x: 0, y: 0 }, { x: 14, y: 0 }, { x: 14, y: 10 }, { x: 0, y: 10 }];

@@ -10,6 +10,7 @@ import { HybridViewportAdapter } from "@/components/workspace/HybridViewportAdap
 import { SceneOutliner } from "@/components/workspace/SceneOutliner";
 import { WorkspaceStatusBar, type WorkspaceAcousticStatus } from "@/components/workspace/WorkspaceStatusBar";
 import { WorkspaceToolbar } from "@/components/workspace/WorkspaceToolbar";
+import { WorkspaceSettingsDialog } from "@/components/workspace/WorkspaceSettingsDialog";
 import type { WorkspaceMode } from "@/domain/workspace/types";
 import type { EntityRef } from "@/domain/workspace/types";
 import type { PrimitiveKind } from "@/domain/workspace/types";
@@ -21,6 +22,35 @@ import { AudioEngine } from "@/audio/AudioEngine";
 import type { PreviewMode } from "@/domain/editor/state";
 import { projectClassicScene } from "@/domain/workspace/projections";
 import { useAudioEngine } from "@/hooks/useAudioEngine";
+
+const API_KEY_STORAGE_KEY = "echo-canvas:openrouter-api-key:v1";
+const API_KEY_CHANGE_EVENT = "echo-canvas:openrouter-api-key-change";
+let memoryApiKey = "";
+
+function readApiKey(): string {
+  if (typeof window === "undefined") return "";
+  try {
+    return window.sessionStorage.getItem(API_KEY_STORAGE_KEY) ?? memoryApiKey;
+  } catch {
+    return memoryApiKey;
+  }
+}
+
+function subscribeApiKey(onChange: () => void): () => void {
+  window.addEventListener(API_KEY_CHANGE_EVENT, onChange);
+  return () => window.removeEventListener(API_KEY_CHANGE_EVENT, onChange);
+}
+
+function publishApiKey(nextApiKey: string): void {
+  memoryApiKey = nextApiKey;
+  try {
+    if (nextApiKey) window.sessionStorage.setItem(API_KEY_STORAGE_KEY, nextApiKey);
+    else window.sessionStorage.removeItem(API_KEY_STORAGE_KEY);
+  } catch {
+    // Some privacy modes disable sessionStorage; retain the key in memory for this page only.
+  }
+  window.dispatchEvent(new Event(API_KEY_CHANGE_EVENT));
+}
 
 export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: WorkspaceMode }>) {
   const hydrated = useSyncExternalStore(
@@ -42,6 +72,7 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
   const [audioError, setAudioError] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const apiKey = useSyncExternalStore(subscribeApiKey, readApiKey, () => "");
   const [confirmClearAll, setConfirmClearAll] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<"outliner" | "inspector" | null>(null);
   const [acousticStatus, setAcousticStatus] = useState<WorkspaceAcousticStatus | null>(null);
@@ -67,6 +98,14 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
   }, [dispatchWorkspace]);
 
   useEffect(() => installGateCAudioRenderValidation(), []);
+
+  function saveApiKey(nextApiKey: string): void {
+    publishApiKey(nextApiKey);
+  }
+
+  function forgetApiKey(): void {
+    publishApiKey("");
+  }
 
   useEffect(() => {
     function shortcuts(event: KeyboardEvent): void {
@@ -276,7 +315,21 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
       {(workspace.persistenceStatus !== "saved" || audioLibrary.warning) ? <div className="workspace-persistence-warning" role="status"><strong>Memory-only warning</strong><span>{audioLibrary.warning ?? workspace.persistenceStatus}</span></div> : null}
       {workspace.recoveryRaw ? <div className="workspace-confirm-card workspace-recovery-card" role="status"><strong>Project cache recovery</strong><p>A safe preset is loaded. Download the unread record before replacing it.</p><button onClick={downloadRecoveryRecord} type="button">Download unread cache</button></div> : null}
       {confirmReset ? <div className="workspace-confirm-card workspace-floating-card" role="alertdialog" aria-label="Reset active project"><strong>Reset {workspace.activeMode === "hybrid-3d" ? "3D" : "2.5D"} project?</strong><p>The other mode and local audio stay unchanged.</p><button autoFocus onClick={() => { workspace.resetActiveProject(); setConfirmReset(false); }} type="button">Reset project</button><button onClick={() => setConfirmReset(false)} type="button">Cancel</button></div> : null}
-      {settingsOpen ? <div className="workspace-confirm-card workspace-floating-card" role="dialog" aria-modal="true" aria-label="Workspace settings"><strong>Workspace settings</strong>{confirmClearAll ? <><p>This removes both local projects and every local audio file.</p><button autoFocus onClick={() => void audioLibrary.clear().then(() => { workspace.clearAllProjects(); setConfirmClearAll(false); setSettingsOpen(false); })} type="button">Confirm clear all</button><button onClick={() => setConfirmClearAll(false)} type="button">Cancel</button></> : <><button autoFocus onClick={() => setConfirmClearAll(true)} type="button">Clear all local data</button><button onClick={() => setSettingsOpen(false)} type="button">Close</button></>}</div> : null}
+      {settingsOpen ? <WorkspaceSettingsDialog
+        apiKey={apiKey}
+        confirmClearAll={confirmClearAll}
+        onCancelClearAll={() => setConfirmClearAll(false)}
+        onClearAll={() => setConfirmClearAll(true)}
+        onClose={() => { setConfirmClearAll(false); setSettingsOpen(false); }}
+        onConfirmClearAll={() => void audioLibrary.clear().then(() => {
+          workspace.clearAllProjects();
+          forgetApiKey();
+          setConfirmClearAll(false);
+          setSettingsOpen(false);
+        })}
+        onForgetKey={forgetApiKey}
+        onSaveKey={saveApiKey}
+      /> : null}
       {audioError ? <div className="workspace-error" role="alert">{audioError} <button onClick={() => void togglePlaying()} type="button">Retry</button></div> : null}
       {addOpen ? <AddObjectMenu
         availability={{
@@ -326,6 +379,7 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
             wallPlacementFirst={wallPlacement?.mode === "hybrid-3d" ? wallPlacement.first : null}
           />}
         <ContextInspector
+          apiKey={apiKey}
           dispatch={workspace.dispatch}
           localAssets={Object.values({
             ...workspace.activeProject.localAudioMetadata,
