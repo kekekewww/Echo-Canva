@@ -2,9 +2,9 @@
   "projectName": "EchoCanvas — Hear the Space Before You Build It",
   "category": "Developer Tools",
   "repositoryUrl": "https://github.com/kekekewww/Echo-Canva",
-  "applicationCommit": "e05f38c",
-  "releaseEvidenceCommit": "f43a07c",
-  "demoUrl": null,
+  "releaseUrl": "https://github.com/kekekewww/Echo-Canva/releases/tag/v1.0.0-build-week",
+  "applicationCommit": "c8fe24700b67861e2f64fbb8950e9281c0e13a3c",
+  "demoUrl": "https://echo-canva.vercel.app",
   "youtubeUrl": null,
   "feedbackSessionId": null,
   "supportedBrowsers": [
@@ -12,11 +12,11 @@
     "Current desktop Edge"
   ],
   "headphonesRecommended": true,
-  "staticCandidateStatus": "pass: 61 unit files / 359 tests and 38 production Chromium tests",
+  "candidateStatus": "pass: 69 unit files / 508 tests, 45 production Chromium tests, READY production deployment and live GPT-5.6 smoke",
   "externalFieldsPending": [
-    "public demo URL",
     "public YouTube URL under three minutes",
     "principal Codex /feedback Session ID",
+    "owner clean-profile headphone confirmation and screenshots",
     "Devpost final submission confirmation"
   ]
 }
