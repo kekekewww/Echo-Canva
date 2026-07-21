@@ -8,7 +8,12 @@
 - production build and Chromium acceptance — PASS, 45/45 tests
 - the first browser-suite attempt was blocked only by the already-running local production server on port 3000; after stopping that verified EchoCanvas process, the complete suite passed
 
-Current action: publish the verified branch to `main`, configure the production AI environment, deploy the release candidate, and collect the owner-supplied public YouTube URL and principal `/feedback` Session ID.
+- GitHub PRs #1 and #2 merged the verified candidate and deployment-input hardening into public `main`; release `v1.0.0-build-week` is published
+- Vercel production `dpl_GRX92gsHN6p51X52hsGgKajkR5WE` is `READY` at `https://echo-canva.vercel.app` on commit `c8fe24700b67861e2f64fbb8950e9281c0e13a3c`
+- public `/`, `/classic`, `/lab`, and `/icon.svg` smoke checks returned HTTP 200
+- production scene compilation and acoustic explanation both returned success with `openai/gpt-5.6-luna`; the following Vercel runtime-error scan was empty
+
+Current action: collect the owner-supplied public YouTube URL, screenshots, clean-profile headphone confirmation, principal `/feedback` Session ID, and final Devpost submission consent.
 
 ## Classic 2.5D collision and bounded second-order repair — 2026-07-21
 

@@ -1,18 +1,17 @@
 {
-  "version": "v1.0.0-build-week-static-rc",
-  "branch": "codex/echo-canvas-mvp",
-  "baseCommit": "03ba72c5da3f79cb61b36eda4958ecc666cd8808",
-  "applicationCommit": "e05f38c",
-  "evidenceCommit": "f43a07c",
-  "deploymentUrl": null,
-  "testedAt": "2026-07-19T17:01:04.4642521Z",
+  "version": "v1.0.0-build-week",
+  "branch": "main",
+  "applicationCommit": "c8fe24700b67861e2f64fbb8950e9281c0e13a3c",
+  "deploymentId": "dpl_GRX92gsHN6p51X52hsGgKajkR5WE",
+  "deploymentUrl": "https://echo-canva.vercel.app",
+  "testedAt": "2026-07-21T19:45:25.5734386+08:00",
   "browsers": [
     "Playwright Chromium",
     "owner local desktop browser"
   ],
-  "staticStatus": "pass: lint, typecheck, 61/61 unit files, 359/359 unit tests, production build, 38/38 Chromium",
-  "humanLocalStatus": "prior targeted gates passed",
-  "publicStatus": "pending owner deployment and clean-profile smoke",
-  "tagged": false,
-  "pushed": false
+  "staticStatus": "pass: lint, typecheck, 69/69 unit files, 508/508 unit tests, production build, 45/45 Chromium",
+  "productionStatus": "pass: READY main deployment, public routes HTTP 200, GPT-5.6 compile/explain smoke, zero grouped runtime errors",
+  "humanLocalStatus": "prior targeted gates passed; final clean-profile headphone confirmation remains owner-supplied",
+  "tagged": true,
+  "pushed": true
 }
