@@ -31,8 +31,19 @@ Complete verification evidence:
 - live local OpenRouter request with the generic provider/key headers — `200`,
   `openai/gpt-5.6-luna`.
 
-Current action: merge and deploy the verified provider selector, then exercise the public OpenRouter
-path and default OpenAI no-key boundary.
+Production evidence:
+
+- pull request #9 merged to `main` at `b5f5bc7`;
+- Vercel deployment `dpl_6EmMeVR7rqiY8P9Ysi93db4e2bYA` is Ready and aliased to
+  `https://echo-canva.vercel.app`;
+- fresh public browser session — provider `openai`, options exactly `OpenAI, OpenRouter`, displayed
+  model `gpt-5.6`;
+- public default request without credentials — `503` with OpenAI-specific setup guidance and
+  `private, no-store`;
+- public OpenRouter request with a visitor key — `200`, `openai/gpt-5.6-luna`,
+  `private, no-store`.
+
+Current action: Human Gate D provider-selector check on the public URL.
 
 ## Visitor-provided OpenRouter access — 2026-07-21
 
