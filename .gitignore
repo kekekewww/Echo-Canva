@@ -18,3 +18,4 @@ test-results/
 # Tooling
 *.tsbuildinfo
 .superpowers/
+.vercel/

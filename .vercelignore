@@ -1,0 +1,7 @@
+.agents/
+echo-canvas-3d-extension-pack/
+.git/
+.github/
+coverage/
+playwright-report/
+test-results/
