@@ -18,7 +18,7 @@ Static verification: PASS — lint, typecheck, 508 unit tests, production build,
 | B — workbench/basic audio | editor, persistence, transfer, audio lifecycle and production browser regressions exist | prior owner checks accepted positioning, editing, preset changes, mode UI and later workspace flows | PASS locally; final public clean-profile headphone check pending |
 | C — acoustics/3D paths | direct/blocked/Portal/first-order/bounded-second-order/RT60/audio-render suites and matched-revision E2E coverage | prior owner acoustic and Hybrid interaction checks recorded PASS in `docs/STATUS.md` | PASS locally |
 | D — GPT-5.6 | strict schema/domain/fallback/adversarial/grounding unit and browser coverage | production compile and explanation smoke both returned `openai/gpt-5.6-luna`; no Vercel runtime errors followed | PASS |
-| E — submission | README, copy, demo script, public URL, repository, release, security/license and Codex/GPT evidence prepared | public video, screenshots, `/feedback`, final headphone confirmation and Devpost submit remain | PENDING owner actions |
+| E — submission | README, copy, demo script, public URL, repository, release, three public-product screenshots, security/license and Codex/GPT evidence prepared | public video, Codex/session screenshots, `/feedback`, final headphone confirmation and Devpost submit remain | PENDING owner actions |
 
 ## Prior human evidence retained
 
@@ -56,4 +56,4 @@ These are historical owner observations on the local candidate. They do not subs
 
 ## Stop-the-line state
 
-No known P0/P1 defect remains in the static or automated production candidate. Final verdict remains **DO NOT SUBMIT YET** until the owner completes the public YouTube video, screenshots, principal `/feedback` Session ID, clean-profile headphone check, and Devpost submission consent.
+No known P0/P1 defect remains in the static or automated production candidate. Final verdict remains **DO NOT SUBMIT YET** until the owner completes the public YouTube video, Codex/session evidence screenshots, principal `/feedback` Session ID, clean-profile headphone check, and Devpost submission consent.
