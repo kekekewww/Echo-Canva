@@ -1,0 +1,25 @@
+{
+  "artifactVersion": "1.0",
+  "engine": "classic-2d5d",
+  "baselineCommit": "dd6890b97a97003845c11c35c97af4c07f24d939",
+  "renderer": "browser-web-audio-offline-context",
+  "measurements": {
+    "schroederImpulse": {
+      "targetRt60Seconds": 0.8,
+      "estimatedRt60Seconds": 0.82,
+      "leftPeak": 0.00694,
+      "rightPeak": 0.00694,
+      "finite": true
+    },
+    "rawSimulatedCrossfade": {
+      "peak": 0.14143,
+      "maxAdjacentSampleStep": 0.00004,
+      "relativeStepRatio": 0.000282,
+      "finite": true
+    }
+  },
+  "reproduction": {
+    "command": "pnpm e2e --grep \\"rendered browser audio\\"",
+    "acceptance": "The rendered output must remain finite; the 0.8-second RT60 estimate remains within the documented +/- 20% band; and the relative crossfade step remains below 1%."
+  }
+}

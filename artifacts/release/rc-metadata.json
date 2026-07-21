@@ -1,0 +1,18 @@
+{
+  "version": "v1.0.0-build-week-static-rc",
+  "branch": "codex/echo-canvas-mvp",
+  "baseCommit": "03ba72c5da3f79cb61b36eda4958ecc666cd8808",
+  "applicationCommit": "e05f38c",
+  "evidenceCommit": "f43a07c",
+  "deploymentUrl": null,
+  "testedAt": "2026-07-19T17:01:04.4642521Z",
+  "browsers": [
+    "Playwright Chromium",
+    "owner local desktop browser"
+  ],
+  "staticStatus": "pass: lint, typecheck, 61/61 unit files, 359/359 unit tests, production build, 38/38 Chromium",
+  "humanLocalStatus": "prior targeted gates passed",
+  "publicStatus": "pending owner deployment and clean-profile smoke",
+  "tagged": false,
+  "pushed": false
+}
