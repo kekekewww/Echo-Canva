@@ -1,5 +1,18 @@
 # Decision Log
 
+## D-054 — Fall back to deterministic evidence after two rejected explanation candidates
+
+Decision: Continue to validate the initial GPT explanation and exactly one repair candidate against
+the strict content and numeric-grounding boundary. If both candidates fail, discard all model prose
+and return a fixed explanation assembled only from the already validated acoustic snapshot. Model
+limitations are never displayed; the server supplies the product limitation and an explicit fallback
+notice.
+
+Reason: Production sampling showed that otherwise safe phrases such as a negated accuracy disclaimer
+or the grounded phrase `one portal` can be rejected by the deliberately conservative lexical guard.
+Relaxing that guard would risk accepting unsupported claims. A deterministic final fallback makes the
+endpoint reliable without displaying rejected prose or adding any inferred acoustic measurement.
+
 ## D-053 — Repair one rejected grounded explanation without weakening the boundary
 
 Decision (2026-07-21): Treat GPT explanation validation as a bounded two-attempt operation. If the

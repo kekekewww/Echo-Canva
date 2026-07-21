@@ -14,6 +14,8 @@ import { isSafeModelLabel, isSafeModelText } from "@/ai/content-policy";
 
 const MAX_LABEL_LENGTH = 120;
 const MAX_EXPLANATION_STRING_LENGTH = 600;
+const DETERMINISTIC_FALLBACK_LIMITATION =
+  "Model wording did not pass grounding validation; deterministic snapshot values are shown instead.";
 
 const explanationCandidateSchema = z
   .object({
@@ -101,12 +103,31 @@ function isGroundedExplanation(candidate: AcousticExplanation, snapshot: Acousti
   const displayedStrings = [
     candidate.summary,
     ...candidate.factors.flatMap((factor) => [factor.label, factor.evidence]),
-    ...candidate.limitations,
   ];
   return displayedStrings.every(
     (value) =>
       isSafeModelText(value) && hasOnlyProjectedNumbers(value, snapshot) && !isUnsupportedClaim(value),
   );
+}
+
+function deterministicFallbackExplanation(
+  snapshot: AcousticSnapshotProjection,
+): AcousticExplanation {
+  return {
+    summary: `The deterministic projection uses a ${snapshot.routeType} route.`,
+    factors: [
+      { label: "Route", evidence: snapshot.routeType },
+      { label: "Effective distance", evidence: `${snapshot.effectiveDistanceM} m` },
+      { label: "Dry gain", evidence: `${snapshot.dryGainDb} dB` },
+      { label: "Low-pass", evidence: `${snapshot.lowpassHz} Hz` },
+      { label: "Portal count", evidence: `${snapshot.portalCount}` },
+      {
+        label: "RT60",
+        evidence: `Low ${snapshot.rt60S.low} s, mid ${snapshot.rt60S.mid} s, high ${snapshot.rt60S.high} s`,
+      },
+    ],
+    limitations: [DETERMINISTIC_FALLBACK_LIMITATION, FIXED_PORTAL_LIMITATION],
+  };
 }
 
 function parseGroundedExplanation(
@@ -167,14 +188,18 @@ export async function explainAcoustics(
   }
 
   if (!explanation) {
-    return failure("The explanation introduced unsupported content or measurements after one repair attempt.");
+    return {
+      ok: true,
+      explanation: deterministicFallbackExplanation(request.snapshot),
+      model: dependencies.model ?? ACOUSTIC_EXPLAINER_MODEL,
+    };
   }
 
   return {
     ok: true,
     explanation: {
       ...explanation,
-      limitations: [...new Set([...explanation.limitations, FIXED_PORTAL_LIMITATION])],
+      limitations: [FIXED_PORTAL_LIMITATION],
     },
     model: dependencies.model ?? ACOUSTIC_EXPLAINER_MODEL,
   };
