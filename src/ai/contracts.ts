@@ -5,7 +5,11 @@ import type { GeneratedSpatial3D } from "@/domain/workspace/types";
 
 export const SCENE_COMPILER_MODEL = "gpt-5.6";
 export const OPENROUTER_LUNA_MODEL = "openai/gpt-5.6-luna";
-export const USER_OPENROUTER_KEY_HEADER = "x-echo-openrouter-key";
+export const USER_AI_KEY_HEADER = "x-echo-ai-key";
+export const USER_AI_PROVIDER_HEADER = "x-echo-ai-provider";
+export const AI_PROVIDERS = ["openai", "openrouter"] as const;
+export type AiProvider = (typeof AI_PROVIDERS)[number];
+export type AiAccessCredentials = Readonly<{ provider: AiProvider; apiKey: string }>;
 export const AI_MODEL_IDS = [SCENE_COMPILER_MODEL, OPENROUTER_LUNA_MODEL] as const;
 export type AiModel = (typeof AI_MODEL_IDS)[number];
 export function isAiModel(value: unknown): value is AiModel {

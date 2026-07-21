@@ -4,7 +4,8 @@ import OpenAI from "openai";
 
 import {
   SCENE_COMPILER_MODEL,
-  USER_OPENROUTER_KEY_HEADER,
+  USER_AI_KEY_HEADER,
+  USER_AI_PROVIDER_HEADER,
   sceneSpecJsonSchema,
   type CompileSceneFailureCode,
   type CompileDependencies,
@@ -118,7 +119,10 @@ function derivedClientKey(request: Request): string {
 const defaultLimiter = createSlidingWindowLimiter(RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS);
 
 function createDefaultDependencies(request: Request): CompileRouteDependencies {
-  const config = getAiProviderConfig(request.headers.get(USER_OPENROUTER_KEY_HEADER));
+  const config = getAiProviderConfig(
+    request.headers.get(USER_AI_PROVIDER_HEADER),
+    request.headers.get(USER_AI_KEY_HEADER),
+  );
   return {
     available: Boolean(config),
     model: config?.compilerModel ?? SCENE_COMPILER_MODEL,
@@ -210,7 +214,8 @@ export async function handleCompileRequest(
   }
 
   if (!activeDependencies.available) {
-    return jsonFailure("AI_UNAVAILABLE", "Add your OpenRouter API key in Settings to generate a scene.", 503);
+    const provider = request.headers.get(USER_AI_PROVIDER_HEADER) === "openrouter" ? "OpenRouter" : "OpenAI";
+    return jsonFailure("AI_UNAVAILABLE", `Add your ${provider} API key in Settings to generate a scene.`, 503);
   }
 
   try {

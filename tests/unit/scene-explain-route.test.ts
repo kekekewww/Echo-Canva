@@ -33,7 +33,7 @@ describe("POST /api/scene/explain", () => {
     expect(response.headers.get("cache-control")).toContain("no-store");
     await expect(response.json()).resolves.toMatchObject({
       ok: false,
-      error: { message: "Add your OpenRouter API key in Settings to explain acoustics." },
+      error: { message: "Add your OpenAI API key in Settings to explain acoustics." },
     });
   });
 

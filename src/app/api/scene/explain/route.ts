@@ -4,7 +4,8 @@ import OpenAI from "openai";
 
 import {
   ACOUSTIC_EXPLAINER_MODEL,
-  USER_OPENROUTER_KEY_HEADER,
+  USER_AI_KEY_HEADER,
+  USER_AI_PROVIDER_HEADER,
   type ExplainAcousticsRequest,
   type ExplainDependencies,
   type ExplainSchemaPrompt,
@@ -103,7 +104,10 @@ function derivedClientKey(request: Request): string {
 const defaultLimiter = createSlidingWindowLimiter(RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS);
 
 function createDefaultDependencies(request: Request): ExplainRouteDependencies {
-  const config = getAiProviderConfig(request.headers.get(USER_OPENROUTER_KEY_HEADER));
+  const config = getAiProviderConfig(
+    request.headers.get(USER_AI_PROVIDER_HEADER),
+    request.headers.get(USER_AI_KEY_HEADER),
+  );
   return {
     available: Boolean(config),
     model: config?.explainerModel ?? ACOUSTIC_EXPLAINER_MODEL,
@@ -199,7 +203,8 @@ export async function handleExplainRequest(
   }
 
   if (!activeDependencies.available) {
-    return jsonFailure("AI_UNAVAILABLE", "Add your OpenRouter API key in Settings to explain acoustics.", 503);
+    const provider = request.headers.get(USER_AI_PROVIDER_HEADER) === "openrouter" ? "OpenRouter" : "OpenAI";
+    return jsonFailure("AI_UNAVAILABLE", `Add your ${provider} API key in Settings to explain acoustics.`, 503);
   }
 
   try {

@@ -4,12 +4,15 @@ import { requestAcousticExplanation, requestSceneCompilation } from "@/ai/client
 import { CONCRETE_PARTITION_PRESET } from "@/domain/presets/concrete-partition";
 
 describe("requestSceneCompilation", () => {
-  it("sends a user OpenRouter key only in the private request header", async () => {
+  it("sends the selected provider and user key only in private request headers", async () => {
     const apiKey = "sk-or-v1-user-key-1234567890";
-    let requestHeader: string | null = null;
+    let requestKeyHeader: string | null = null;
+    let requestProviderHeader: string | null = null;
     let requestBody = "";
     const fetcher = async (_input: RequestInfo | URL, init?: RequestInit) => {
-      requestHeader = new Headers(init?.headers).get("x-echo-openrouter-key");
+      const headers = new Headers(init?.headers);
+      requestKeyHeader = headers.get("x-echo-ai-key");
+      requestProviderHeader = headers.get("x-echo-ai-provider");
       requestBody = String(init?.body ?? "");
       return new Response(JSON.stringify({
         ok: true,
@@ -25,18 +28,22 @@ describe("requestSceneCompilation", () => {
       CONCRETE_PARTITION_PRESET,
       "classic-2d5d",
       fetcher,
-      apiKey,
+      { provider: "openrouter", apiKey },
     );
 
-    expect(requestHeader).toBe(apiKey);
+    expect(requestKeyHeader).toBe(apiKey);
+    expect(requestProviderHeader).toBe("openrouter");
     expect(requestBody).not.toContain(apiKey);
   });
 
   it("uses the same private key header for acoustic explanations", async () => {
     const apiKey = "sk-or-v1-user-key-1234567890";
-    let requestHeader: string | null = null;
+    let requestKeyHeader: string | null = null;
+    let requestProviderHeader: string | null = null;
     const fetcher = async (_input: RequestInfo | URL, init?: RequestInit) => {
-      requestHeader = new Headers(init?.headers).get("x-echo-openrouter-key");
+      const headers = new Headers(init?.headers);
+      requestKeyHeader = headers.get("x-echo-ai-key");
+      requestProviderHeader = headers.get("x-echo-ai-provider");
       return new Response(JSON.stringify({
         ok: true,
         model: "openai/gpt-5.6-luna",
@@ -59,9 +66,10 @@ describe("requestSceneCompilation", () => {
         portalCount: 0,
         rt60S: { low: 1.8, mid: 1.3, high: 0.7 },
       },
-    }, fetcher, apiKey);
+    }, fetcher, { provider: "openai", apiKey });
 
-    expect(requestHeader).toBe(apiKey);
+    expect(requestKeyHeader).toBe(apiKey);
+    expect(requestProviderHeader).toBe("openai");
   });
 
   it("requests and preserves a mode-aware Hybrid 3D candidate", async () => {

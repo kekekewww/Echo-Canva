@@ -27,7 +27,7 @@ describe("POST /api/scene/compile", () => {
       expect(response.headers.get("cache-control")).toContain("no-store");
       await expect(response.json()).resolves.toMatchObject({
         ok: false,
-        error: { message: "Add your OpenRouter API key in Settings to generate a scene." },
+        error: { message: "Add your OpenAI API key in Settings to generate a scene." },
       });
     } finally {
       if (previousProvider === undefined) delete process.env.AI_PROVIDER;
@@ -37,7 +37,7 @@ describe("POST /api/scene/compile", () => {
     }
   });
 
-  it("returns an unavailable fallback without OPENAI_API_KEY", async () => {
+  it("returns an unavailable fallback without a user API key", async () => {
     const response = await handleCompileRequest(
       new Request("http://test/api/scene/compile", {
         method: "POST",

@@ -36,7 +36,7 @@ As a judge, I can open a preset scene and hear sound after one explicit `Start A
 
 Acceptance:
 
-- no account or API key is required for presets, manual editing, or deterministic audio; optional GPT features request the visitor's own OpenRouter key in Settings;
+- no account or API key is required for presets, manual editing, or deterministic audio; optional GPT features default to OpenAI and accept the visitor's own OpenAI or OpenRouter key in Settings;
 - no console error occurs;
 - the demo contains at least two local, licensed mono sources;
 - Raw and Simulated modes can be switched instantly.

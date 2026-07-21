@@ -1,5 +1,39 @@
 # Status
 
+## Allowlisted AI provider selector — 2026-07-21
+
+- added an AI provider selector with OpenAI as the default and OpenRouter as the only alternative;
+- maps OpenAI to official `gpt-5.6` and OpenRouter to `openai/gpt-5.6-luna`; endpoint/model values
+  remain server-controlled;
+- retains a separate tab-scoped key for each provider and sends only the active pair through generic
+  private headers;
+- updated the industrial settings card to show active provider, fixed model, credential status, and
+  provider-specific key controls;
+- added unit coverage for provider defaulting, mappings, invalid providers, and header transport,
+  plus browser coverage for default selection, switching, persistence, and request routing.
+
+Focused TDD evidence:
+
+- RED: 7 expected failures across provider mapping, request headers, and default-provider messages;
+- GREEN: focused AI tests — PASS, 4 files / 41 tests;
+- `pnpm typecheck` — PASS;
+- focused provider-selector browser flow — PASS, 1/1 Chromium test;
+- `pnpm build` — PASS.
+
+Complete verification evidence:
+
+- `pnpm lint` — PASS;
+- `pnpm typecheck` — PASS;
+- `pnpm test` — PASS, 69 files / 522 tests;
+- production build within `pnpm e2e` — PASS;
+- `pnpm e2e` — PASS, 45/45 Chromium tests.
+- live local default request without credentials — `503` with an OpenAI-specific setup message;
+- live local OpenRouter request with the generic provider/key headers — `200`,
+  `openai/gpt-5.6-luna`.
+
+Current action: merge and deploy the verified provider selector, then exercise the public OpenRouter
+path and default OpenAI no-key boundary.
+
 ## Visitor-provided OpenRouter access — 2026-07-21
 
 - replaced the deployment-owner OpenRouter credential with a per-visitor BYOK flow in
