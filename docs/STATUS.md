@@ -13,7 +13,7 @@
 - public `/`, `/classic`, `/lab`, and `/icon.svg` smoke checks returned HTTP 200
 - production scene compilation and acoustic explanation both returned success with `openai/gpt-5.6-luna`; the following Vercel runtime-error scan was empty
 
-Current action: collect the owner-supplied public YouTube URL, screenshots, clean-profile headphone confirmation, principal `/feedback` Session ID, and final Devpost submission consent.
+Current action: collect the owner-supplied public YouTube URL, Codex/session evidence screenshots, clean-profile headphone confirmation, principal `/feedback` Session ID, and final Devpost submission consent. Three clean-profile public-product screenshots are already captured under `artifacts/release/screenshots/`.
 
 ## Classic 2.5D collision and bounded second-order repair — 2026-07-21
 
