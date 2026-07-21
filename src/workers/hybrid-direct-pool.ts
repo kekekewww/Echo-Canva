@@ -24,6 +24,10 @@ import {
   reflectedPoint,
   type FirstOrderReflection3D,
 } from "@/acoustics/hybrid3d/reflections";
+import {
+  solveSecondOrderReflectionPair,
+  type SecondOrderReflection3D,
+} from "@/acoustics/hybrid3d/second-order";
 import { acousticUpdateIntervalMs } from "@/acoustics/update-rate";
 import type { SceneDocumentV2 } from "@/domain/scene-document/types";
 import type {
@@ -308,6 +312,68 @@ function isReflection(
     && sameVector3(value.arrivalDirection, expectedArrivalDirection);
 }
 
+function isStringPair(value: unknown): value is readonly [string, string] {
+  return Array.isArray(value)
+    && value.length === 2
+    && value.every(isBoundedString);
+}
+
+function isVec3Pair(value: unknown): value is readonly [Vec3, Vec3] {
+  return Array.isArray(value)
+    && value.length === 2
+    && value.every(isVec3);
+}
+
+function sameStringPair(
+  left: readonly [string, string],
+  right: readonly [string, string],
+): boolean {
+  return left[0] === right[0] && left[1] === right[1];
+}
+
+function isSecondOrderReflection(
+  value: unknown,
+  sourcePosition: Vec3,
+  listenerPosition: Vec3,
+  geometry: HybridGeometry,
+): value is SecondOrderReflection3D {
+  if (!(isRecord(value)
+    && isBoundedString(value.id)
+    && isStringPair(value.surfaceIds)
+    && isStringPair(value.patchIds)
+    && isStringPair(value.materialIds)
+    && isVec3Pair(value.reflectionPoints)
+    && isBoundedNumber(value.pathLengthM, 0, MAX_DISTANCE_M * 3)
+    && isBoundedNumber(value.delayMs, 0, MAX_DELAY_MS)
+    && isBoundedNumber(value.excessDelayMs, 0, MAX_DELAY_MS)
+    && isBoundedNumber(value.estimatedMidGainDb, -160, 6)
+    && isUnitVector(value.arrivalDirection))) return false;
+
+  const patchIds = value.patchIds as readonly [string, string];
+  const first = geometry.patches.find(({ id }) => id === patchIds[0]);
+  const second = geometry.patches.find(({ id }) => id === patchIds[1]);
+  if (!first || !second) return false;
+  const expected = solveSecondOrderReflectionPair(
+    sourcePosition,
+    listenerPosition,
+    first,
+    second,
+    geometry.bvh,
+  );
+  return expected !== null
+    && value.id === expected.id
+    && sameStringPair(value.surfaceIds, expected.surfaceIds)
+    && sameStringPair(value.patchIds, expected.patchIds)
+    && sameStringPair(value.materialIds, expected.materialIds)
+    && sameVector3(value.reflectionPoints[0], expected.reflectionPoints[0])
+    && sameVector3(value.reflectionPoints[1], expected.reflectionPoints[1])
+    && nearlyEqual(value.pathLengthM, expected.pathLengthM)
+    && nearlyEqual(value.delayMs, expected.delayMs)
+    && nearlyEqual(value.excessDelayMs, expected.excessDelayMs)
+    && nearlyEqual(value.estimatedMidGainDb, expected.estimatedMidGainDb)
+    && sameVector3(value.arrivalDirection, expected.arrivalDirection);
+}
+
 function isSourceResult(
   value: unknown,
   sourceId: string,
@@ -329,10 +395,22 @@ function isSourceResult(
       snapshot.listenerPosition,
       directDistanceM,
       geometry,
+    ))
+    && Array.isArray(value.secondOrderReflections)
+    && value.secondOrderReflections.length <= 6
+    && value.secondOrderReflections.every((reflection) => isSecondOrderReflection(
+      reflection,
+      source.position,
+      snapshot.listenerPosition,
+      geometry,
     )))) return false;
   const surfaceIds = value.firstOrderReflections.map((reflection) =>
     (reflection as FirstOrderReflection3D).surfaceId);
-  return new Set(surfaceIds).size === surfaceIds.length;
+  const secondOrderIds = value.secondOrderReflections.map((reflection) =>
+    (reflection as SecondOrderReflection3D).id);
+  return new Set(surfaceIds).size === surfaceIds.length
+    && new Set(secondOrderIds).size === secondOrderIds.length
+    && (value.path.directVisible === false || value.secondOrderReflections.length === 0);
 }
 
 function sameSourceIds(left: readonly string[], right: readonly string[]): boolean {

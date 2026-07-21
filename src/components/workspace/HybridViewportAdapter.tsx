@@ -68,9 +68,12 @@ export function HybridViewportAdapter({ project, dispatch, audioEngine, wallPlac
     listenerPosition: geometry.listenerPosition,
     reflectionsBySource: Object.fromEntries(scene.sources.map(({ id }) => [
       id,
-      renderHybridEarlyReflections(direct.frame.firstOrderReflectionsBySource[id] ?? []),
+      renderHybridEarlyReflections(
+        direct.frame.firstOrderReflectionsBySource[id] ?? [],
+        direct.frame.secondOrderReflectionsBySource[id] ?? [],
+      ),
     ])),
-  }), [direct.frame.firstOrderReflectionsBySource, geometry.listenerPosition, scene.sources]);
+  }), [direct.frame.firstOrderReflectionsBySource, direct.frame.secondOrderReflectionsBySource, geometry.listenerPosition, scene.sources]);
   const disabled = useMemo(() => new Set(project.disabledEntityIds), [project.disabledEntityIds]);
   const selectedSourceId = project.selection?.type === "source"
     ? project.selection.id

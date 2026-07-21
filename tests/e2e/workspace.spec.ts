@@ -259,6 +259,28 @@ test("keeps the viewport primary and exposes modal drawers on narrow screens", a
   await expect(page.getByRole("dialog", { name: "Inspector" })).toBeVisible();
 });
 
+test("keeps Inspector labels, values, and units inside distinct readable columns", async ({ page }) => {
+  await page.goto("/lab");
+  const outliner = page.getByRole("complementary", { name: "Scene Outliner" });
+  await outliner.locator(".outliner-row.kind-source").first().click();
+  const inspector = page.getByRole("complementary", { name: "Inspector" });
+  const sourceGainLabel = inspector.getByRole("button", { name: "Drag to adjust Source gain" });
+  const sourceGainInput = inspector.getByRole("textbox", { name: "Source gain" });
+  const nameInput = inspector.getByRole("textbox", { name: "Source name" });
+  const [labelBox, inputBox, nameBox, inspectorBox] = await Promise.all([
+    sourceGainLabel.boundingBox(),
+    sourceGainInput.boundingBox(),
+    nameInput.boundingBox(),
+    inspector.boundingBox(),
+  ]);
+  if (!labelBox || !inputBox || !nameBox || !inspectorBox) throw new Error("Inspector fields are not visible.");
+
+  expect(labelBox.width).toBeGreaterThanOrEqual(84);
+  expect(labelBox.x + labelBox.width).toBeLessThanOrEqual(inputBox.x + 1);
+  expect(inputBox.x + inputBox.width).toBeLessThanOrEqual(inspectorBox.x + inspectorBox.width);
+  expect(nameBox.x + nameBox.width).toBeLessThanOrEqual(inspectorBox.x + inspectorBox.width);
+});
+
 test("survives the full entity-limit project within Worker and interaction budgets", async ({ page }) => {
   await page.goto("/lab");
   await page.getByLabel("Scene preset").selectOption("stress-100-walls");

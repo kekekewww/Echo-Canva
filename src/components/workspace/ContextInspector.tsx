@@ -168,7 +168,7 @@ export function ContextInspector({ project, dispatch, localAssets = [], onRelink
           {primitive.kind === "sphere" ? <NumericScrubField fineStep={0.01} label="Diameter" max={Math.min(project.room3d.widthM, project.room3d.depthM, project.room3d.heightM)} min={0.1} onCommit={(diameter) => dispatch({ type: "UPDATE_PRIMITIVE", id: primitive.id, changes: { dimensions: { x: diameter, y: diameter, z: diameter } } })} step={0.1} unit="m" value={primitive.dimensions.x} /> : null}
           <NumericScrubField fineStep={0.1} label="Rotation Y" max={360} min={-360} onCommit={(rotationYDeg) => dispatch({ type: "UPDATE_PRIMITIVE", id: primitive.id, changes: { rotationYDeg } })} step={1} unit="°" value={primitive.rotationYDeg} />
           <label className="select-field">Material<select aria-label="Primitive material" onChange={(event) => dispatch({ type: "UPDATE_PRIMITIVE", id: primitive.id, changes: { materialId: event.currentTarget.value } })} value={primitive.materialId}>{Object.values(MATERIALS).map((material) => <option key={material.id} value={material.id}>{material.displayName}</option>)}</select></label>
-          {primitive.kind === "box" ? null : <HintCard title="Faceted acoustic approximation">Curved surfaces use bounded planar facets for deterministic obstruction and first-order reflections.</HintCard>}
+          {primitive.kind === "box" ? null : <HintCard title="Faceted acoustic approximation">Curved surfaces use bounded planar facets for deterministic obstruction and bounded first- and second-order reflections.</HintCard>}
         </section>
       ) : null}
       {wall ? (

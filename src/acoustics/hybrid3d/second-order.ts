@@ -1,6 +1,6 @@
 import { distanceAttenuation, linearToDb } from "@/audio/math";
 
-import { materialForHybridReflection, reflectionAmplitude } from "@/acoustics/hybrid3d/material-energy";
+import { materialForHybridReflection, specularReflectionAmplitude } from "@/acoustics/hybrid3d/material-energy";
 import type { PatchBvh } from "@/acoustics/hybrid3d/bvh";
 import {
   imageRayIntersection,
@@ -20,6 +20,7 @@ import {
 
 export const MAX_REFERENCE_SECOND_ORDER_PATCHES = 32;
 export const DEFAULT_SECOND_ORDER_TOP_K = 6;
+export const DEFAULT_SECOND_ORDER_SURFACE_BUDGET = 24;
 
 export type SecondOrderReflection3D = Readonly<{
   id: string;
@@ -35,6 +36,8 @@ export type SecondOrderReflection3D = Readonly<{
 }>;
 
 export type SecondOrderSearchStats = Readonly<{
+  availablePatches: number;
+  consideredPatches: number;
   orderedPairs: number;
   pathLengthPruned: number;
   energyPruned: number;
@@ -47,6 +50,7 @@ export type PrunedSecondOrderOptions = Readonly<{
   maxPathLengthM?: number;
   minEstimatedGainDb?: number;
   maxCandidates?: number;
+  maxRepresentativePatches?: number;
 }>;
 
 function stablePathOrder(left: SecondOrderReflection3D, right: SecondOrderReflection3D): number {
@@ -60,7 +64,24 @@ function directDistance(source: Vec3, listener: Vec3): number {
 }
 
 function midReflectionAmplitude(patch: AcousticPatch3): number {
-  return reflectionAmplitude(materialForHybridReflection(patch.materialId), "mid");
+  return specularReflectionAmplitude(materialForHybridReflection(patch.materialId), "mid");
+}
+
+function boundedRepresentativePatches(
+  source: Vec3,
+  listener: Vec3,
+  patches: readonly AcousticPatch3[],
+  maximum: number,
+): readonly AcousticPatch3[] {
+  return [...patches]
+    .sort((left, right) => {
+      const leftLength = length3(subtract3(reflectedPoint(source, left), listener));
+      const rightLength = length3(subtract3(reflectedPoint(source, right), listener));
+      return leftLength !== rightLength
+        ? leftLength - rightLength
+        : physicalSurfaceId(left).localeCompare(physicalSurfaceId(right));
+    })
+    .slice(0, Math.max(2, Math.floor(maximum)));
 }
 
 function estimatedMidGainDb(first: AcousticPatch3, second: AcousticPatch3, pathLengthM: number): number {
@@ -71,7 +92,7 @@ function estimatedMidGainDb(first: AcousticPatch3, second: AcousticPatch3, pathL
   );
 }
 
-function solveOrderedPair(
+export function solveSecondOrderReflectionPair(
   source: Vec3,
   listener: Vec3,
   first: AcousticPatch3,
@@ -134,7 +155,7 @@ export function findExhaustiveSecondOrderReflections3D(
   const paths: SecondOrderReflection3D[] = [];
   for (const first of patches) {
     for (const second of patches) {
-      const path = solveOrderedPair(source, listener, first, second, bvh);
+      const path = solveSecondOrderReflectionPair(source, listener, first, second, bvh);
       if (path) paths.push(path);
     }
   }
@@ -148,7 +169,13 @@ export function findPrunedSecondOrderReflections3D(
   bvh: PatchBvh,
   options: PrunedSecondOrderOptions = {},
 ): Readonly<{ paths: readonly SecondOrderReflection3D[]; stats: SecondOrderSearchStats }> {
-  const patches = representativePatches(bvh);
+  const allPatches = representativePatches(bvh);
+  const patches = boundedRepresentativePatches(
+    source,
+    listener,
+    allPatches,
+    options.maxRepresentativePatches ?? DEFAULT_SECOND_ORDER_SURFACE_BUDGET,
+  );
   const maxPathLengthM = options.maxPathLengthM ?? 50;
   const minEstimatedGainDb = options.minEstimatedGainDb ?? -36;
   const maxCandidates = options.maxCandidates ?? DEFAULT_SECOND_ORDER_TOP_K;
@@ -174,7 +201,7 @@ export function findPrunedSecondOrderReflections3D(
         continue;
       }
       evaluatedPairs += 1;
-      const path = solveOrderedPair(source, listener, first, second, bvh);
+      const path = solveSecondOrderReflectionPair(source, listener, first, second, bvh);
       if (path) paths.push(path);
     }
   }
@@ -184,6 +211,8 @@ export function findPrunedSecondOrderReflections3D(
   return {
     paths: selected,
     stats: {
+      availablePatches: allPatches.length,
+      consideredPatches: patches.length,
       orderedPairs,
       pathLengthPruned,
       energyPruned,

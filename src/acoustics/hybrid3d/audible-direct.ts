@@ -5,6 +5,7 @@ import {
 import type { HybridDirectAudioState, HybridDirectRouteType, SpatialPosition3 } from "@/audio/types";
 import type { HybridGeometry } from "@/acoustics/hybrid3d/compile";
 import type { DirectPath3D, HybridDirectFrame } from "@/acoustics/hybrid3d/direct";
+import { intersectSegmentBvh } from "@/acoustics/hybrid3d/bvh";
 import { MATERIALS } from "@/domain/materials/registry";
 
 // Keep hard-wall attenuation safely bounded while preserving an audible difference between
@@ -114,21 +115,34 @@ function portalPosition(
   };
 }
 
-function portalRouteDistance(
+function portalRoutePoints(
   projection: AcousticFrameSource,
   sourcePosition: SpatialPosition3,
   listenerPosition: SpatialPosition3,
   geometry: HybridGeometry,
-): number {
-  const points = projection.routePolyline.map((point, index, all) => {
+): readonly SpatialPosition3[] {
+  return projection.routePolyline.map((point, index, all) => {
     if (index === 0) return sourcePosition;
     if (index === all.length - 1) return listenerPosition;
     const portal = geometry.document.baseScene.portals.find(
       (candidate) => candidate.center.x === point.x && candidate.center.y === point.y && candidate.open,
     );
-    return portal ? portalPosition(portal.id, geometry) : { x: point.x, y: sourcePosition.y, z: point.y };
+    return portal
+      ? portalPosition(portal.id, geometry) ?? { x: point.x, y: sourcePosition.y, z: point.y }
+      : { x: point.x, y: sourcePosition.y, z: point.y };
   });
+}
+
+function portalRouteDistance(points: readonly SpatialPosition3[]): number {
   return points.slice(1).reduce((total, point, index) => total + distance3(points[index]!, point!), 0);
+}
+
+function portalRouteIsVisible3D(
+  points: readonly SpatialPosition3[],
+  geometry: HybridGeometry,
+): boolean {
+  return points.slice(1).every((point, index) =>
+    intersectSegmentBvh(points[index]!, point, geometry.bvh).length === 0);
 }
 
 function resolvePath(
@@ -156,16 +170,17 @@ function resolvePath(
     const virtualPosition = listenerFacingPortalId
       ? portalPosition(listenerFacingPortalId, geometry)
       : null;
-    if (virtualPosition) {
+    const routePoints = portalRoutePoints(
+      projection,
+      sourcePosition,
+      listenerPosition,
+      geometry,
+    );
+    if (virtualPosition && portalRouteIsVisible3D(routePoints, geometry)) {
       return {
         sourceId: path.sourceId!,
         routeType: "portal",
-        effectiveDistanceM: portalRouteDistance(
-          projection,
-          sourcePosition,
-          listenerPosition,
-          geometry,
-        ),
+        effectiveDistanceM: portalRouteDistance(routePoints),
         dryGainDb: projection.dryGainDb,
         lowpassHz: projection.lowpassHz,
         virtualPosition,

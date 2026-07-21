@@ -111,4 +111,21 @@ describe("Hybrid 3D second-order Image Source branches", () => {
     expect(candidate.stats.orderedPairs / candidate.stats.evaluatedPairs).toBeGreaterThanOrEqual(3);
     expect(candidate.stats.pathLengthPruned).toBeGreaterThan(0);
   });
+
+  it("bounds runtime ordered-pair growth with a deterministic representative-surface budget", () => {
+    const candidate = findPrunedSecondOrderReflections3D(
+      { x: 1, y: 1, z: 0 },
+      { x: 4, y: 1, z: 0 },
+      mediumPruningFixture(),
+      {
+        maxPathLengthM: 200,
+        minEstimatedGainDb: -120,
+        maxCandidates: 6,
+        maxRepresentativePatches: 8,
+      },
+    );
+
+    expect(candidate.stats.consideredPatches).toBe(8);
+    expect(candidate.stats.orderedPairs).toBeLessThanOrEqual(8 * 7);
+  });
 });

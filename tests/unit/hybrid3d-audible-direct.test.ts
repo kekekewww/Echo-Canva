@@ -6,6 +6,7 @@ import { computeHybridDirectFrame } from "@/acoustics/hybrid3d/direct";
 import { CONCRETE_PARTITION_PRESET } from "@/domain/presets/concrete-partition";
 import { createSceneDocumentV2 } from "@/domain/scene-document/serialize";
 import type { SceneSpec } from "@/domain/scene/types";
+import type { AcousticPrimitive } from "@/domain/workspace/types";
 
 function buildGeometry(options: Readonly<{
   listenerPlan: Readonly<{ x: number; z: number }>;
@@ -14,6 +15,7 @@ function buildGeometry(options: Readonly<{
   radioHeightM?: number;
   portalOpen?: boolean;
   partitionMaterialId?: string;
+  primitives?: readonly AcousticPrimitive[];
 }>) {
   const scene: SceneSpec = structuredClone(CONCRETE_PARTITION_PRESET);
   scene.listener.position = { x: options.listenerPlan.x, y: options.listenerPlan.z };
@@ -28,6 +30,7 @@ function buildGeometry(options: Readonly<{
       floorElevationM: 0,
       listenerHeightM: options.listenerHeightM ?? 1.5,
       sourceHeightsM: { radio: options.radioHeightM ?? 1.5, rain: 1.5 },
+      primitives: options.primitives,
     },
   });
   const staticGeometry = compileHybridStaticGeometry(document);
@@ -68,6 +71,27 @@ describe("resolveHybridAudibleDirectState", () => {
       virtualPosition: { x: 6, y: 1.05, z: 4 },
     });
     expect(radio?.effectiveDistanceM).toBeGreaterThan(6);
+  });
+
+  it("rejects a projected Portal route when a finite 3D obstacle blocks a lifted route segment", () => {
+    const geometry = buildGeometry({
+      listenerPlan: { x: 3, z: 1.5 },
+      radioPlan: { x: 9, z: 1.5 },
+      primitives: [{
+        id: "portal_route_blocker",
+        name: "Portal route blocker",
+        kind: "box",
+        position: { x: 4.5, y: 1.3, z: 2.75 },
+        dimensions: { x: 1, y: 2, z: 1 },
+        rotationYDeg: 0,
+        materialId: "concrete_hard",
+      }],
+    });
+
+    const result = resolveHybridAudibleDirectState(geometry, computeHybridDirectFrame(geometry));
+    const radio = result.paths.find((path) => path.sourceId === "radio");
+
+    expect(radio).toMatchObject({ routeType: "blocked", portalIds: [] });
   });
 
   it("keeps an above-door 3D line blocked even when its X/Z projection crosses the opening", () => {

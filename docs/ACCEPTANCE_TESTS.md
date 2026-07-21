@@ -7,7 +7,7 @@
 3. Add a built-in source and a valid local WAV/MP3/Ogg source. Confirm invalid/undecodable or oversized files do not create a source and no local blob is sent to an API route.
 4. In both modes, add a Wall with two viewport clicks. In 3D, select its finite panel, drag either endpoint, edit exact A/B coordinates plus thickness/bottom/top, then add a hosted Portal and edit offset/width/bottom/top/thickness.
 5. Disable and re-enable a Wall, Portal, source, Listener, ceiling, and a 2.5D wall. Disabled objects stay in the Outliner but disappear from viewport and deterministic compilation. Floor remains protected.
-6. Select a source and verify direct/blocked/Portal-aware and first-order floor/ceiling/wall paths. Toggle Paths, All paths, and presentation-only Ceiling without changing the accepted acoustic revision.
+6. Select a source and verify direct/blocked/Portal-aware paths, first-order floor/ceiling/wall paths, and a blocked-route second-order path with two reflection vertices. Place a Box across the post-Portal segment and confirm the Portal path is rejected. Toggle Paths, All paths, and presentation-only Ceiling without changing the accepted acoustic revision.
 7. Exercise exact numeric input with units, label scrubbing, Shift fine adjustment, Ctrl snapping, arrows, Enter, and Escape. Verify invalid input preserves the last accepted value.
 8. Undo/Redo scene changes. Reset 3D, Undo it, and verify 2.5D is unchanged.
 9. Export/import a complete authoring project. Confirm missing local audio retains its filename/Source position and reports `Relink required`; relink it without changing the Source transform. Reject malformed/wrong-mode JSON atomically.

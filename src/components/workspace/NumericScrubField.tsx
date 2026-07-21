@@ -111,7 +111,7 @@ export function NumericScrubField({ label, axis, value, unit, min, max, step, fi
 
   return (
     <label className={`numeric-scrub-field${invalid ? " is-invalid" : ""}`}>
-      <button aria-label={`Drag to adjust ${label}`} className={`numeric-scrub-label axis-${axis ?? "value"}`} onPointerCancel={endScrub} onPointerDown={beginScrub} onPointerMove={moveScrub} onPointerUp={endScrub} type="button">
+      <button aria-label={`Drag to adjust ${label}`} className={`numeric-scrub-label axis-${axis ?? "value"}`} onPointerCancel={endScrub} onPointerDown={beginScrub} onPointerMove={moveScrub} onPointerUp={endScrub} title={`${label}: drag horizontally to adjust, or type an exact value`} type="button">
         {axis?.toUpperCase() ?? label}
       </button>
       <input aria-invalid={invalid} aria-label={label} inputMode="decimal" onBlur={() => { if (editing) commitDraft(); }} onChange={(event) => { setDraft(event.target.value); setInvalid(false); }} onFocus={() => { setDraft(displayValue(value)); setEditing(true); }} onKeyDown={onKeyDown} value={editing ? draft : displayValue(value)} />

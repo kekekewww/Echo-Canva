@@ -417,3 +417,31 @@ Reason: The supplied package is a snapshot from before the owner explicitly appr
 Decision: Fingerprint Hybrid static geometry from room surfaces, enabled wall/Portal geometry, materials, and vertical bounds rather than the full Classic projection hash. Reuse that patch/BVH structure in both the Worker and the main-thread fallback compiler when only Listener/source poses change. Build the hot `projectHybridDocument` directly from the already-invariant-preserving workspace state, while retaining complete Schema/domain validation at all external import, AI candidate, persistence migration, and scene-replacement boundaries.
 
 Reason: Final 100-wall verification exposed a 16 ms Worker p95 sample and 50–206 ms main-thread tasks while switching active listeners. The full compatibility hash includes Listener/source poses and revision, so it invalidated a cache whose contents do not depend on those fields; the React fallback path also cloned and validated the same 100-wall document repeatedly. A pose-independent static fingerprint preserves geometry correctness, keeps external data validation unchanged, and removes redundant BVH construction and hot-render validation rather than weakening the established 12 ms / 50 ms budgets.
+
+## D-044 — Add bounded second-order Hybrid reflections and 3D Portal-segment validation
+
+Decision: Extend only the Hybrid 3D branch from first-order to bounded second-order Image Source
+paths. Reuse the existing deterministic ordered-pair solver, prune by path length and perceptual
+energy, retain a fixed six-tap audio bank, and expose the two reflection vertices in the 3D path
+overlay. Do not add third- or higher-order exhaustive search. A projected Portal route is accepted
+only when every lifted 3D segment is clear in the finite-patch BVH; otherwise the source remains
+blocked and may still be heard through validated reflected paths and late reverberation.
+
+Reason: The owner explicitly expanded the previously frozen first-order scope after observing a
+Portal route pass through an acoustic primitive and a blocked source with a valid floor-to-wall
+two-bounce path. Exact higher-order growth is exponential and would undermine the already reported
+interactive performance, while the existing bounded second-order solver provides the requested
+source → surface → surface → Listener behavior with deterministic tests and a fixed render budget.
+
+## D-045 — Use an industrial acoustic-workstation Inspector layout
+
+Decision: Keep the existing dark modelling-workbench identity, but give numeric scrub labels a
+real text column, isolate the value and unit columns, constrain all text/select rows, and move
+secondary explanations into compact disclosure cards. Preserve pointer scrubbing, exact text entry,
+keyboard behavior, accessibility names, and narrow-screen Inspector operation.
+
+Reason: Fixed 2.2 rem scrub labels and unstructured text rows caused labels such as Source gain,
+Thickness, Rotation Y, and Heading to overlap their values. The installed frontend-design skill
+calls for a deliberate, cohesive interface; an industrial utilitarian hierarchy fits a game-engine
+acoustic authoring tool better than decorative redesign and fixes comprehension without increasing
+always-visible copy.

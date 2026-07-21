@@ -34,4 +34,63 @@ describe("Hybrid path overlay", () => {
     const paths = deriveHybridPathDisplay(frame, geometry, "radio", true, frame.revision, []);
     expect(new Set(paths.map(({ sourceId }) => sourceId))).toEqual(new Set(["radio", "rain"]));
   });
+
+  it("draws only the six reflection taps that can reach the fixed audio bank", () => {
+    const project = createDefaultHybridProject();
+    const geometry = compileHybridGeometry(projectHybridDocument(project));
+    const frame = computeHybridDirectFrame(geometry);
+    const base = frame.firstOrderReflectionsBySource.radio[0]!;
+    const withExtraCandidates = {
+      ...frame,
+      firstOrderReflectionsBySource: {
+        ...frame.firstOrderReflectionsBySource,
+        radio: Array.from({ length: 9 }, (_, index) => ({
+          ...base,
+          id: `first:visual-candidate-${index}`,
+          surfaceId: `visual-candidate-${index}`,
+          pathLengthM: base.pathLengthM + index * 0.01,
+        })),
+      },
+    };
+    const paths = deriveHybridPathDisplay(
+      withExtraCandidates,
+      geometry,
+      "radio",
+      false,
+      frame.revision,
+      [],
+    );
+
+    expect(paths.filter(({ kind }) => kind === "reflection")).toHaveLength(6);
+  });
+
+  it("draws a second-order path through both finite reflection points", () => {
+    const project = createDefaultHybridProject();
+    const geometry = compileHybridGeometry(projectHybridDocument(project));
+    const frame = computeHybridDirectFrame(geometry);
+    const withSecondOrder = {
+      ...frame,
+      secondOrderReflectionsBySource: {
+        ...frame.secondOrderReflectionsBySource,
+        radio: [{
+          id: "second:floor>partition_center",
+          surfaceIds: ["floor", "partition_center"] as const,
+          patchIds: ["floor", "partition_center:front"] as const,
+          materialIds: ["concrete_hard", "concrete_hard"] as const,
+          reflectionPoints: [{ x: 4, y: 0, z: 3 }, { x: 6, y: 1, z: 4 }] as const,
+          pathLengthM: 9,
+          delayMs: 26,
+          excessDelayMs: 8,
+          estimatedMidGainDb: -20,
+          arrivalDirection: { x: 1, y: 0, z: 0 },
+        }],
+      },
+    };
+    const paths = deriveHybridPathDisplay(withSecondOrder, geometry, "radio", false, frame.revision, []);
+    const secondOrder = paths.find(({ reflectionOrder }) => reflectionOrder === 2);
+
+    expect(secondOrder).toBeDefined();
+    expect(secondOrder?.vertices).toHaveLength(4);
+    expect(secondOrder?.surfaceName).toContain("→");
+  });
 });

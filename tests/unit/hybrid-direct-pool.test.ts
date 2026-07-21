@@ -199,6 +199,33 @@ function reflectionPairWithBlockedFloorLeg(revision = 1): readonly [SceneDocumen
   return [document, compileHybridGeometry(document)];
 }
 
+function secondOrderPair(revision = 1): readonly [SceneDocumentV2, HybridGeometry] {
+  const scene = structuredClone(CONCRETE_PARTITION_PRESET);
+  scene.revision = revision;
+  scene.listener.position = { x: 1, y: 4 };
+  scene.sources = [{ ...scene.sources[0]!, position: { x: 4, y: 4 } }];
+  scene.portals = [];
+  scene.walls = scene.walls.filter(({ id }) => id !== "partition_center");
+  const document = createSceneDocumentV2(scene, {
+    spatial3d: {
+      coordinateSystem: "x-right-y-up-z-forward",
+      floorElevationM: 0,
+      listenerHeightM: 1,
+      sourceHeightsM: { radio: 1 },
+      primitives: [{
+        id: "direct_blocker",
+        name: "Direct blocker",
+        kind: "box",
+        position: { x: 2.5, y: 1, z: 4 },
+        dimensions: { x: 0.4, y: 0.4, z: 0.4 },
+        rotationYDeg: 0,
+        materialId: "wood_medium",
+      }],
+    },
+  });
+  return [document, compileHybridGeometry(document)];
+}
+
 function createHarness(hardwareConcurrency = 8) {
   const timers = new FakeTimers();
   const workers: FakeShardWorker[] = [];
@@ -427,6 +454,7 @@ describe("Hybrid direct Worker pool", () => {
     ["malformed path", (response: Extract<HybridDirectWorkerResponse, { type: "SHARD_RESULT" }>) => ({ ...response, results: [{ ...response.results[0], path: { ...response.results[0]!.path, hits: null } }] })],
     ["null reflections", (response: Extract<HybridDirectWorkerResponse, { type: "SHARD_RESULT" }>) => ({ ...response, results: [{ ...response.results[0], firstOrderReflections: null }] })],
     ["malformed reflection", (response: Extract<HybridDirectWorkerResponse, { type: "SHARD_RESULT" }>) => ({ ...response, results: [{ ...response.results[0], firstOrderReflections: [null] }] })],
+    ["malformed second-order reflection", (response: Extract<HybridDirectWorkerResponse, { type: "SHARD_RESULT" }>) => ({ ...response, results: [{ ...response.results[0], secondOrderReflections: [null] }] })],
     ["projection hash", (response: Extract<HybridDirectWorkerResponse, { type: "SHARD_RESULT" }>) => ({ ...response, results: [{ ...response.results[0], classicProjectionHash: "wrong" }] })],
     ["non-finite timing", (response: Extract<HybridDirectWorkerResponse, { type: "SHARD_RESULT" }>) => ({ ...response, computeMs: Number.NaN })],
     ["non-finite completion timing", (response: Extract<HybridDirectWorkerResponse, { type: "SHARD_RESULT" }>) => ({ ...response, completedAtMs: Number.POSITIVE_INFINITY })],
@@ -672,6 +700,30 @@ describe("Hybrid direct Worker pool", () => {
       expect(workers[0]!.terminateCalls).toBe(1);
     },
   );
+
+  it("falls back on a plausible but inconsistent second-order path", () => {
+    const { pool, results, timers, workers } = createHarness(1);
+    const current = secondOrderPair(59);
+    pool.update(...current);
+    timers.flush();
+    workers[0]!.ackInstall();
+    const response = workers[0]!.shardResponse();
+    const secondOrder = response.results[0]!.secondOrderReflections;
+    expect(secondOrder.length).toBeGreaterThan(0);
+
+    workers[0]!.emit({
+      ...response,
+      results: [{
+        ...response.results[0],
+        secondOrderReflections: secondOrder.map((reflection, index) =>
+          index === 0 ? { ...reflection, delayMs: reflection.delayMs + 0.5 } : reflection),
+      }],
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0]).toMatchObject({ source: "fallback", frame: { revision: 59 } });
+    expect(workers[0]!.terminateCalls).toBe(1);
+  });
 
   it("fails closed on an unexpected or duplicate static acknowledgement", () => {
     for (const mode of ["unexpected", "duplicate"] as const) {

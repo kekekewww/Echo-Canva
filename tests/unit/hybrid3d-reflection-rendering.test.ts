@@ -6,6 +6,7 @@ import {
 } from "@/acoustics/hybrid3d/reflection-rendering";
 import { MATERIALS } from "@/domain/materials/registry";
 import type { FirstOrderReflection3D } from "@/acoustics/hybrid3d/reflections";
+import type { SecondOrderReflection3D } from "@/acoustics/hybrid3d/second-order";
 
 function reflection(
   id: string,
@@ -22,6 +23,21 @@ function reflection(
     delayMs: pathLengthM * 3,
     excessDelayMs: 1,
     arrivalDirection: { x: 0, y: 1, z: 0 },
+  };
+}
+
+function secondOrderReflection(): SecondOrderReflection3D {
+  return {
+    id: "second:floor>partition_center",
+    surfaceIds: ["floor", "partition_center"],
+    patchIds: ["floor", "partition_center:front"],
+    materialIds: ["concrete_hard", "wood_medium"],
+    reflectionPoints: [{ x: 2, y: 0, z: 2 }, { x: 5, y: 1.5, z: 4 }],
+    pathLengthM: 9,
+    delayMs: 26,
+    excessDelayMs: 8,
+    estimatedMidGainDb: -20,
+    arrivalDirection: { x: 1, y: 0, z: 0 },
   };
 }
 
@@ -63,5 +79,17 @@ describe("Hybrid 3D reflection rendering", () => {
     const specularAmplitude = Math.sqrt(reflectedEnergy * (1 - material.scattering));
 
     expect(tap?.gainDb).toBeCloseTo(20 * Math.log10(specularAmplitude / 5));
+  });
+
+  it("renders a second-order path from its listener-facing reflection point", () => {
+    const taps = renderHybridEarlyReflections([], [secondOrderReflection()]);
+
+    expect(taps).toEqual([expect.objectContaining({
+      id: "second:floor>partition_center",
+      order: 2,
+      position: { x: 5, y: 1.5, z: 4 },
+      delayMs: 26,
+      gainDb: -20,
+    })]);
   });
 });

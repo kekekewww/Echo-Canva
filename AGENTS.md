@@ -15,7 +15,7 @@ Implement:
 3. Three-band acoustic materials.
 4. Exact direct-path visibility and wall occlusion.
 5. Explicit open-portal routing approximation.
-6. First-order image-source early reflections.
+6. First-order image-source early reflections in both modes, plus bounded second-order reflections in Hybrid 3D when the direct path is blocked.
 7. Three-band Eyring RT60 estimation.
 8. Browser HRTF rendering through Web Audio `PannerNode`.
 9. Stable late reverberation using a Schroeder network; FDN is optional only after all MVP acceptance tests pass.
@@ -31,7 +31,7 @@ Explicitly do not implement:
 - custom MIT/KEMAR convolution in the MVP;
 - native Godot/OpenAL packaging;
 - full 3D geometry;
-- higher than first-order image-source reflections;
+- third- or higher-order image-source reflections;
 - dynamically replacing convolution buffers each acoustic update;
 - databases, authentication, payments, collaboration, or user accounts.
 
@@ -91,7 +91,7 @@ Enforce these hard limits:
 - maximum 100 wall segments;
 - maximum 8 portals;
 - maximum 4 point sources;
-- maximum 6 early-reflection taps per source;
+- maximum 6 ranked first/second-order early-reflection taps per source;
 - maximum room dimension 50 m;
 - minimum wall length 0.1 m;
 - material IDs must come from the built-in registry;

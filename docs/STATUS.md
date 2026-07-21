@@ -1,5 +1,29 @@
 # Status
 
+## Bounded Hybrid second-order / Portal / Inspector repair — 2026-07-21
+
+- reproduced the Portal-through-obstacle defect and now accept a projected Portal route only
+  when every lifted source/Portal/Listener segment has zero hits in the installed 3D BVH
+- promoted the existing second-order Image Source experiment into blocked-route Hybrid runtime:
+  at most 24 representative surfaces, 552 ordered pairs, path/specular-energy pruning, and six
+  deterministic candidates per source; third- and higher-order search remains excluded
+- merged first- and second-order candidates into the existing persistent six-tap audio bank, with
+  the Listener-facing second reflection point controlling panning and no additional AudioNodes
+- added two-node 3D second-order overlays and limited visible reflection paths to the same six taps
+  that can actually be rendered, preventing a 100-wall scene from creating unused SVG candidates
+- Worker results now reconstruct every returned second-order pair from installed patches and verify
+  both specular points, three visible legs, path length, delay, energy, materials, and arrival vector
+- widened the Inspector into an industrial modelling-tool layout with stable label/value/unit columns,
+  exact numeric input, horizontal scrubbing, and full parameter names in hover hints
+- installed and followed the authorized LobeHub frontend-design skill locally; no external service or
+  credential is used by the application
+- final `pnpm lint`, `pnpm typecheck`, and `pnpm test` — PASS, 69 unit files / 502 tests
+- final `pnpm e2e` — PASS, fresh production build plus 45/45 Chromium tests; the maximum-entity
+  multicore proof passed in 5.1 s with no over-budget long task
+- final `git diff --check` — PASS (Windows line-ending notices only)
+
+Current action: start the verified local production candidate for human visual/headphone acceptance.
+
 ## Multicore source-sharded Worker pools — 2026-07-21
 
 - third independent-review repair accepts legitimate Classic blocked traces with ordered wall crossings while reconstructing the exact serial direct/Portal route, open-Portal eligibility, listener-facing virtual position, occluders, gain, and filter mapping
@@ -786,6 +810,18 @@ No known P0/P1 Gate C defects. The required perceptual headphone acceptance conf
 The 2026-07-17 final repair also verified listener-facing multi-portal panning, portal-route direct-wall occluder overlays, 10-15 Hz Worker/fallback coalescing, and measured Worker/fallback compute-duration labels.
 
 Earlier isolated-port evidence: before port 3000 was available, a fresh production build was served on port 3001 and passed the focused portal test and all 11 browser tests. That evidence remains historical only; the exact wrapper verification above is the current Gate B evidence.
+
+## Active expansion — bounded second-order Hybrid acoustics and Inspector repair
+
+- Root cause confirmed: the audible Hybrid Portal branch consumes the Classic X/Z route without
+  validating each lifted segment against the 3D BVH, so an acoustic primitive can be crossed after
+  the Portal.
+- Existing second-order Image Source reference/pruned solvers are tested but are not wired into the
+  Worker result, merged frame, fixed audio tap bank, or 3D overlay.
+- Inspector overflow is caused by a fixed 2.2 rem numeric-label column and missing constrained
+  layout rules for general text/source rows.
+- Current action: add failing regressions for all three observations, then implement the smallest
+  deterministic repairs and run the complete release gate.
 
 ## Human gate status
 

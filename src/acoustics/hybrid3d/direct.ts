@@ -11,6 +11,10 @@ import {
 } from "@/acoustics/hybrid3d/geometry";
 import type { HybridGeometry } from "@/acoustics/hybrid3d/compile";
 import { findFirstOrderReflections3D, type FirstOrderReflection3D } from "@/acoustics/hybrid3d/reflections";
+import {
+  findPrunedSecondOrderReflections3D,
+  type SecondOrderReflection3D,
+} from "@/acoustics/hybrid3d/second-order";
 
 export type DirectPath3D = Readonly<{
   sourceId?: string;
@@ -32,6 +36,7 @@ export type HybridDirectFrame = Readonly<{
   computedAtMs: number;
   paths: readonly DirectPath3D[];
   firstOrderReflectionsBySource: Readonly<Record<string, readonly FirstOrderReflection3D[]>>;
+  secondOrderReflectionsBySource: Readonly<Record<string, readonly SecondOrderReflection3D[]>>;
 }>;
 
 export type HybridDirectPoseSnapshot = Readonly<{
@@ -49,6 +54,7 @@ export type HybridDirectSourceResult = Readonly<{
   classicProjectionHash: string;
   path: DirectPath3D;
   firstOrderReflections: readonly FirstOrderReflection3D[];
+  secondOrderReflections: readonly SecondOrderReflection3D[];
 }>;
 
 function degrees(radians: number): number {
@@ -117,20 +123,29 @@ export function computeHybridDirectSources(
     requested.add(sourceId);
     const source = sourcesById.get(sourceId);
     if (!source) throw new Error(`Unknown Hybrid source ID requested: ${sourceId}`);
+    const path = {
+      sourceId,
+      ...solveDirectPath3D(source.position, snapshot.listenerPosition, bvh),
+    };
     return {
       sourceId,
       revision: snapshot.revision,
       staticFingerprint: snapshot.staticFingerprint,
       classicProjectionHash: snapshot.classicProjectionHash,
-      path: {
-        sourceId,
-        ...solveDirectPath3D(source.position, snapshot.listenerPosition, bvh),
-      },
+      path,
       firstOrderReflections: findFirstOrderReflections3D(
         source.position,
         snapshot.listenerPosition,
         bvh,
       ),
+      secondOrderReflections: path.directVisible
+        ? []
+        : findPrunedSecondOrderReflections3D(
+            source.position,
+            snapshot.listenerPosition,
+            bvh,
+            { maxCandidates: 6, maxRepresentativePatches: 24 },
+          ).paths,
     };
   });
 }
@@ -176,6 +191,9 @@ export function assembleHybridDirectFrame(
     paths: snapshot.sources.map(({ id }) => byId.get(id)!.path),
     firstOrderReflectionsBySource: Object.fromEntries(
       snapshot.sources.map(({ id }) => [id, byId.get(id)!.firstOrderReflections]),
+    ),
+    secondOrderReflectionsBySource: Object.fromEntries(
+      snapshot.sources.map(({ id }) => [id, byId.get(id)!.secondOrderReflections]),
     ),
   };
 }

@@ -6,6 +6,7 @@ import {
   specularReflectionAmplitude,
 } from "@/acoustics/hybrid3d/material-energy";
 import type { FirstOrderReflection3D } from "@/acoustics/hybrid3d/reflections";
+import type { SecondOrderReflection3D } from "@/acoustics/hybrid3d/second-order";
 
 export const MAX_HYBRID_EARLY_REFLECTION_TAPS = 6;
 
@@ -25,23 +26,37 @@ function lowpassHz(material: ReturnType<typeof materialForHybridReflection>): nu
  */
 export function renderHybridEarlyReflections(
   reflections: readonly FirstOrderReflection3D[],
+  secondOrderReflections: readonly SecondOrderReflection3D[] = [],
 ): readonly HybridEarlyReflectionTap[] {
-  return [...reflections]
-    .sort((left, right) =>
-      left.pathLengthM !== right.pathLengthM
-        ? left.pathLengthM - right.pathLengthM
-        : left.id.localeCompare(right.id),
-    )
-    .slice(0, MAX_HYBRID_EARLY_REFLECTION_TAPS)
-    .map((reflection) => {
+  const firstOrderTaps = reflections.map((reflection): HybridEarlyReflectionTap => {
       const material = materialForHybridReflection(reflection.materialId);
       const amplitude = specularReflectionAmplitude(material, "mid") * distanceAttenuation(reflection.pathLengthM);
       return {
         id: reflection.id,
+        order: 1,
         position: reflection.reflectionPoint,
         delayMs: reflection.delayMs,
         gainDb: linearToDb(amplitude),
         lowpassHz: lowpassHz(material),
       };
     });
+  const secondOrderTaps = secondOrderReflections.map((reflection): HybridEarlyReflectionTap => ({
+    id: reflection.id,
+    order: 2,
+    position: reflection.reflectionPoints[1],
+    delayMs: reflection.delayMs,
+    gainDb: reflection.estimatedMidGainDb,
+    lowpassHz: Math.min(...reflection.materialIds.map((id) =>
+      lowpassHz(materialForHybridReflection(id)))),
+  }));
+
+  return [...firstOrderTaps, ...secondOrderTaps]
+    .sort((left, right) =>
+      left.gainDb !== right.gainDb
+        ? right.gainDb - left.gainDb
+        : left.delayMs !== right.delayMs
+          ? left.delayMs - right.delayMs
+          : left.id.localeCompare(right.id),
+    )
+    .slice(0, MAX_HYBRID_EARLY_REFLECTION_TAPS);
 }

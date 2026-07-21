@@ -53,6 +53,39 @@ describe("Hybrid 3D direct propagation", () => {
     );
   });
 
+  it("publishes bounded second-order Image Source paths for blocked Hybrid sources", () => {
+    const scene: SceneSpec = structuredClone(CONCRETE_PARTITION_PRESET);
+    scene.listener.position = { x: 1, y: 4 };
+    scene.sources = [{ ...scene.sources[0]!, position: { x: 4, y: 4 } }];
+    scene.portals = [];
+    scene.walls = scene.walls.filter(({ id }) => id !== "partition_center");
+    const document = createSceneDocumentV2(scene, {
+      spatial3d: {
+        coordinateSystem: "x-right-y-up-z-forward",
+        floorElevationM: 0,
+        listenerHeightM: 1,
+        sourceHeightsM: { radio: 1 },
+        primitives: [{
+          id: "direct_blocker",
+          name: "Direct blocker",
+          kind: "box",
+          position: { x: 2.5, y: 1, z: 4 },
+          dimensions: { x: 0.4, y: 0.4, z: 0.4 },
+          rotationYDeg: 0,
+          materialId: "wood_medium",
+        }],
+      },
+    });
+    const geometry = compileHybridGeometry(document);
+    const frame = computeHybridDirectFrame(geometry);
+    const radio = frame.secondOrderReflectionsBySource.radio ?? [];
+
+    expect(frame.paths.find(({ sourceId }) => sourceId === "radio")?.routeType).toBe("blocked");
+    expect(radio.length).toBeGreaterThan(0);
+    expect(radio.length).toBeLessThanOrEqual(6);
+    expect(radio.every(({ reflectionPoints }) => reflectionPoints.length === 2)).toBe(true);
+  });
+
   it("retains authored source declaration order during assembly", () => {
     const document = hybridDocument(false);
     const reordered = createSceneDocumentV2({

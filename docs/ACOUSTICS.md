@@ -321,6 +321,25 @@ Rank candidates by estimated energy and keep at most six taps per source. Reject
 
 The reflection panner direction should point from listener to reflection point \(q\).
 
+### 9.0.1 Bounded Hybrid second-order reflections
+
+When a Hybrid source has no visible direct path, evaluate ordered pairs of distinct representative
+physical surfaces. Mirror the source across the first surface and then the second surface, solve the
+listener-facing second reflection point followed by the first point, and accept the path only when
+all three legs are visible in the installed BVH:
+
+\[
+s \rightarrow q_1 \rightarrow q_2 \rightarrow l
+\]
+
+Runtime search considers at most 24 representative surfaces, or 552 distinct ordered pairs. It
+prunes pairs whose image path exceeds 50 m or whose estimated mid-band specular gain is below
+-36 dB, then retains at most six deterministic candidates. First- and second-order results compete
+for the same persistent six-tap audio bank, so this feature allocates no additional AudioNodes.
+The second reflection point \(q_2\) controls the listener-facing panner direction. Third- and
+higher-order search is excluded because its pair expansion and visibility work would compromise
+interactive editing without establishing wave-acoustic accuracy.
+
 ## 9.1 Bounded basic-shape obstacles
 
 Authoring supports at most eight Box, Cylinder, or Sphere obstacles. In Classic 2.5D, every
@@ -331,8 +350,9 @@ reuse the deterministic planar engine.
 Hybrid uses finite surface patches in the existing BVH: six for a Box, fourteen for a twelve-side
 Cylinder including caps, and thirty-two for an 8-by-4 faceted Sphere. Direct-path hits retain the
 primitive surface ID, registered material, local thickness estimate, and incidence. First-order
-reflection candidates use the same finite patches and remain subject to the existing per-source
-six-tap ranking cap. Cylinder and Sphere behavior is explicitly a faceted acoustic approximation,
+reflection candidates use the same finite patches. On blocked Hybrid routes, bounded second-order
+candidates use ordered finite-patch pairs and compete within the same per-source six-tap ranking
+cap. Cylinder and Sphere behavior is explicitly a faceted acoustic approximation,
 not analytic curved-surface or wave-acoustic simulation.
 
 Disabled shapes contribute neither visible geometry nor acoustic surfaces. Shape volume is not

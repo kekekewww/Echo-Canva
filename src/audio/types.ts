@@ -115,6 +115,7 @@ export type HybridDirectAudioState = Readonly<{
 
 export type HybridEarlyReflectionTap = Readonly<{
   id: string;
+  order?: 1 | 2;
   position: SpatialPosition3;
   delayMs: number;
   gainDb: number;
