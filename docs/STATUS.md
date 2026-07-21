@@ -26,8 +26,17 @@ Verification evidence:
 - live local visitor-header request — `200`, `openai/gpt-5.6-luna`;
 - both live responses — `Cache-Control: private, no-store`.
 
-Current action: remove obsolete Vercel owner credentials, deploy the verified candidate, and test
-both public no-key and visitor-key paths.
+Production evidence:
+
+- pull request #7 merged to `main` at `d36b70f`;
+- Vercel deployment `dpl_B624v4GNiFZQcGgZ6VRALCQgZLac` is Ready and aliased to
+  `https://echo-canva.vercel.app`;
+- removed the production `OPENROUTER_API_KEY` and obsolete `AI_PROVIDER`; only non-secret timeout
+  and reasoning controls remain;
+- public no-header request — `503 AI_UNAVAILABLE`, `private, no-store`;
+- public visitor-header request — `200`, `openai/gpt-5.6-luna`, `private, no-store`.
+
+Current action: Human Gate D BYOK check on the public URL.
 
 ## Grounded explanation deterministic fallback — 2026-07-21
 
