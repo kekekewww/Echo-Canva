@@ -1,8 +1,10 @@
 import {
   COMPILE_SCENE_FAILURE_CODES,
-  USER_OPENROUTER_KEY_HEADER,
+  USER_AI_KEY_HEADER,
+  USER_AI_PROVIDER_HEADER,
   isAiModel,
   type AcousticExplanation,
+  type AiAccessCredentials,
   type AcousticExplanationFailureCode,
   type AcousticExplanationResponse,
   type CompileSceneFailure,
@@ -161,7 +163,7 @@ export async function requestSceneCompilation(
   baseScene: unknown,
   targetModeOrFetcher: SceneCompileMode | Fetcher = "classic-2d5d",
   fetcherArgument: Fetcher = fetch,
-  userApiKey?: string,
+  credentials?: AiAccessCredentials,
 ): Promise<CompileSceneResponse> {
   const targetMode = typeof targetModeOrFetcher === "function" ? "classic-2d5d" : targetModeOrFetcher;
   const fetcher = typeof targetModeOrFetcher === "function" ? targetModeOrFetcher : fetcherArgument;
@@ -171,7 +173,10 @@ export async function requestSceneCompilation(
       method: "POST",
       headers: {
         "content-type": "application/json",
-        ...(userApiKey ? { [USER_OPENROUTER_KEY_HEADER]: userApiKey } : {}),
+        ...(credentials ? {
+          [USER_AI_PROVIDER_HEADER]: credentials.provider,
+          [USER_AI_KEY_HEADER]: credentials.apiKey,
+        } : {}),
       },
       body: JSON.stringify({ prompt, baseScene, targetMode }),
     });
@@ -191,7 +196,7 @@ export async function requestSceneCompilation(
 export async function requestAcousticExplanation(
   request: ExplainAcousticsRequest,
   fetcher: Fetcher = fetch,
-  userApiKey?: string,
+  credentials?: AiAccessCredentials,
 ): Promise<AcousticExplanationResponse> {
   let response: Response;
   try {
@@ -199,7 +204,10 @@ export async function requestAcousticExplanation(
       method: "POST",
       headers: {
         "content-type": "application/json",
-        ...(userApiKey ? { [USER_OPENROUTER_KEY_HEADER]: userApiKey } : {}),
+        ...(credentials ? {
+          [USER_AI_PROVIDER_HEADER]: credentials.provider,
+          [USER_AI_KEY_HEADER]: credentials.apiKey,
+        } : {}),
       },
       body: JSON.stringify(request),
     });

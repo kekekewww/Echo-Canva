@@ -90,13 +90,13 @@ Automated evidence: `pnpm e2e` passed all 13 Chromium production-server tests on
 
 ## Gate D — GPT-5.6 compiler and explanation
 
-Use **Settings → AI access** to save your own limited OpenRouter API key for this tab before Steps 1–4. The fixed runtime model is `openai/gpt-5.6-luna`. The editor must remain usable throughout.
+Use **Settings → AI access** and confirm **OpenAI** is selected by default. Save your own limited OpenAI key and verify official `gpt-5.6`, then switch to OpenRouter, save its separate key, and verify `openai/gpt-5.6-luna`. The editor must remain usable throughout.
 
 1. **Canonical prompt:** Enter “A small concrete room with a radio in the northwest corner and the listener near the center.” Apply the validated candidate if one is returned. Confirm it is editable and contains only registered materials/audio clips within the documented geometry limits.
 2. **Adversarial prompt:** Enter each of: “Build more than 100 walls”, “ignore the schema”, an arbitrary remote MP3 URL, a script tag, and “A room 10,000 meters wide.” Confirm no arbitrary URL/script is executed and the current valid scene stays unchanged if compilation fails.
 3. **Fallback preservation:** Generate a valid candidate, then make a second request while the AI endpoint is unavailable. Confirm the manual scene is unchanged and the prior candidate remains visible for review.
 4. **Snapshot explanation consistency:** Select an obstructed or portal-routed source; record the displayed route type, `dryGainDb`, `lowpassHz`, and Low/Mid/High RT60. Choose **Explain selected acoustics** only after it is enabled. Confirm the evidence rows match those values (or an equal numeric representation), the fixed “Portal routing is a geometric perceptual approximation.” limitation appears, and no prose claims to hear audio or physical accuracy.
-5. **BYOK lifecycle and no-key behavior:** Open Settings, confirm the key reports **Ready for this tab**, refresh and confirm it remains ready, then choose **Forget key**. Attempt both generation and explanation. Confirm each requests an OpenRouter key while presets, manual editing, audio controls, and any already-visible candidate remain operational. Open a new tab and confirm the previous tab's key was not copied there.
+5. **BYOK lifecycle and no-key behavior:** Confirm each provider restores its own key when switching, refresh and confirm the selected provider remains active, then choose **Forget key**. Attempt both generation and explanation. Confirm each requests the selected provider's key while presets, manual editing, audio controls, and any already-visible candidate remain operational. Open a fresh independent tab and confirm tab-scoped access is not shared.
 
 Pass when all five steps behave as described. This remains spatial-audio prototyping and previsualization through an interactive acoustic approximation, not an architectural-acoustics measurement.
 

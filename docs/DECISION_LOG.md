@@ -1,5 +1,18 @@
 # Decision Log
 
+## D-056 — Offer an allowlisted OpenAI/OpenRouter selector with OpenAI as default
+
+Decision (2026-07-21): AI access exposes exactly two providers. OpenAI is the default and maps to
+the official Responses API with `gpt-5.6`; OpenRouter maps to its Responses-compatible endpoint with
+`openai/gpt-5.6-luna`. The browser stores a separate tab-scoped key for each provider and sends only
+the selected provider/key in `x-echo-ai-provider` and `x-echo-ai-key`. Endpoint and model identifiers
+remain server-controlled and cannot be supplied by a visitor.
+
+Reason: Users may have billing access through either provider and should not need the project owner
+to fund public requests. A two-item allowlist preserves a simple modelling-tool UI and the existing
+request-scoped BYOK boundary without becoming an arbitrary AI proxy. Separate credentials prevent a
+provider switch from accidentally sending an OpenAI key to OpenRouter or the reverse.
+
 ## D-055 — Use tab-scoped visitor OpenRouter credentials instead of an owner key
 
 Decision (2026-07-21): Optional GPT scene compilation and acoustic explanation use the visitor's

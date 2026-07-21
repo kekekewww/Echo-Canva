@@ -747,6 +747,58 @@ select {
 .workspace-settings-title > .is-ready { color: #79d2b2; }
 .workspace-settings-title > .is-offline { color: #d6a76f; }
 
+.workspace-provider-field {
+  align-items: center;
+  background: rgba(8, 19, 23, 0.72);
+  border: 1px solid rgba(125, 186, 194, 0.25);
+  border-radius: 0.35rem;
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: 5rem 1fr;
+  padding-left: 0.7rem;
+}
+
+.workspace-provider-field > span {
+  color: #78aeb5;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workspace-provider-field select {
+  background: #102027;
+  border: 0;
+  border-left: 1px solid rgba(125, 186, 194, 0.25);
+  border-radius: 0 0.35rem 0.35rem 0;
+  color: #e8f0f1;
+  font: 700 0.78rem var(--mono);
+  min-width: 0;
+  padding: 0.68rem 0.75rem;
+}
+
+.workspace-provider-field select:focus {
+  box-shadow: inset 0 0 0 2px rgba(114, 203, 211, 0.3);
+  outline: none;
+}
+
+.workspace-provider-credentials {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.workspace-provider-model {
+  align-items: center;
+  color: #8fa7ab;
+  display: flex;
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  gap: 0.6rem;
+}
+
+.workspace-provider-model span { color: #5e848a; letter-spacing: 0.1em; }
+.workspace-provider-model code { color: #a6dbe0; overflow-wrap: anywhere; }
+
 .workspace-key-field {
   display: grid;
   gap: 0.35rem;

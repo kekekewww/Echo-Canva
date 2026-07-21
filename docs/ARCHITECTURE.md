@@ -188,9 +188,9 @@ Input:
 
 Behavior:
 
-1. validate the visitor's tab-scoped OpenRouter key from the private request header;
+1. validate the allowlisted provider (OpenAI by default, or OpenRouter) and its tab-scoped visitor key from private request headers;
 2. normalize and length-limit text;
-3. call the fixed `openai/gpt-5.6-luna` model with strict Structured Outputs;
+3. call the provider's fixed model—official `gpt-5.6` or OpenRouter `openai/gpt-5.6-luna`—with strict Structured Outputs;
 4. validate JSON Schema;
 5. validate domain constraints;
 6. optionally call once more with machine-readable validation errors;
@@ -245,7 +245,7 @@ No database.
 - deploy a Vercel-compatible build;
 - keep all audio and preset data local to the app;
 - do not configure a shared AI provider credential in the deployment;
-- keep a visitor-supplied OpenRouter key in that tab's `sessionStorage` only, transmit it over HTTPS in `x-echo-openrouter-key`, and create a request-scoped server adapter for the fixed `openai/gpt-5.6-luna` model;
+- keep separate OpenAI and OpenRouter visitor keys plus the allowlisted provider selection in that tab's `sessionStorage` only; transmit only the active provider/key over HTTPS in `x-echo-ai-provider` and `x-echo-ai-key`, then create a request-scoped adapter for its fixed model;
 - mark AI responses `private, no-store` and never log, persist, return, export, or copy the key into project state;
 - when OpenAI is unavailable, manual editing and presets still work;
 - when a Worker pool is unavailable, complete deterministic serial fallback keeps the matching acoustic frame, audio, overlays, and authoring available while the UI reports `Fallback`;

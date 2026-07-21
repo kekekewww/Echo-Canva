@@ -280,9 +280,10 @@ Explanation failures are `{ "ok": false, "error": { "code": "...", "message": ".
 
 Scene compilation:
 
-- fixed model: `openai/gpt-5.6-luna` through OpenRouter's Responses-compatible endpoint;
-- require a visitor-supplied OpenRouter key in the `x-echo-openrouter-key` request header;
-- never accept a browser-supplied provider, endpoint, or model ID;
+- allowlisted providers: OpenAI (default) and OpenRouter;
+- OpenAI uses the official Responses API with fixed `gpt-5.6`; OpenRouter uses its Responses-compatible endpoint with fixed `openai/gpt-5.6-luna`;
+- require the selected provider in `x-echo-ai-provider` and its visitor-supplied key in `x-echo-ai-key`;
+- never accept a browser-supplied endpoint or model ID, and reject providers outside the two-item allowlist;
 - create the provider client per request; do not use a deployment-owner credential or persist the visitor key;
 - Responses API;
 - reasoning effort: medium;
@@ -295,7 +296,7 @@ Scene compilation:
 
 Explanation:
 
-- fixed model: `openai/gpt-5.6-luna` through the same request-scoped OpenRouter adapter;
+- use the same allowlisted request provider: official OpenAI `gpt-5.6` or OpenRouter `openai/gpt-5.6-luna`;
 - low reasoning effort is usually sufficient;
 - structured response;
 - temperature/control settings only if supported by the selected API configuration;
@@ -306,7 +307,7 @@ Explanation:
 ## Security
 
 - no OpenAI/OpenRouter key is embedded in the client bundle or configured as a shared deployment secret;
-- the visitor key is retained only in the current tab's `sessionStorage`, sent in `x-echo-openrouter-key` over HTTPS, and used by a request-scoped server client;
+- provider selection and separate provider keys are retained only in the current tab's `sessionStorage`; only the active provider and key are sent in `x-echo-ai-provider` and `x-echo-ai-key` over HTTPS and used by a request-scoped server client;
 - AI responses use `Cache-Control: private, no-store`;
 - reject oversized or malformed bodies;
 - basic per-IP/session rate limit;

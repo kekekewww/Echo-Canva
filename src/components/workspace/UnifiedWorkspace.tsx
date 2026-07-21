@@ -22,34 +22,60 @@ import { AudioEngine } from "@/audio/AudioEngine";
 import type { PreviewMode } from "@/domain/editor/state";
 import { projectClassicScene } from "@/domain/workspace/projections";
 import { useAudioEngine } from "@/hooks/useAudioEngine";
+import type { AiProvider } from "@/ai/contracts";
 
-const API_KEY_STORAGE_KEY = "echo-canvas:openrouter-api-key:v1";
-const API_KEY_CHANGE_EVENT = "echo-canvas:openrouter-api-key-change";
-let memoryApiKey = "";
+const AI_PROVIDER_STORAGE_KEY = "echo-canvas:ai-provider:v1";
+const API_KEY_STORAGE_KEYS: Readonly<Record<AiProvider, string>> = {
+  openai: "echo-canvas:openai-api-key:v1",
+  openrouter: "echo-canvas:openrouter-api-key:v1",
+};
+const AI_ACCESS_CHANGE_EVENT = "echo-canvas:ai-access-change";
+let memoryProvider: AiProvider = "openai";
+const memoryApiKeys: Record<AiProvider, string> = { openai: "", openrouter: "" };
 
-function readApiKey(): string {
-  if (typeof window === "undefined") return "";
+function readAiProvider(): AiProvider {
+  if (typeof window === "undefined") return "openai";
   try {
-    return window.sessionStorage.getItem(API_KEY_STORAGE_KEY) ?? memoryApiKey;
+    const stored = window.sessionStorage.getItem(AI_PROVIDER_STORAGE_KEY);
+    return stored === "openrouter" || stored === "openai" ? stored : memoryProvider;
   } catch {
-    return memoryApiKey;
+    return memoryProvider;
   }
 }
 
-function subscribeApiKey(onChange: () => void): () => void {
-  window.addEventListener(API_KEY_CHANGE_EVENT, onChange);
-  return () => window.removeEventListener(API_KEY_CHANGE_EVENT, onChange);
+function readApiKey(provider: AiProvider): string {
+  if (typeof window === "undefined") return "";
+  try {
+    return window.sessionStorage.getItem(API_KEY_STORAGE_KEYS[provider]) ?? memoryApiKeys[provider];
+  } catch {
+    return memoryApiKeys[provider];
+  }
 }
 
-function publishApiKey(nextApiKey: string): void {
-  memoryApiKey = nextApiKey;
+function subscribeAiAccess(onChange: () => void): () => void {
+  window.addEventListener(AI_ACCESS_CHANGE_EVENT, onChange);
+  return () => window.removeEventListener(AI_ACCESS_CHANGE_EVENT, onChange);
+}
+
+function notifyAiAccessChanged(): void {
+  window.dispatchEvent(new Event(AI_ACCESS_CHANGE_EVENT));
+}
+
+function publishAiProvider(provider: AiProvider): void {
+  memoryProvider = provider;
+  try { window.sessionStorage.setItem(AI_PROVIDER_STORAGE_KEY, provider); } catch { /* memory-only */ }
+  notifyAiAccessChanged();
+}
+
+function publishApiKey(provider: AiProvider, nextApiKey: string): void {
+  memoryApiKeys[provider] = nextApiKey;
   try {
-    if (nextApiKey) window.sessionStorage.setItem(API_KEY_STORAGE_KEY, nextApiKey);
-    else window.sessionStorage.removeItem(API_KEY_STORAGE_KEY);
+    if (nextApiKey) window.sessionStorage.setItem(API_KEY_STORAGE_KEYS[provider], nextApiKey);
+    else window.sessionStorage.removeItem(API_KEY_STORAGE_KEYS[provider]);
   } catch {
     // Some privacy modes disable sessionStorage; retain the key in memory for this page only.
   }
-  window.dispatchEvent(new Event(API_KEY_CHANGE_EVENT));
+  notifyAiAccessChanged();
 }
 
 export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: WorkspaceMode }>) {
@@ -72,7 +98,8 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
   const [audioError, setAudioError] = useState<string | null>(null);
   const [confirmReset, setConfirmReset] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const apiKey = useSyncExternalStore(subscribeApiKey, readApiKey, () => "");
+  const aiProvider = useSyncExternalStore<AiProvider>(subscribeAiAccess, readAiProvider, () => "openai");
+  const apiKey = useSyncExternalStore(subscribeAiAccess, () => readApiKey(aiProvider), () => "");
   const [confirmClearAll, setConfirmClearAll] = useState(false);
   const [mobilePanel, setMobilePanel] = useState<"outliner" | "inspector" | null>(null);
   const [acousticStatus, setAcousticStatus] = useState<WorkspaceAcousticStatus | null>(null);
@@ -99,12 +126,18 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
 
   useEffect(() => installGateCAudioRenderValidation(), []);
 
-  function saveApiKey(nextApiKey: string): void {
-    publishApiKey(nextApiKey);
+  function saveApiKey(provider: AiProvider, nextApiKey: string): void {
+    publishApiKey(provider, nextApiKey);
   }
 
-  function forgetApiKey(): void {
-    publishApiKey("");
+  function forgetApiKey(provider: AiProvider): void {
+    publishApiKey(provider, "");
+  }
+
+  function clearAiAccess(): void {
+    publishApiKey("openai", "");
+    publishApiKey("openrouter", "");
+    publishAiProvider("openai");
   }
 
   useEffect(() => {
@@ -317,17 +350,19 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
       {confirmReset ? <div className="workspace-confirm-card workspace-floating-card" role="alertdialog" aria-label="Reset active project"><strong>Reset {workspace.activeMode === "hybrid-3d" ? "3D" : "2.5D"} project?</strong><p>The other mode and local audio stay unchanged.</p><button autoFocus onClick={() => { workspace.resetActiveProject(); setConfirmReset(false); }} type="button">Reset project</button><button onClick={() => setConfirmReset(false)} type="button">Cancel</button></div> : null}
       {settingsOpen ? <WorkspaceSettingsDialog
         apiKey={apiKey}
+        provider={aiProvider}
         confirmClearAll={confirmClearAll}
         onCancelClearAll={() => setConfirmClearAll(false)}
         onClearAll={() => setConfirmClearAll(true)}
         onClose={() => { setConfirmClearAll(false); setSettingsOpen(false); }}
         onConfirmClearAll={() => void audioLibrary.clear().then(() => {
           workspace.clearAllProjects();
-          forgetApiKey();
+          clearAiAccess();
           setConfirmClearAll(false);
           setSettingsOpen(false);
         })}
         onForgetKey={forgetApiKey}
+        onProviderChange={publishAiProvider}
         onSaveKey={saveApiKey}
       /> : null}
       {audioError ? <div className="workspace-error" role="alert">{audioError} <button onClick={() => void togglePlaying()} type="button">Retry</button></div> : null}
@@ -380,6 +415,7 @@ export function UnifiedWorkspace({ initialMode }: Readonly<{ initialMode?: Works
           />}
         <ContextInspector
           apiKey={apiKey}
+          aiProvider={aiProvider}
           dispatch={workspace.dispatch}
           localAssets={Object.values({
             ...workspace.activeProject.localAudioMetadata,

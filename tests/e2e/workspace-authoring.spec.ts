@@ -68,13 +68,17 @@ test("exports, imports, and safely rejects complete authoring JSON", async ({ pa
 test("compiles and applies a validated AI candidate", async ({ page }) => {
   const apiKey = "sk-or-v1-browser-key-1234567890";
   let suppliedKey: string | undefined;
+  let suppliedProvider: string | undefined;
   await page.route("**/api/scene/compile", async (route) => {
-    suppliedKey = route.request().headers()["x-echo-openrouter-key"];
+    suppliedKey = route.request().headers()["x-echo-ai-key"];
+    suppliedProvider = route.request().headers()["x-echo-ai-provider"];
     const body = await route.request().postDataJSON() as { baseScene: object };
     await route.fulfill({ json: { ok: true, scene: { ...body.baseScene, name: "AI Studio" }, model: "gpt-5.6", repairAttempted: false, warnings: [] } });
   });
   await page.goto("/");
   await page.getByRole("button", { name: "Settings" }).click();
+  await expect(page.getByLabel("AI provider")).toHaveValue("openai");
+  await page.getByLabel("AI provider").selectOption("openrouter");
   await page.getByLabel("OpenRouter API key").fill(apiKey);
   await page.getByRole("button", { name: "Save for this tab" }).click();
   await expect(page.getByRole("dialog", { name: "Workspace settings" })).toContainText("Ready for this tab");
@@ -86,9 +90,11 @@ test("compiles and applies a validated AI candidate", async ({ page }) => {
   await page.getByRole("button", { name: "Apply AI Studio" }).click();
   await expect(page.getByTestId("classic-workspace-viewport")).toContainText("AI Studio");
   expect(suppliedKey).toBe(apiKey);
+  expect(suppliedProvider).toBe("openrouter");
 
   await page.reload();
   await page.getByRole("button", { name: "Settings" }).click();
+  await expect(page.getByLabel("AI provider")).toHaveValue("openrouter");
   await expect(page.getByLabel("OpenRouter API key")).toHaveValue(apiKey);
   await page.getByRole("button", { name: "Forget key" }).click();
   await expect(page.getByRole("dialog", { name: "Workspace settings" })).toContainText("Not configured");

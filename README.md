@@ -4,7 +4,7 @@ Echo Canvas is a browser-based spatial-audio prototyping and previsualization to
 
 The product is an **interactive acoustic approximation**. It is not an architectural-acoustics measurement tool and does not claim physically accurate diffraction.
 
-**Public demo:** [echo-canva.vercel.app](https://echo-canva.vercel.app) — use a current desktop Chrome or Edge browser and headphones. No installation or account is required. Presets, manual editing, and deterministic audio work without a key; optional GPT features use each visitor's own OpenRouter key.
+**Public demo:** [echo-canva.vercel.app](https://echo-canva.vercel.app) — use a current desktop Chrome or Edge browser and headphones. No installation or account is required. Presets, manual editing, and deterministic audio work without a key; optional GPT features use each visitor's own provider key.
 
 ## Unified modelling workspace
 
@@ -38,11 +38,11 @@ Open `http://127.0.0.1:3000`. No account, API key, or network audio asset is req
 
 ### Optional AI access (bring your own key)
 
-Open **Settings → AI access**, paste your own OpenRouter API key, and choose **Save for this tab**. Scene compilation and acoustic explanation then use the fixed `openai/gpt-5.6-luna` model. No owner or deployment API key is used.
+Open **Settings → AI access**, choose a provider, paste your own API key, and choose **Save for this tab**. **OpenAI** is the default and uses official `gpt-5.6`; **OpenRouter** uses `openai/gpt-5.6-luna`. Provider and model are fixed to this two-item allowlist—visitors cannot supply an endpoint or model ID. No owner or deployment API key is used.
 
-The key is held only in the current tab's `sessionStorage`; it is not included in project cache, JSON exports, source files, or server persistence. AI requests send it over HTTPS to the same-origin server route, which creates a request-scoped OpenRouter client. The application code does not log, return, or retain the key after that request. **Forget key** removes it immediately, and closing the tab clears it automatically.
+Each provider has a separate key held only in the current tab's `sessionStorage`; keys are not included in project cache, JSON exports, source files, or server persistence. AI requests send only the selected provider and its key over HTTPS to the same-origin server route, which creates a request-scoped client. The application code does not log, return, or retain the key after that request. **Forget key** removes the active provider's key immediately, and closing the tab clears tab-scoped access automatically.
 
-Like any browser-held secret, the key is visible to the user in their own browser developer tools and could be exposed by a successful same-origin script injection. Use a limited OpenRouter key with an appropriate spending cap. The application remains fully usable in preset/manual mode without a key.
+Like any browser-held secret, a key is visible to its owner in browser developer tools and could be exposed by a successful same-origin script injection. Use a limited key with an appropriate spending cap. The application remains fully usable in preset/manual mode without a key.
 
 ### Scene transfer
 

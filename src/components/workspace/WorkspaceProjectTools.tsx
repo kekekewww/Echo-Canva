@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { requestAcousticExplanation, requestSceneCompilation } from "@/ai/client";
-import type { AcousticExplanation, CompileSceneSuccess } from "@/ai/contracts";
+import type { AcousticExplanation, AiProvider, CompileSceneSuccess } from "@/ai/contracts";
 import { computeAcousticFrame } from "@/acoustics/compute-frame";
 import { HintCard } from "@/components/workspace/HintCard";
 import { PRESETS, type PresetId } from "@/domain/presets";
@@ -12,10 +12,11 @@ import type { ProjectAction, WorkspaceProject } from "@/domain/workspace/types";
 import type { LocalAudioMetadata } from "@/domain/workspace/transfer";
 import { parseWorkspaceProject, serializeWorkspaceProject } from "@/domain/workspace/transfer";
 
-export function WorkspaceProjectTools({ project, dispatch, apiKey, localAssets = [] }: Readonly<{
+export function WorkspaceProjectTools({ project, dispatch, aiProvider, apiKey, localAssets = [] }: Readonly<{
   project: WorkspaceProject;
   dispatch: (action: ProjectAction) => void;
   apiKey: string;
+  aiProvider: AiProvider;
   localAssets?: readonly LocalAudioMetadata[];
 }>) {
   const [prompt, setPrompt] = useState("");
@@ -55,7 +56,7 @@ export function WorkspaceProjectTools({ project, dispatch, apiKey, localAssets =
   async function generate(): Promise<void> {
     setStatus("Generating…");
     const baseScene = project.mode === "hybrid-3d" ? projectHybridDocument(project) : scene;
-    const result = await requestSceneCompilation(prompt, baseScene, project.mode, fetch, apiKey);
+    const result = await requestSceneCompilation(prompt, baseScene, project.mode, fetch, { provider: aiProvider, apiKey });
     if (!result.ok) {
       setStatus(result.error.message);
       return;
@@ -83,7 +84,7 @@ export function WorkspaceProjectTools({ project, dispatch, apiKey, localAssets =
         portalCount: sourceFrame.portalIds.length,
         rt60S: frame.room.rt60S,
       },
-    }, fetch, apiKey);
+    }, fetch, { provider: aiProvider, apiKey });
     if (!result.ok) {
       setStatus(result.error.message);
       return;
