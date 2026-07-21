@@ -23,6 +23,20 @@ const groundedExplanation = {
 };
 
 describe("POST /api/scene/explain", () => {
+  it("requires a user key and marks the response private", async () => {
+    const response = await handleExplainRequest(new Request("http://test/api/scene/explain", {
+      method: "POST",
+      body: JSON.stringify(validBody),
+    }));
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    await expect(response.json()).resolves.toMatchObject({
+      ok: false,
+      error: { message: "Add your OpenRouter API key in Settings to explain acoustics." },
+    });
+  });
+
   it("returns an unavailable typed error without calling OpenAI", async () => {
     const generateExplanation = vi.fn();
     const response = await handleExplainRequest(

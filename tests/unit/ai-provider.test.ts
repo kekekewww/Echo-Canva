@@ -3,38 +3,33 @@ import { describe, expect, it } from "vitest";
 import { OPENROUTER_BASE_URL, getAiProviderConfig } from "@/ai/provider";
 
 describe("getAiProviderConfig", () => {
-  it("keeps OpenAI as the default provider", () => {
-    expect(getAiProviderConfig({ OPENAI_API_KEY: "official-key" })).toEqual({
-      provider: "openai",
-      apiKey: "official-key",
-      compilerModel: "gpt-5.6",
-      explainerModel: "gpt-5.6",
-    });
-  });
-
-  it("selects the fixed Luna model only when OpenRouter is explicit", () => {
-    expect(
-      getAiProviderConfig({
-        AI_PROVIDER: "openrouter",
-        OPENROUTER_API_KEY: "router-key",
-        OPENAI_API_KEY: "official-key",
-      }),
-    ).toEqual({
+  it("builds a fixed Luna config from a user-supplied OpenRouter key", () => {
+    expect(getAiProviderConfig("sk-or-v1-user-key-1234567890")).toEqual({
       provider: "openrouter",
-      apiKey: "router-key",
+      apiKey: "sk-or-v1-user-key-1234567890",
       baseURL: OPENROUTER_BASE_URL,
       compilerModel: "openai/gpt-5.6-luna",
       explainerModel: "openai/gpt-5.6-luna",
     });
   });
 
-  it("does not silently fall back to another provider when the selected provider has no key", () => {
-    expect(
-      getAiProviderConfig({ AI_PROVIDER: "openrouter", OPENAI_API_KEY: "official-key" }),
-    ).toBeNull();
+  it("does not accept deployment environment credentials", () => {
+    expect(getAiProviderConfig({
+      AI_PROVIDER: "openrouter",
+      OPENROUTER_API_KEY: "sk-or-v1-owner-key-1234567890",
+    } as never)).toBeNull();
   });
 
-  it("rejects unknown provider values into preset/manual mode", () => {
-    expect(getAiProviderConfig({ AI_PROVIDER: "untrusted", OPENAI_API_KEY: "official-key" })).toBeNull();
+  it.each([null, "", "short", "key with spaces", "sk-or-v1-<script>"])(
+    "rejects an absent or malformed user key: %s",
+    (key) => {
+      expect(getAiProviderConfig(key)).toBeNull();
+    },
+  );
+
+  it("trims a valid user key", () => {
+    expect(getAiProviderConfig("  sk-or-v1-user-key-1234567890  ")?.apiKey).toBe(
+      "sk-or-v1-user-key-1234567890",
+    );
   });
 });

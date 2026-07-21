@@ -4,7 +4,7 @@ Echo Canvas is a browser-based spatial-audio prototyping and previsualization to
 
 The product is an **interactive acoustic approximation**. It is not an architectural-acoustics measurement tool and does not claim physically accurate diffraction.
 
-**Public demo:** [echo-canva.vercel.app](https://echo-canva.vercel.app) — use a current desktop Chrome or Edge browser and headphones. No installation, account, or user-supplied API key is required.
+**Public demo:** [echo-canva.vercel.app](https://echo-canva.vercel.app) — use a current desktop Chrome or Edge browser and headphones. No installation or account is required. Presets, manual editing, and deterministic audio work without a key; optional GPT features use each visitor's own OpenRouter key.
 
 ## Unified modelling workspace
 
@@ -36,18 +36,13 @@ pnpm dev
 
 Open `http://127.0.0.1:3000`. No account, API key, or network audio asset is required for presets and manual editing. Audio begins only after **Play** is pressed.
 
-### Optional AI configuration
+### Optional AI access (bring your own key)
 
-The key is server-side only. Never paste it into the browser, chat, source files, or Git. The application remains fully usable in preset/manual mode without a key.
+Open **Settings → AI access**, paste your own OpenRouter API key, and choose **Save for this tab**. Scene compilation and acoustic explanation then use the fixed `openai/gpt-5.6-luna` model. No owner or deployment API key is used.
 
-For the owner's OpenRouter Luna test configuration, create/edit `.env.local`:
+The key is held only in the current tab's `sessionStorage`; it is not included in project cache, JSON exports, source files, or server persistence. AI requests send it over HTTPS to the same-origin server route, which creates a request-scoped OpenRouter client. The application code does not log, return, or retain the key after that request. **Forget key** removes it immediately, and closing the tab clears it automatically.
 
-```env
-AI_PROVIDER=openrouter
-OPENROUTER_API_KEY=sk-or-v1-...
-```
-
-This explicitly selects `openai/gpt-5.6-luna` for both scene compilation and acoustic explanation. Restart the local server after saving the file. To use the canonical OpenAI configuration instead, omit `AI_PROVIDER` (or set it to `openai`) and set `OPENAI_API_KEY`. OpenRouter is an opt-in compatibility-test path; the existing no-key fallback remains available if any provider request fails.
+Like any browser-held secret, the key is visible to the user in their own browser developer tools and could be exposed by a successful same-origin script injection. Use a limited OpenRouter key with an appropriate spending cap. The application remains fully usable in preset/manual mode without a key.
 
 ### Scene transfer
 

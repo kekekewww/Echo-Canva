@@ -4,6 +4,7 @@ import OpenAI from "openai";
 
 import {
   ACOUSTIC_EXPLAINER_MODEL,
+  USER_OPENROUTER_KEY_HEADER,
   type ExplainAcousticsRequest,
   type ExplainDependencies,
   type ExplainSchemaPrompt,
@@ -17,6 +18,7 @@ export const runtime = "nodejs";
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_REQUESTS = 10;
 const DEFAULT_TIMEOUT_MS = 30_000;
+const PRIVATE_RESPONSE_HEADERS = { "Cache-Control": "private, no-store" } as const;
 
 class ModelRefusalError extends Error {
   constructor() {
@@ -41,7 +43,10 @@ type FailureCode =
   | "RATE_LIMITED";
 
 function jsonFailure(code: FailureCode, message: string, status: number): Response {
-  return Response.json({ ok: false, error: { code, message } }, { status });
+  return Response.json(
+    { ok: false, error: { code, message } },
+    { status, headers: PRIVATE_RESPONSE_HEADERS },
+  );
 }
 
 function requestTimeoutMs(): number {
@@ -95,8 +100,10 @@ function derivedClientKey(request: Request): string {
   return createHash("sha256").update(`${forwardedFor}\n${userAgent}`).digest("hex");
 }
 
-function createDefaultDependencies(): ExplainRouteDependencies {
-  const config = getAiProviderConfig();
+const defaultLimiter = createSlidingWindowLimiter(RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS);
+
+function createDefaultDependencies(request: Request): ExplainRouteDependencies {
+  const config = getAiProviderConfig(request.headers.get(USER_OPENROUTER_KEY_HEADER));
   return {
     available: Boolean(config),
     model: config?.explainerModel ?? ACOUSTIC_EXPLAINER_MODEL,
@@ -105,12 +112,10 @@ function createDefaultDependencies(): ExplainRouteDependencies {
       : async () => {
           throw new Error("OpenAI is unavailable.");
         },
-    limiter: createSlidingWindowLimiter(RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS),
+    limiter: defaultLimiter,
     clientKey: derivedClientKey,
   };
 }
-
-const defaultDependencies = createDefaultDependencies();
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -159,8 +164,9 @@ function isModelRefusal(error: unknown): boolean {
 
 export async function handleExplainRequest(
   request: Request,
-  dependencies: ExplainRouteDependencies = defaultDependencies,
+  dependencies?: ExplainRouteDependencies,
 ): Promise<Response> {
+  const activeDependencies = dependencies ?? createDefaultDependencies(request);
   if (request.method !== "POST") {
     return jsonFailure("INVALID_REQUEST", "Only POST is supported.", 405);
   }
@@ -174,7 +180,7 @@ export async function handleExplainRequest(
     return jsonFailure("INVALID_REQUEST", "Explanation request must contain a finite acoustic snapshot.", 400);
   }
 
-  const rateLimit = dependencies.limiter.check(dependencies.clientKey(request), Date.now());
+  const rateLimit = activeDependencies.limiter.check(activeDependencies.clientKey(request), Date.now());
   if (!rateLimit.allowed) {
     return Response.json(
       {
@@ -182,17 +188,26 @@ export async function handleExplainRequest(
         error: { code: "RATE_LIMITED", message: "Too many explanation requests. Try again shortly." },
         retryAfterMs: rateLimit.retryAfterMs,
       },
-      { status: 429, headers: { "Retry-After": String(Math.ceil(rateLimit.retryAfterMs / 1_000)) } },
+      {
+        status: 429,
+        headers: {
+          ...PRIVATE_RESPONSE_HEADERS,
+          "Retry-After": String(Math.ceil(rateLimit.retryAfterMs / 1_000)),
+        },
+      },
     );
   }
 
-  if (!dependencies.available) {
-    return jsonFailure("AI_UNAVAILABLE", "AI explanations are unavailable. Keep editing manually.", 503);
+  if (!activeDependencies.available) {
+    return jsonFailure("AI_UNAVAILABLE", "Add your OpenRouter API key in Settings to explain acoustics.", 503);
   }
 
   try {
-    const result = await explainAcoustics(body, dependencies);
-    return Response.json(result, { status: result.ok ? 200 : 422 });
+    const result = await explainAcoustics(body, activeDependencies);
+    return Response.json(result, {
+      status: result.ok ? 200 : 422,
+      headers: PRIVATE_RESPONSE_HEADERS,
+    });
   } catch (error) {
     if (isTimeout(error)) {
       return jsonFailure("AI_TIMEOUT", "The acoustic explanation timed out. Try again.", 504);

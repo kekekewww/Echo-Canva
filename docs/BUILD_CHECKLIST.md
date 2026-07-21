@@ -138,7 +138,7 @@ Each item is complete only when its Acceptance and Verify sections pass.
 - [ ] **11. Stabilize performance, security, compatibility, and deployment**
   Spec ref: `ARCHITECTURE.md > Performance budgets`
   What to build: profiling, remove steady-state allocations, error boundaries, API input limits, server-only key check, production deployment, browser smoke tests, asset/license audit.
-  Acceptance: Production URL loads; p95 Worker time is under budget in the 100-wall fixture; no API key is shipped to browser; no uncaught console errors; all tests and production build pass.
+  Acceptance: Production URL loads; p95 Worker time is under budget in the 100-wall fixture; no shared/deployment API key is shipped to the browser; a visitor key is tab-scoped and absent from project/export state; no uncaught console errors; all tests and production build pass.
   Verify:
   ```bash
   pnpm lint

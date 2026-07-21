@@ -280,9 +280,10 @@ Explanation failures are `{ "ok": false, "error": { "code": "...", "message": ".
 
 Scene compilation:
 
-- canonical model: `gpt-5.6` through the OpenAI Responses API;
-- optional local test provider: fixed `openai/gpt-5.6-luna` through OpenRouter's Responses-compatible endpoint, selected only by server-side `AI_PROVIDER=openrouter` and `OPENROUTER_API_KEY`;
-- never accept a browser-supplied provider, endpoint, model ID, or API key;
+- fixed model: `openai/gpt-5.6-luna` through OpenRouter's Responses-compatible endpoint;
+- require a visitor-supplied OpenRouter key in the `x-echo-openrouter-key` request header;
+- never accept a browser-supplied provider, endpoint, or model ID;
+- create the provider client per request; do not use a deployment-owner credential or persist the visitor key;
 - Responses API;
 - reasoning effort: medium;
 - strict Structured Outputs;
@@ -294,7 +295,7 @@ Scene compilation:
 
 Explanation:
 
-- canonical model: `gpt-5.6`; optional OpenRouter local-test model: fixed `openai/gpt-5.6-luna`;
+- fixed model: `openai/gpt-5.6-luna` through the same request-scoped OpenRouter adapter;
 - low reasoning effort is usually sufficient;
 - structured response;
 - temperature/control settings only if supported by the selected API configuration;
@@ -304,10 +305,12 @@ Explanation:
 
 ## Security
 
-- OpenAI/OpenRouter keys server-side only;
+- no OpenAI/OpenRouter key is embedded in the client bundle or configured as a shared deployment secret;
+- the visitor key is retained only in the current tab's `sessionStorage`, sent in `x-echo-openrouter-key` over HTTPS, and used by a request-scoped server client;
+- AI responses use `Cache-Control: private, no-store`;
 - reject oversized or malformed bodies;
 - basic per-IP/session rate limit;
-- do not log raw API keys;
+- do not log, return, persist, cache, export, or copy raw API keys into project state;
 - avoid logging user audio;
 - no arbitrary remote audio URLs;
 - render model prose as text and reject unsafe model text server-side;

@@ -1,5 +1,34 @@
 # Status
 
+## Visitor-provided OpenRouter access — 2026-07-21
+
+- replaced the deployment-owner OpenRouter credential with a per-visitor BYOK flow in
+  **Settings → AI access**;
+- stores the validated key in the current tab's `sessionStorage` only, with show/hide, save, and
+  immediate forget controls;
+- sends the key only in the same-origin `x-echo-openrouter-key` request header and keeps it out of
+  request bodies, project caches, JSON exports, source code, and provider responses;
+- creates the fixed `openai/gpt-5.6-luna` OpenRouter adapter per request and ignores any legacy
+  `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, or `AI_PROVIDER` deployment environment values;
+- marks all compile/explain responses `Cache-Control: private, no-store` and preserves the complete
+  preset/manual fallback when no key is present;
+- added unit coverage for key normalization, header transport, environment-key rejection, and
+  no-store missing-key responses, plus browser coverage for save, refresh, request use, and forget.
+
+Verification evidence:
+
+- `pnpm lint` — PASS;
+- `pnpm typecheck` — PASS;
+- `pnpm test` — PASS, 69 files / 520 tests;
+- `pnpm build` — PASS;
+- `pnpm e2e` — PASS, 45/45 Chromium tests;
+- live local no-header request — `503 AI_UNAVAILABLE`, even while a legacy environment key exists;
+- live local visitor-header request — `200`, `openai/gpt-5.6-luna`;
+- both live responses — `Cache-Control: private, no-store`.
+
+Current action: remove obsolete Vercel owner credentials, deploy the verified candidate, and test
+both public no-key and visitor-key paths.
+
 ## Grounded explanation deterministic fallback — 2026-07-21
 
 - reproduced intermittent production 422 responses with the deployed OpenRouter model;
