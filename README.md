@@ -4,6 +4,8 @@ Echo Canvas is a browser-based spatial-audio prototyping and previsualization to
 
 The product is an **interactive acoustic approximation**. It is not an architectural-acoustics measurement tool and does not claim physically accurate diffraction.
 
+**Public demo:** [echo-canva.vercel.app](https://echo-canva.vercel.app) — use a current desktop Chrome or Edge browser and headphones. No installation, account, or user-supplied API key is required.
+
 ## Unified modelling workspace
 
 - Switch **2.5D / 3D** without converting or overwriting either project. Each mode is restored from its own versioned local cache.

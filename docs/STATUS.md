@@ -1,5 +1,15 @@
 # Status
 
+## Devpost CLI submission preparation — 2026-07-21
+
+- added the judge-testable production URL to the README and Devpost submission package
+- confirmed the public GitHub repository carries the MIT license and complete English setup/testing guidance
+- `pnpm lint`, `pnpm typecheck`, and `pnpm test` — PASS, 69 unit files / 508 tests
+- production build and Chromium acceptance — PASS, 45/45 tests
+- the first browser-suite attempt was blocked only by the already-running local production server on port 3000; after stopping that verified EchoCanvas process, the complete suite passed
+
+Current action: publish the verified branch to `main`, configure the production AI environment, deploy the release candidate, and collect the owner-supplied public YouTube URL and principal `/feedback` Session ID.
+
 ## Classic 2.5D collision and bounded second-order repair — 2026-07-21
 
 - reproduced a finite collinear Wall/shape-footprint segment being missed by the ordinary

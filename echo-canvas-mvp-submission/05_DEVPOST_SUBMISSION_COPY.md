@@ -46,7 +46,7 @@
 
 ## Testing Instructions
 
-> 1. Open [PUBLIC_DEMO_URL] in a current desktop Chrome or Edge browser and wear headphones.
+> 1. Open https://echo-canva.vercel.app in a current desktop Chrome or Edge browser and wear headphones.
 > 2. Click Play, load the Concrete Partition preset, and move the active listener behind the wall.
 > 3. Compare Raw with Simulated, then open the portal and inspect the perceived direction and route overlay.
 > 4. Switch to 3D, drag a source or listener in X/Z and use Shift-drag for Y; inspect wall, floor, and ceiling first-order paths.
