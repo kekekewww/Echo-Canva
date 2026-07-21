@@ -113,7 +113,10 @@ export type AcousticExplanation = Readonly<{
 
 export type ExplainDependencies = Readonly<{
   model?: AiModel;
-  generateExplanation(schemaPrompt: ExplainSchemaPrompt): Promise<unknown>;
+  generateExplanation(
+    schemaPrompt: ExplainSchemaPrompt,
+    repairErrors?: readonly string[],
+  ): Promise<unknown>;
 }>;
 
 export type AcousticExplanationFailureCode =

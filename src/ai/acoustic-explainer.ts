@@ -87,12 +87,12 @@ function hasOnlyProjectedNumbers(value: string, snapshot: AcousticSnapshotProjec
     return false;
   }
   const allowed = projectedNumbers(snapshot);
-  const numericTokens = value.match(/(?<![A-Za-z_])[-+]?(?:\d+(?:\.\d+)?|\.\d+)(?![A-Za-z_])/g) ?? [];
+  const numericTokens = value.match(/(?<![A-Za-z\d_])[-+]?(?:\d+(?:\.\d+)?|\.\d+)(?![A-Za-z\d_])/g) ?? [];
   return numericTokens.every((token) => allowed.some((number) => Number(token) === number));
 }
 
 function isUnsupportedClaim(value: string): boolean {
-  return /\b(?:heard|listen(?:ed|ing)?|sound(?:s|ed|ing)?|audible|perceive(?:d|s|ing)?|realistic|lifelike|accurate|accuracy|physically accurate|scientifically validated|architectural(?:[- ]acoustics?)?)\b/i.test(
+  return /\b(?:heard|listen(?:ed|ing)?|audible|perceive(?:d|s|ing)?|realistic|lifelike|accurate|accuracy|physically accurate|scientifically validated|architectural(?:[- ]acoustics?)?)\b/i.test(
     value,
   );
 }
@@ -108,6 +108,18 @@ function isGroundedExplanation(candidate: AcousticExplanation, snapshot: Acousti
       isSafeModelText(value) && hasOnlyProjectedNumbers(value, snapshot) && !isUnsupportedClaim(value),
   );
 }
+
+function parseGroundedExplanation(
+  output: unknown,
+  snapshot: AcousticSnapshotProjection,
+): AcousticExplanation | null {
+  const parsed = explanationCandidateSchema.safeParse(output);
+  return parsed.success && isGroundedExplanation(parsed.data, snapshot) ? parsed.data : null;
+}
+
+const REPAIR_ERRORS = [
+  "The prior response failed grounding validation. Return a new explanation using only the provided projection facts and exact numeric values.",
+] as const;
 
 export function buildAcousticExplanationPrompt(request: ExplainAcousticsRequest): ExplainSchemaPrompt {
   return {
@@ -132,26 +144,37 @@ export async function explainAcoustics(
     return failure("The deterministic acoustic snapshot is invalid or contains non-finite values.");
   }
 
+  const schemaPrompt = buildAcousticExplanationPrompt(request);
   let output: unknown;
   try {
-    output = await dependencies.generateExplanation(buildAcousticExplanationPrompt(request));
+    output = await dependencies.generateExplanation(schemaPrompt);
   } catch (error) {
-    if (error instanceof SyntaxError) {
-      return failure("The explanation response was not valid structured data.");
+    if (!(error instanceof SyntaxError)) {
+      throw error;
     }
-    throw error;
   }
 
-  const parsed = explanationCandidateSchema.safeParse(output);
-  if (!parsed.success || !isGroundedExplanation(parsed.data, request.snapshot)) {
-    return failure("The explanation introduced unsupported content or measurements.");
+  let explanation = parseGroundedExplanation(output, request.snapshot);
+  if (!explanation) {
+    try {
+      output = await dependencies.generateExplanation(schemaPrompt, REPAIR_ERRORS);
+    } catch (error) {
+      if (!(error instanceof SyntaxError)) {
+        throw error;
+      }
+    }
+    explanation = parseGroundedExplanation(output, request.snapshot);
+  }
+
+  if (!explanation) {
+    return failure("The explanation introduced unsupported content or measurements after one repair attempt.");
   }
 
   return {
     ok: true,
     explanation: {
-      ...parsed.data,
-      limitations: [...new Set([...parsed.data.limitations, FIXED_PORTAL_LIMITATION])],
+      ...explanation,
+      limitations: [...new Set([...explanation.limitations, FIXED_PORTAL_LIMITATION])],
     },
     model: dependencies.model ?? ACOUSTIC_EXPLAINER_MODEL,
   };

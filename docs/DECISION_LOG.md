@@ -1,5 +1,22 @@
 # Decision Log
 
+## D-053 — Repair one rejected grounded explanation without weakening the boundary
+
+Decision (2026-07-21): Treat GPT explanation validation as a bounded two-attempt operation. If the
+first strict structured response fails schema, content, numeric-grounding, or supported-claim
+validation, issue exactly one repair request using a server-authored developer message. Accept only
+a response that passes the same unchanged boundary; otherwise return the existing typed failure.
+Numeric tokenization must ignore digits embedded in an alphanumeric acoustic term such as `RT60`,
+and the neutral noun `sound` is allowed, while invented values, attached/scientific/spelled-out
+measurements, URLs, markup, listening/perception claims, and accuracy claims remain rejected.
+
+Reason: Production showed the same finite snapshot returning 422 and then 200 on consecutive
+requests. The model's structured prose varies, but the endpoint had no repair path even though the
+project permits one validation repair. The numeric matcher could also parse the trailing `0` in
+`RT60` as an independent measurement, and the claim blacklist rejected neutral phrases such as
+"The sound follows the portal route." A single bounded repair preserves the strict control-plane
+boundary while removing stochastic user-facing failures caused by safe wording.
+
 ## D-052 — Add bounded second-order reflection to blocked Classic routes
 
 Decision (2026-07-21): Run deterministic ordered-pair image-source search in Classic 2.5D only
